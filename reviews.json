@@ -1,0 +1,521 @@
+{
+  "demo": true,
+  "reviews": [
+    {
+      "user": "darkpirobt951",
+      "text": "ilk alışverişimdi beklediğimden iyi çıktı, tekrar alırım"
+    },
+    {
+      "user": "turkfluxbt",
+      "text": "uzun süredir bakıyordum şu anlık sıkıntı yok, memnun kaldım"
+    },
+    {
+      "user": "vipbytelive3",
+      "text": "ilk alışverişimdi beklediğimden iyi çıktı, sorun yaşamadım"
+    },
+    {
+      "user": "fastzonex",
+      "text": "ilk başta güvenemedim ama hızlı teslim edildi, başarılı"
+    },
+    {
+      "user": "faststorm99959",
+      "text": "merak edip aldım gayet memnun kaldım, gayet iyi"
+    },
+    {
+      "user": "vipxenfps",
+      "text": "uzun süredir bakıyordum anlatıldığı gibi geldi, gayet iyi"
+    },
+    {
+      "user": "vipcraftlive752",
+      "text": "denemek için aldım beklediğimden iyi çıktı, güzel hizmet"
+    },
+    {
+      "user": "shadowcraftgg746",
+      "text": "ürünü aldım gayet memnun kaldım, sorun yaşamadım"
+    },
+    {
+      "user": "realfire01",
+      "text": "uzun süredir bakıyordum gayet iyi çalışıyor, gayet iyi"
+    },
+    {
+      "user": "babypiromod",
+      "text": "ürünü aldım gayet memnun kaldım, her şey düzgün"
+    },
+    {
+      "user": "ghoststormgg525",
+      "text": "merak edip aldım gayet memnun kaldım, tavsiye ederim"
+    },
+    {
+      "user": "fnlfirepro",
+      "text": "ilk alışverişimdi anlatıldığı gibi geldi, tekrar alırım"
+    },
+    {
+      "user": "viplynxyt10",
+      "text": "denemek için aldım gayet memnun kaldım, memnun kaldım"
+    },
+    {
+      "user": "fastnovax",
+      "text": "ilk başta güvenemedim ama gayet iyi çalışıyor, tekrar alırım"
+    },
+    {
+      "user": "fnlplayfps411",
+      "text": "ilk başta güvenemedim ama sorunsuz geldi, sorun yaşamadım"
+    },
+    {
+      "user": "vipbyteexe",
+      "text": "merak edip aldım anlatıldığı gibi geldi, başarılı"
+    },
+    {
+      "user": "babynovax64",
+      "text": "ürünü aldım gayet iyi çalışıyor, sorun yaşamadım"
+    },
+    {
+      "user": "ultraplayx",
+      "text": "arkadaş tavsiyesiyle aldım hızlı teslim edildi, gayet iyi"
+    },
+    {
+      "user": "fastedgebt",
+      "text": "arkadaş tavsiyesiyle aldım sorunsuz geldi, başarılı"
+    },
+    {
+      "user": "fnlcraftpro",
+      "text": "ilk başta güvenemedim ama hızlı teslim edildi, tekrar alırım"
+    },
+    {
+      "user": "turkfluxexe",
+      "text": "ürünü aldım beklediğimden iyi çıktı, başarılı"
+    },
+    {
+      "user": "hyperlynxpro",
+      "text": "ürünü aldım fiyatına göre iyi, sorun yaşamadım"
+    },
+    {
+      "user": "fastlynxexe831",
+      "text": "denemek için aldım sorunsuz geldi, memnun kaldım"
+    },
+    {
+      "user": "realstormtv",
+      "text": "ilk başta güvenemedim ama beklediğimden iyi çıktı, tavsiye ederim"
+    },
+    {
+      "user": "babycoregg889",
+      "text": "merak edip aldım gayet iyi çalışıyor, sorun yaşamadım"
+    },
+    {
+      "user": "neozonelive721",
+      "text": "ürünü aldım hızlı teslim edildi, gayet iyi"
+    },
+    {
+      "user": "kingtech01",
+      "text": "ürünü aldım hızlı teslim edildi, tavsiye ederim"
+    },
+    {
+      "user": "procore01",
+      "text": "ilk başta güvenemedim ama gayet memnun kaldım, güzel hizmet"
+    },
+    {
+      "user": "shadowstormgg595",
+      "text": "ilk alışverişimdi şu anlık sıkıntı yok, memnun kaldım"
+    },
+    {
+      "user": "darkcrafthd",
+      "text": "arkadaş tavsiyesiyle aldım sorunsuz geldi, her şey düzgün"
+    },
+    {
+      "user": "fastzonemod",
+      "text": "biraz tereddüt ettim ama sorunsuz geldi, tavsiye ederim"
+    },
+    {
+      "user": "probyte99217",
+      "text": "ilk başta güvenemedim ama hızlı teslim edildi, memnun kaldım"
+    },
+    {
+      "user": "kingfireexe",
+      "text": "arkadaş tavsiyesiyle aldım gayet iyi çalışıyor, memnun kaldım"
+    },
+    {
+      "user": "kingxengg",
+      "text": "arkadaş tavsiyesiyle aldım gayet iyi çalışıyor, gayet iyi"
+    },
+    {
+      "user": "babyedgeexe",
+      "text": "ilk alışverişimdi fiyatına göre iyi, sorun yaşamadım"
+    },
+    {
+      "user": "ultraxenfps",
+      "text": "ilk alışverişimdi beklediğimden iyi çıktı, güzel hizmet"
+    },
+    {
+      "user": "darknovaTR",
+      "text": "ürünü aldım beklediğimden iyi çıktı, her şey düzgün"
+    },
+    {
+      "user": "neocrafthd710",
+      "text": "ilk başta güvenemedim ama şu anlık sıkıntı yok, her şey düzgün"
+    },
+    {
+      "user": "shadowplaytv59",
+      "text": "arkadaş tavsiyesiyle aldım şu anlık sıkıntı yok, memnun kaldım"
+    },
+    {
+      "user": "vipfluxfps438",
+      "text": "denemek için aldım fiyatına göre iyi, başarılı"
+    },
+    {
+      "user": "fnlplaygg841",
+      "text": "ürünü aldım şu anlık sıkıntı yok, tekrar alırım"
+    },
+    {
+      "user": "shadowlynxpro315",
+      "text": "merak edip aldım gayet iyi çalışıyor, gayet iyi"
+    },
+    {
+      "user": "realcoregg",
+      "text": "uzun süredir bakıyordum sorunsuz geldi, tekrar alırım"
+    },
+    {
+      "user": "darknova99649",
+      "text": "ürünü aldım fiyatına göre iyi, her şey düzgün"
+    },
+    {
+      "user": "neocraftlive834",
+      "text": "ilk alışverişimdi şu anlık sıkıntı yok, tavsiye ederim"
+    },
+    {
+      "user": "proplay99",
+      "text": "ürünü aldım anlatıldığı gibi geldi, tekrar alırım"
+    },
+    {
+      "user": "neozoneTR473",
+      "text": "biraz tereddüt ettim ama sorunsuz geldi, memnun kaldım"
+    },
+    {
+      "user": "xpirogg445",
+      "text": "uzun süredir bakıyordum gayet iyi çalışıyor, gayet iyi"
+    },
+    {
+      "user": "neozonefps429",
+      "text": "uzun süredir bakıyordum şu anlık sıkıntı yok, tavsiye ederim"
+    },
+    {
+      "user": "fnlxengg",
+      "text": "ilk alışverişimdi sorunsuz geldi, gayet iyi"
+    },
+    {
+      "user": "neofiremod",
+      "text": "denemek için aldım fiyatına göre iyi, her şey düzgün"
+    },
+    {
+      "user": "ghostbyteTR",
+      "text": "ürünü aldım beklediğimden iyi çıktı, tavsiye ederim"
+    },
+    {
+      "user": "fastzonefps",
+      "text": "arkadaş tavsiyesiyle aldım beklediğimden iyi çıktı, güzel hizmet"
+    },
+    {
+      "user": "neopiroTR505",
+      "text": "biraz tereddüt ettim ama beklediğimden iyi çıktı, güzel hizmet"
+    },
+    {
+      "user": "hyperfluxlive204",
+      "text": "ürünü aldım fiyatına göre iyi, başarılı"
+    },
+    {
+      "user": "fastpirofps",
+      "text": "ürünü aldım hızlı teslim edildi, tekrar alırım"
+    },
+    {
+      "user": "xtechpro",
+      "text": "ürünü aldım fiyatına göre iyi, sorun yaşamadım"
+    },
+    {
+      "user": "shadowzonegg520",
+      "text": "ürünü aldım hızlı teslim edildi, tekrar alırım"
+    },
+    {
+      "user": "darklynxtv",
+      "text": "merak edip aldım hızlı teslim edildi, her şey düzgün"
+    },
+    {
+      "user": "shadowplaybt",
+      "text": "denemek için aldım sorunsuz geldi, tavsiye ederim"
+    },
+    {
+      "user": "shadowtechtv542",
+      "text": "arkadaş tavsiyesiyle aldım fiyatına göre iyi, güzel hizmet"
+    },
+    {
+      "user": "babyplaygg",
+      "text": "ürünü aldım şu anlık sıkıntı yok, güzel hizmet"
+    },
+    {
+      "user": "ultrazonex",
+      "text": "ilk alışverişimdi sorunsuz geldi, başarılı"
+    },
+    {
+      "user": "babylynxx189",
+      "text": "ilk alışverişimdi beklediğimden iyi çıktı, tavsiye ederim"
+    },
+    {
+      "user": "neopirofps984",
+      "text": "merak edip aldım gayet iyi çalışıyor, her şey düzgün"
+    },
+    {
+      "user": "hyperedgex",
+      "text": "denemek için aldım fiyatına göre iyi, güzel hizmet"
+    },
+    {
+      "user": "ghostcoreTR576",
+      "text": "ilk başta güvenemedim ama fiyatına göre iyi, tekrar alırım"
+    },
+    {
+      "user": "kingzone01",
+      "text": "biraz tereddüt ettim ama gayet memnun kaldım, tavsiye ederim"
+    },
+    {
+      "user": "xtechbt",
+      "text": "arkadaş tavsiyesiyle aldım beklediğimden iyi çıktı, her şey düzgün"
+    },
+    {
+      "user": "ghostfirefps795",
+      "text": "ilk alışverişimdi gayet iyi çalışıyor, sorun yaşamadım"
+    },
+    {
+      "user": "darklynxexe",
+      "text": "arkadaş tavsiyesiyle aldım şu anlık sıkıntı yok, memnun kaldım"
+    },
+    {
+      "user": "fnlcraftgg664",
+      "text": "ilk başta güvenemedim ama beklediğimden iyi çıktı, başarılı"
+    },
+    {
+      "user": "shadowlynxgg277",
+      "text": "ürünü aldım anlatıldığı gibi geldi, memnun kaldım"
+    },
+    {
+      "user": "hypernovazz",
+      "text": "ilk başta güvenemedim ama anlatıldığı gibi geldi, güzel hizmet"
+    },
+    {
+      "user": "turknova01",
+      "text": "ürünü aldım anlatıldığı gibi geldi, her şey düzgün"
+    },
+    {
+      "user": "turknovaexe282",
+      "text": "merak edip aldım gayet iyi çalışıyor, sorun yaşamadım"
+    },
+    {
+      "user": "realtechyt",
+      "text": "biraz tereddüt ettim ama gayet memnun kaldım, memnun kaldım"
+    },
+    {
+      "user": "probytegg161",
+      "text": "biraz tereddüt ettim ama şu anlık sıkıntı yok, gayet iyi"
+    },
+    {
+      "user": "fastnovagg470",
+      "text": "arkadaş tavsiyesiyle aldım hızlı teslim edildi, güzel hizmet"
+    },
+    {
+      "user": "ghostzoneyt",
+      "text": "merak edip aldım sorunsuz geldi, memnun kaldım"
+    },
+    {
+      "user": "fastlynxx",
+      "text": "ilk başta güvenemedim ama anlatıldığı gibi geldi, gayet iyi"
+    },
+    {
+      "user": "realcrafthd830",
+      "text": "biraz tereddüt ettim ama anlatıldığı gibi geldi, tavsiye ederim"
+    },
+    {
+      "user": "xfluxTR226",
+      "text": "ilk alışverişimdi gayet memnun kaldım, başarılı"
+    },
+    {
+      "user": "pronovafps",
+      "text": "biraz tereddüt ettim ama sorunsuz geldi, sorun yaşamadım"
+    },
+    {
+      "user": "ghostnova01402",
+      "text": "arkadaş tavsiyesiyle aldım gayet memnun kaldım, memnun kaldım"
+    },
+    {
+      "user": "hyperfireyt611",
+      "text": "merak edip aldım beklediğimden iyi çıktı, tavsiye ederim"
+    },
+    {
+      "user": "realtechmod",
+      "text": "biraz tereddüt ettim ama hızlı teslim edildi, başarılı"
+    },
+    {
+      "user": "shadowzonegg470",
+      "text": "denemek için aldım anlatıldığı gibi geldi, başarılı"
+    },
+    {
+      "user": "darkstormexe491",
+      "text": "denemek için aldım beklediğimden iyi çıktı, gayet iyi"
+    },
+    {
+      "user": "turkcoreTR",
+      "text": "ürünü aldım şu anlık sıkıntı yok, sorun yaşamadım"
+    },
+    {
+      "user": "xfirepro105",
+      "text": "ilk başta güvenemedim ama sorunsuz geldi, gayet iyi"
+    },
+    {
+      "user": "turkzoneyt88",
+      "text": "ilk alışverişimdi hızlı teslim edildi, güzel hizmet"
+    },
+    {
+      "user": "kingnovapro775",
+      "text": "merak edip aldım şu anlık sıkıntı yok, gayet iyi"
+    },
+    {
+      "user": "realstormbt497",
+      "text": "denemek için aldım gayet memnun kaldım, güzel hizmet"
+    },
+    {
+      "user": "ultratechgg846",
+      "text": "arkadaş tavsiyesiyle aldım fiyatına göre iyi, sorun yaşamadım"
+    },
+    {
+      "user": "realcore01",
+      "text": "ilk alışverişimdi gayet memnun kaldım, memnun kaldım"
+    },
+    {
+      "user": "shadowfluxhd",
+      "text": "ilk başta güvenemedim ama gayet iyi çalışıyor, her şey düzgün"
+    },
+    {
+      "user": "shadowzonebt",
+      "text": "ürünü aldım gayet memnun kaldım, sorun yaşamadım"
+    },
+    {
+      "user": "hypercore01",
+      "text": "biraz tereddüt ettim ama hızlı teslim edildi, memnun kaldım"
+    },
+    {
+      "user": "xzonezz",
+      "text": "merak edip aldım şu anlık sıkıntı yok, tavsiye ederim"
+    },
+    {
+      "user": "ghostpirolive",
+      "text": "merak edip aldım anlatıldığı gibi geldi, güzel hizmet"
+    },
+    {
+      "user": "fnlpirobt",
+      "text": "ürünü aldım gayet iyi çalışıyor, gayet iyi"
+    },
+    {
+      "user": "darknovagg360",
+      "text": "ürünü aldım gayet memnun kaldım, tavsiye ederim"
+    },
+    {
+      "user": "hypernovax",
+      "text": "ürünü aldım gayet iyi çalışıyor, her şey düzgün"
+    },
+    {
+      "user": "fastzoneyt",
+      "text": "arkadaş tavsiyesiyle aldım sorunsuz geldi, sorun yaşamadım"
+    },
+    {
+      "user": "turkplayhd",
+      "text": "ilk alışverişimdi anlatıldığı gibi geldi, başarılı"
+    },
+    {
+      "user": "ultrazonebt",
+      "text": "biraz tereddüt ettim ama şu anlık sıkıntı yok, tekrar alırım"
+    },
+    {
+      "user": "shadowplaytv598",
+      "text": "ilk alışverişimdi anlatıldığı gibi geldi, tekrar alırım"
+    },
+    {
+      "user": "xcraftpro735",
+      "text": "ilk alışverişimdi gayet memnun kaldım, tavsiye ederim"
+    },
+    {
+      "user": "vipzone99",
+      "text": "biraz tereddüt ettim ama hızlı teslim edildi, memnun kaldım"
+    },
+    {
+      "user": "fnlnovax7",
+      "text": "biraz tereddüt ettim ama fiyatına göre iyi, tekrar alırım"
+    },
+    {
+      "user": "fastzoneyt867",
+      "text": "arkadaş tavsiyesiyle aldım fiyatına göre iyi, başarılı"
+    },
+    {
+      "user": "vipxen01710",
+      "text": "ilk başta güvenemedim ama beklediğimden iyi çıktı, tavsiye ederim"
+    },
+    {
+      "user": "xedgebt145",
+      "text": "biraz tereddüt ettim ama anlatıldığı gibi geldi, başarılı"
+    },
+    {
+      "user": "xlynx99938",
+      "text": "merak edip aldım şu anlık sıkıntı yok, memnun kaldım"
+    },
+    {
+      "user": "vipbytemod",
+      "text": "ürünü aldım gayet memnun kaldım, tekrar alırım"
+    },
+    {
+      "user": "ultrafiremod195",
+      "text": "ilk alışverişimdi beklediğimden iyi çıktı, sorun yaşamadım"
+    },
+    {
+      "user": "realfiretv844",
+      "text": "uzun süredir bakıyordum anlatıldığı gibi geldi, her şey düzgün"
+    },
+    {
+      "user": "fnlzonegg925",
+      "text": "uzun süredir bakıyordum gayet iyi çalışıyor, başarılı"
+    },
+    {
+      "user": "fastnovax236",
+      "text": "denemek için aldım şu anlık sıkıntı yok, başarılı"
+    },
+    {
+      "user": "realfirelive289",
+      "text": "uzun süredir bakıyordum fiyatına göre iyi, gayet iyi"
+    },
+    {
+      "user": "turkcraftgg393",
+      "text": "biraz tereddüt ettim ama gayet iyi çalışıyor, gayet iyi"
+    },
+    {
+      "user": "babyfluxgg749",
+      "text": "uzun süredir bakıyordum fiyatına göre iyi, memnun kaldım"
+    },
+    {
+      "user": "fnlxenexe",
+      "text": "uzun süredir bakıyordum beklediğimden iyi çıktı, her şey düzgün"
+    },
+    {
+      "user": "proxenx",
+      "text": "ilk alışverişimdi hızlı teslim edildi, güzel hizmet"
+    },
+    {
+      "user": "darknovatv",
+      "text": "ilk alışverişimdi beklediğimden iyi çıktı, tavsiye ederim"
+    },
+    {
+      "user": "fastedgezz",
+      "text": "biraz tereddüt ettim ama şu anlık sıkıntı yok, başarılı"
+    },
+    {
+      "user": "kingbytebt667",
+      "text": "ilk başta güvenemedim ama anlatıldığı gibi geldi, gayet iyi"
+    },
+    {
+      "user": "shadowbytegg",
+      "text": "arkadaş tavsiyesiyle aldım sorunsuz geldi, gayet iyi"
+    }
+  ]
+}

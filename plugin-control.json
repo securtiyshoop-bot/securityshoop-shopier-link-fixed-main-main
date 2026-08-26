@@ -1,0 +1,15 @@
+{
+  "control": {
+    "maintenance_mode": false,
+    "add_game_enabled": true,
+    "account_required": true,
+    "force_update": false,
+    "latest_version": "8.5.2",
+    "update_url": "/securityshoop-plugin.zip",
+    "notice_title": "SecurityShoop",
+    "notice_message": "",
+    "support_url": "https://www.instagram.com/securityshoop/?hl=tr",
+    "updated_by": "",
+    "updated_at": ""
+  }
+}

@@ -1,0 +1,2082 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecurityShoop - Dijital Ürün Mağazası</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    :root {
+      --green: #00e676;
+      --green-dim: rgba(0,230,118,0.1);
+      --green-glow: rgba(0,230,118,0.3);
+      --cyan: #00e5ff;
+      --bg: #080b0f;
+      --surface: rgba(255,255,255,0.03);
+      --border: rgba(255,255,255,0.07);
+      --muted: rgba(255,255,255,0.45);
+      --text: #ffffff;
+      --header-bg: rgba(8,11,15,.88);
+      --premium: linear-gradient(135deg,rgba(0,230,118,.16),rgba(0,229,255,.1));
+    }
+    body[data-theme="light"] {
+      --green:#0fbf74; --green-dim:rgba(15,191,116,.11); --green-glow:rgba(15,191,116,.28);
+      --cyan:#087ea4; --bg:#f5f8fb; --surface:rgba(255,255,255,.78); --border:rgba(15,23,42,.12); --muted:rgba(15,23,42,.58); --text:#0f172a; --header-bg:rgba(255,255,255,.9);
+      --premium:linear-gradient(135deg,rgba(15,191,116,.12),rgba(8,126,164,.08));
+    }
+    body[data-theme="midnight"] {
+      --green:#69f0ae; --green-dim:rgba(105,240,174,.1); --cyan:#6ee7f9; --bg:#050711; --surface:rgba(255,255,255,.035); --border:rgba(255,255,255,.09); --muted:rgba(255,255,255,.52); --text:#f8fbff; --header-bg:rgba(5,7,17,.9);
+      --premium:linear-gradient(135deg,rgba(105,240,174,.12),rgba(110,231,249,.1));
+    }
+    body[data-theme="royal"] {
+      --green:#ffce54; --green-dim:rgba(255,206,84,.11); --green-glow:rgba(255,206,84,.25); --cyan:#78dbff; --bg:#09080f; --surface:rgba(255,255,255,.04); --border:rgba(255,255,255,.1); --muted:rgba(255,255,255,.55); --text:#fff8e7; --header-bg:rgba(9,8,15,.9);
+      --premium:linear-gradient(135deg,rgba(255,206,84,.16),rgba(120,219,255,.08));
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); overflow-x: hidden; cursor: auto; transition:background .35s ease,color .35s ease; }
+    h1,h2,h3,.syne { font-family: 'Syne', sans-serif; }
+
+    /* CURSOR */
+    #cur { position:fixed; width:16px; height:16px; background:url('/logo.jpeg') center/cover no-repeat; border-radius:8px; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); box-shadow:0 0 18px var(--green-glow); transition:width .2s,height .2s,opacity .2s; }
+    #cur-r { position:fixed; width:38px; height:38px; border:1px solid rgba(0,230,118,.45); border-radius:50%; pointer-events:none; z-index:9998; transform:translate(-50%,-50%); transition:transform .16s ease,width .25s,height .25s,border-color .25s; }
+
+    /* BG */
+    .orb { position:fixed; border-radius:50%; filter:blur(100px); pointer-events:none; z-index:0; animation:drift 20s ease-in-out infinite; }
+    .o1 { width:600px;height:600px;top:-200px;left:-150px;background:radial-gradient(circle,rgba(0,230,118,.07),transparent 70%); }
+    .o2 { width:500px;height:500px;top:20%;right:-200px;background:radial-gradient(circle,rgba(0,229,255,.05),transparent 70%);animation-delay:-8s; }
+    .o3 { width:400px;height:400px;bottom:5%;left:10%;background:radial-gradient(circle,rgba(103,58,183,.05),transparent 70%);animation-delay:-14s; }
+    @keyframes drift { 0%,100%{transform:translate(0,0)} 33%{transform:translate(30px,-40px)} 66%{transform:translate(-20px,25px)} }
+
+    .hgrid { position:fixed;inset:0;z-index:0;pointer-events:none;
+      background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+      background-size:48px 48px; }
+
+    /* GLASS */
+    .glass { background:var(--surface); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--border); }
+    .glass-s { background:rgba(255,255,255,.045); backdrop-filter:blur(32px); -webkit-backdrop-filter:blur(32px); border:1px solid rgba(255,255,255,.09); }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+    @keyframes scan { 0%{top:0} 100%{top:100%} }
+    @keyframes pulseRing { 0%,100%{box-shadow:0 0 0 0 var(--green-glow)} 50%{box-shadow:0 0 0 10px transparent} }
+
+    .anim { opacity:0; animation:fadeUp .8s ease forwards; }
+    .d1{animation-delay:.1s} .d2{animation-delay:.2s} .d3{animation-delay:.3s}
+    .d4{animation-delay:.4s} .d5{animation-delay:.55s} .d6{animation-delay:.7s}
+    .float { animation:float 6s ease-in-out infinite; }
+
+    .shimmer-text {
+      background:linear-gradient(90deg,#fff 0%,var(--green) 30%,var(--cyan) 60%,#fff 100%);
+      background-size:200% auto; -webkit-background-clip:text; background-clip:text;
+      -webkit-text-fill-color:transparent; animation:shimmer 4s linear infinite;
+    }
+
+    /* BADGE */
+    .badge-live { display:inline-flex;align-items:center;gap:6px; border:1px solid rgba(0,230,118,.22);background:rgba(0,230,118,.08);color:#7dffc0; border-radius:999px;padding:5px 13px;font-size:11px;font-weight:600;letter-spacing:.04em; }
+    .badge-live .dot { width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulseRing 2s ease infinite; }
+
+    /* BUTTONS */
+    .btn { display:inline-flex;align-items:center;gap:7px;border-radius:13px;padding:13px 26px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;border:none;transition:transform .2s,box-shadow .2s; }
+    .btn-g { background:var(--green);color:#000; }
+    .btn-g:hover { transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,230,118,.35); }
+    .btn-ig { background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff; }
+    .btn-ig:hover { transform:translateY(-2px);box-shadow:0 12px 30px rgba(220,39,67,.3); }
+    .btn-o { background:transparent;color:#fff;border:1px solid var(--border); }
+    .btn-o:hover { background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.18); }
+
+    /* CARDS */
+    .gc { position:relative;transition:transform .3s,box-shadow .3s; }
+    .gc::before { content:'';position:absolute;inset:-1px;border-radius:inherit;background:linear-gradient(135deg,rgba(0,230,118,.13),transparent 50%,rgba(0,229,255,.07));opacity:0;transition:opacity .3s;z-index:-1; }
+    .gc:hover::before { opacity:1; }
+    .gc:hover { transform:translateY(-5px);box-shadow:0 20px 50px rgba(0,230,118,.07); }
+
+    /* TERMINAL */
+    .term { background:#0d1117;border:1px solid rgba(0,230,118,.13);border-radius:20px;overflow:hidden;position:relative; }
+    .term-bar { background:#161b22;padding:11px 16px;display:flex;align-items:center;gap:7px;border-bottom:1px solid rgba(255,255,255,.05); }
+    .td { width:10px;height:10px;border-radius:50%; }
+    .t-scan { position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,230,118,.5),transparent);animation:scan 3.5s linear infinite;pointer-events:none; }
+
+    /* STAT */
+    .stat { border-radius:16px;padding:18px;position:relative;overflow:hidden; }
+    .stat::before { content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:.35; }
+
+    /* SECTION LABEL */
+    .slabel { font-size:11px;font-weight:700;letter-spacing:.15em;color:rgba(0,230,118,.7);text-transform:uppercase;display:flex;align-items:center;gap:8px; }
+    .slabel::before { content:'';display:block;width:22px;height:1px;background:var(--green);opacity:.6; }
+
+    /* NAV LINKS */
+    .nl { position:relative;color:var(--muted);font-size:13px;font-weight:500;transition:color .2s;cursor:pointer; }
+    .nl::after { content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--green);transition:width .25s; }
+    .nl:hover { color:#fff; } .nl:hover::after { width:100%; }
+
+    /* URGENCY */
+    .ubadge { display:inline-flex;align-items:center;gap:5px;border-radius:10px;padding:7px 13px;font-size:12px;font-weight:700; }
+
+    /* STEPS */
+    .step-n { width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;flex-shrink:0; }
+
+    /* FAQ */
+    .fi { border-bottom:1px solid var(--border); }
+    .fq { width:100%;text-align:left;padding:18px 0;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:color .2s; }
+    .fq:hover { color:var(--green); }
+    .ficon { width:22px;height:22px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:transform .3s,background .3s; }
+    .fa { max-height:0;overflow:hidden;transition:max-height .4s ease,padding .3s;color:var(--muted);font-size:13px;line-height:1.7; }
+    .fi.open .fa { max-height:180px;padding-bottom:16px; }
+    .fi.open .ficon { transform:rotate(45deg);background:var(--green-dim);border-color:rgba(0,230,118,.3); }
+
+    /* MODAL */
+    .mo { position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:16px; }
+    .mo.active { display:flex;animation:fadeIn .2s ease; }
+    .mb { width:100%;max-width:400px;background:#0d1117;border:1px solid rgba(255,255,255,.1);border-radius:22px;overflow:hidden;animation:fadeUp .3s ease; }
+    .tab { flex:1;padding:11px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;border-radius:9px;transition:background .2s,color .2s;cursor:pointer; }
+    .tab.on { background:var(--green);color:#000; }
+    .tab:not(.on) { color:var(--muted); }
+    .fi2 { width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:11px;padding:11px 15px;color:#fff;font-size:14px;outline:none;transition:border-color .2s;font-family:'DM Sans',sans-serif; }
+    .fi2:focus { border-color:rgba(0,230,118,.4); }
+    .fi2::placeholder { color:var(--muted); }
+
+    /* ADMIN COCKPIT */
+    .admin-shell { position:relative;overflow:hidden;border-radius:22px;padding:clamp(20px,3vw,32px);background:linear-gradient(145deg,rgba(9,14,22,.94),rgba(12,18,27,.78));border:1px solid rgba(255,255,255,.09);box-shadow:0 28px 90px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.05); }
+    .admin-shell::before { content:'';position:absolute;left:24px;right:24px;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),var(--cyan),transparent);opacity:.7; }
+    .admin-hero { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;margin-bottom:18px; }
+    .admin-card { background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px; }
+    .admin-card-title { font-family:'Syne',sans-serif;font-weight:800;margin-bottom:10px;letter-spacing:0; }
+    .admin-kicker { color:rgba(0,230,118,.78);font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase; }
+    .admin-live { display:inline-flex;align-items:center;gap:8px;border-radius:999px;border:1px solid rgba(0,230,118,.18);background:rgba(0,230,118,.07);color:#9effcf;padding:9px 12px;font-size:12px;font-weight:800;white-space:nowrap; }
+    .admin-live::before { content:'';width:7px;height:7px;border-radius:999px;background:var(--green);box-shadow:0 0 16px rgba(0,230,118,.8); }
+    .admin-stat-card { border-radius:16px;padding:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);min-height:98px;display:flex;flex-direction:column;justify-content:space-between; }
+    .admin-stat-card .ico { width:34px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.16); }
+    .admin-section-head { display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px; }
+    .admin-panel-table { border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.16); }
+    .admin-actions-bar { background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px; }
+    .admin-shell .glass { background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.08);border-radius:16px; }
+    .admin-shell .btn { border-radius:11px; }
+    .admin-mobile-panel { display:grid;gap:12px; }
+    .admin-mobile-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px; }
+    .admin-mobile-card { border-radius:16px;padding:15px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);min-height:108px;display:flex;flex-direction:column;justify-content:space-between; }
+    .admin-mobile-card strong { font-family:'Syne',sans-serif;font-size:24px;line-height:1;letter-spacing:0; }
+    .license-package-grid { display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px; }
+    .license-package-card { text-align:left;border-radius:14px;padding:13px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);color:var(--text);cursor:pointer;transition:border-color .2s,background .2s; }
+    .license-package-card:hover { border-color:rgba(0,230,118,.28);background:rgba(0,230,118,.055); }
+    .license-package-card .pkg-name { font-family:'Syne',sans-serif;font-weight:800;font-size:14px; }
+    .license-package-card .pkg-meta { font-size:11px;color:var(--muted);line-height:1.45;margin-top:4px; }
+    #adminStatsGrid { grid-template-columns:repeat(auto-fit,minmax(138px,1fr)); }
+    .admin-stat-card { min-height:76px;padding:12px;border-radius:12px; }
+    .admin-stat-card .ico { width:28px;height:28px;border-radius:9px;font-size:12px; }
+    .admin-stat-card .text-3xl { font-size:1.35rem!important;line-height:1.1; }
+    @media (max-width: 760px) { .admin-hero { grid-template-columns:1fr; } .admin-section-head { align-items:flex-start;flex-direction:column; } }
+    @media (max-width: 980px) { .admin-mobile-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .license-package-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width: 560px) { .admin-mobile-grid,.license-package-grid { grid-template-columns:1fr; } .admin-actions-bar .fi2,.admin-actions-bar .btn { max-width:none!important;width:100%; } }
+
+    /* REVIEW CARD */
+    .rc { border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.02);padding:14px;transition:border-color .2s; }
+    .rc:hover { border-color:rgba(0,230,118,.2); }
+
+    /* PREMIUM SITE UI */
+    .site-utility { border-top:1px solid var(--border);background:var(--header-bg); }
+    .utility-chip { display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:7px 11px;font-size:11px;font-weight:800;color:var(--muted);white-space:nowrap; }
+    .utility-chip i { color:var(--green); }
+    .theme-switch { display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface);padding:4px;border-radius:999px; }
+    .theme-dot { width:28px;height:28px;border-radius:999px;border:1px solid transparent;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;transition:background .2s,border-color .2s,color .2s; }
+    .theme-dot:hover,.theme-dot.active { background:var(--green-dim);border-color:rgba(0,230,118,.3);color:var(--green); }
+    .hero-pulse-line { position:relative;overflow:hidden;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.035);padding:9px 13px;display:inline-flex;align-items:center;gap:9px;color:var(--muted);font-size:12px;font-weight:800; }
+    .hero-pulse-line:after { content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(0,230,118,.16),transparent);animation:sshopSweep 4.8s linear infinite; }
+    .hero-feature-strip { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:28px;max-width:620px; }
+    .hero-feature { border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:16px;padding:13px;min-height:86px;position:relative;overflow:hidden; }
+    .hero-feature i { color:var(--green);font-size:15px;margin-bottom:9px; }
+    .hero-feature strong { display:block;font-size:13px;line-height:1.25; }
+    .hero-feature span { display:block;font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35; }
+    .public-license-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px; }
+    .public-license-card { position:relative;overflow:hidden;border-radius:18px;border:1px solid var(--border);background:rgba(255,255,255,.035);min-height:390px;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.18);transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease; }
+    .public-license-card:hover { transform:translateY(-4px);border-color:rgba(0,230,118,.26);box-shadow:0 24px 70px rgba(0,230,118,.08); }
+    .public-license-card.is-random { border-color:rgba(0,229,255,.24);box-shadow:0 18px 56px rgba(0,229,255,.06); }
+    .public-license-card.is-unlimited { border-color:rgba(255,213,74,.3);box-shadow:0 18px 58px rgba(255,213,74,.07); }
+    .public-license-img { aspect-ratio:16/9;height:auto;width:100%;object-fit:cover;display:block;filter:saturate(1.13) contrast(1.05); }
+    .public-license-body { padding:16px;display:flex;flex-direction:column;gap:12px;flex:1; }
+    .public-license-badge { position:absolute;top:12px;left:12px;border-radius:999px;background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:10px;font-weight:900;padding:6px 9px;backdrop-filter:blur(12px); }
+    .public-license-price { font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--green); }
+    .public-license-features { display:grid;gap:7px;margin-top:auto; }
+    .public-license-feature { display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted); }
+    .public-license-feature i { color:var(--green);font-size:11px; }
+    .premium-band { background:var(--premium);border:1px solid rgba(0,230,118,.12);border-radius:24px; }
+    .ss-support-launcher { position:fixed;right:18px;bottom:82px;z-index:45;width:52px;height:52px;border-radius:18px;border:1px solid rgba(0,230,118,.28);background:rgba(8,11,15,.78);box-shadow:0 18px 45px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(16px); }
+    .ss-support-launcher img { width:32px;height:32px;border-radius:10px;object-fit:cover; }
+    .ai-chat-launcher { position:fixed;left:18px;bottom:22px;z-index:46;border:1px solid rgba(0,229,255,.28);background:linear-gradient(135deg,rgba(0,229,255,.14),rgba(0,230,118,.12));color:var(--text);box-shadow:0 18px 45px rgba(0,0,0,.34);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:900;backdrop-filter:blur(16px); }
+    .ai-chat-launcher i { color:var(--cyan); }
+    .ai-chat-panel { position:fixed;left:18px;bottom:82px;z-index:80;width:min(390px,calc(100vw - 36px));max-height:min(580px,calc(100vh - 116px));display:none;flex-direction:column;overflow:hidden;border:1px solid rgba(0,229,255,.22);background:linear-gradient(145deg,rgba(9,14,22,.98),rgba(12,18,27,.94));box-shadow:0 30px 90px rgba(0,0,0,.46);border-radius:18px;backdrop-filter:blur(24px); }
+    .ai-chat-panel.open { display:flex; }
+    .ai-chat-head { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 15px;border-bottom:1px solid var(--border); }
+    .ai-chat-title { display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:800;font-size:14px; }
+    .ai-chat-title i { color:var(--cyan); }
+    .ai-chat-close { width:30px;height:30px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);display:flex;align-items:center;justify-content:center; }
+    .ai-chat-messages { padding:14px;display:grid;gap:10px;overflow-y:auto;min-height:260px; }
+    .ai-msg { max-width:88%;border:1px solid var(--border);border-radius:14px;padding:10px 11px;font-size:12px;line-height:1.55;color:var(--text);white-space:pre-wrap; }
+    .ai-msg.user { justify-self:end;background:var(--green-dim);border-color:rgba(0,230,118,.2); }
+    .ai-msg.assistant { justify-self:start;background:rgba(255,255,255,.035); }
+    .ai-chat-form { display:flex;gap:8px;padding:13px;border-top:1px solid var(--border); }
+    .ai-chat-input { flex:1;min-width:0;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);border-radius:12px;padding:11px 12px;font-size:13px;outline:none; }
+    .ai-chat-send { width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--green);color:#061008;font-weight:900; }
+    body[data-theme="light"] .term, body[data-theme="light"] .mb { background:#fff;color:var(--text); }
+    body[data-theme="light"] .glass, body[data-theme="light"] .glass-s, body[data-theme="light"] .admin-shell { box-shadow:0 18px 55px rgba(15,23,42,.08); }
+    body[data-theme="light"] .btn-o { color:var(--text);background:rgba(255,255,255,.45); }
+    @keyframes sshopSweep { to { transform:translateX(100%); } }
+    @media (max-width:1180px) { .public-license-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:760px) { .public-license-grid,.hero-feature-strip { grid-template-columns:1fr; } .site-utility .mx-auto { align-items:flex-start; } #cur,#cur-r { display:none; } .ai-chat-launcher { left:14px;bottom:16px; } .ai-chat-panel { left:14px;bottom:74px;width:calc(100vw - 28px); } }
+
+    /* TOAST */
+    #toast { position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0d1117;border:1px solid rgba(0,230,118,.3);color:#7dffc0;padding:11px 22px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;z-index:200;white-space:nowrap; }
+    #toast.show { opacity:1;transform:translateX(-50%) translateY(-4px); }
+
+    /* SCROLL REVEAL */
+    .rv { opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease; }
+    .rv.vis { opacity:1;transform:none; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-thumb { background:rgba(0,230,118,.25);border-radius:4px; }
+
+    /* MOBILE */
+    #mmenu { display:none; }
+    #mmenu.open { display:flex; }
+  </style>
+</head>
+<body>
+  <div id="cur"></div>
+  <div id="cur-r"></div>
+  <div class="hgrid"></div>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <div id="toast"></div>
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-50" style="background:var(--header-bg);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-bottom:1px solid var(--border)">
+    <div class="mx-auto max-w-7xl px-5 sm:px-8 flex items-center justify-between" style="height:64px">
+      <a href="#" class="flex items-center gap-3">
+        <img src="/logo.jpeg" alt="SecurityShoop" class="h-9 w-9 rounded-xl object-cover" />
+        <div>
+          <div class="syne font-800 text-[15px] tracking-tight">SecurityShoop</div>
+          <div style="font-size:10px;color:var(--muted)">Dijital ürün mağazası</div>
+        </div>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-7">
+        <a href="#urunler" class="nl">Ürünler</a>
+        <a href="#lisanslar" class="nl">Lisanslar</a>
+        <a href="#nedenbiz" class="nl">Neden Biz</a>
+        <a href="#erisim" class="nl">Erişim</a>
+        <a href="#yorumlar" class="nl">Yorumlar</a>
+        <a href="#sss" class="nl">SSS</a>
+        <a href="#iletisim" class="nl">İletişim</a>
+        <a href="#accountPanel" id="accountMenuLink" class="nl hidden" style="color:rgba(125,255,192,.85)">Hesabım</a>
+        <a href="#adminPanel" id="adminMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">Admin</a>
+        <a href="/app-keys-admin.html" id="appKeysMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">App Key</a>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        <div class="theme-switch hidden lg:flex" aria-label="Tema seçimi">
+          <button type="button" class="theme-dot" data-site-theme="dark" title="Karanlık"><i class="fa-solid fa-moon"></i></button>
+          <button type="button" class="theme-dot" data-site-theme="light" title="Aydınlık"><i class="fa-solid fa-sun"></i></button>
+          <button type="button" class="theme-dot" data-site-theme="midnight" title="Gece"><i class="fa-solid fa-star"></i></button>
+          <button type="button" class="theme-dot" data-site-theme="royal" title="Royal"><i class="fa-solid fa-gem"></i></button>
+        </div>
+        <span id="welcomeUser" class="hidden text-xs px-3 py-1.5 rounded-xl" style="background:var(--green-dim);color:#7dffc0;border:1px solid rgba(0,230,118,.2)"></span>
+        <button id="loginOpenBtn" class="btn btn-o px-4 py-2 text-sm">Giriş</button>
+        <button id="registerOpenBtn" class="btn btn-g px-4 py-2 text-sm">Kayıt Ol</button>
+        <button id="logoutBtn" class="hidden btn btn-o px-4 py-2 text-sm">Çıkış</button>
+        <button id="mmbtn" class="md:hidden ml-1 p-2" style="color:var(--muted)">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="mmenu" class="flex-col md:hidden px-5 py-4 gap-3.5" style="border-top:1px solid var(--border);background:rgba(8,11,15,.97)">
+      <a href="#urunler" class="nl text-base">Ürünler</a>
+      <a href="#lisanslar" class="nl text-base">Lisanslar</a>
+      <a href="#nedenbiz" class="nl text-base">Neden Biz</a>
+      <a href="#erisim" class="nl text-base">Erişim</a>
+      <a href="#yorumlar" class="nl text-base">Yorumlar</a>
+      <a href="#sss" class="nl text-base">SSS</a>
+      <a href="#iletisim" class="nl text-base">İletişim</a>
+      <a href="#accountPanel" id="accountMenuLinkMobile" class="nl text-base hidden">Hesabım</a>
+    </div>
+    <div class="site-utility">
+      <div class="mx-auto max-w-7xl px-5 sm:px-8 py-2 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="utility-chip"><i class="fa-regular fa-clock"></i><span id="publicClock">Saat alınıyor</span></span>
+          <span class="utility-chip"><i class="fa-solid fa-cloud-sun"></i><span id="publicWeather">Hava durumu hazırlanıyor</span></span>
+          <span class="utility-chip"><i class="fa-solid fa-mosque"></i><span id="publicPrayer">Ezan vakitleri hazırlanıyor</span></span>
+        </div>
+        <div class="theme-switch lg:hidden" aria-label="Tema seçimi mobil">
+          <button type="button" class="theme-dot" data-site-theme="dark" title="Karanlık"><i class="fa-solid fa-moon"></i></button>
+          <button type="button" class="theme-dot" data-site-theme="light" title="Aydınlık"><i class="fa-solid fa-sun"></i></button>
+          <button type="button" class="theme-dot" data-site-theme="midnight" title="Gece"><i class="fa-solid fa-star"></i></button>
+          <button type="button" class="theme-dot" data-site-theme="royal" title="Royal"><i class="fa-solid fa-gem"></i></button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative z-10">
+
+    <!-- HERO -->
+    <section class="mx-auto max-w-7xl px-5 sm:px-8 pt-24 pb-20">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <div>
+          <div class="hero-pulse-line mb-8 anim d1"><span class="dot"></span>SecurityShoop oyun ekleme sistemi aktif</div>
+          <h1 class="syne font-800 leading-[1.02] tracking-tight anim d2" style="font-size:clamp(2.55rem,5.6vw,4.45rem)">
+            SecurityShoop<br/>
+            <span class="shimmer-text">oyun ekleme sistemine hoşgeldiniz</span>
+          </h1>
+          <p class="mt-6 text-[15px] leading-7 anim d3" style="color:var(--muted);max-width:460px">
+            Hesabına tanımlanan lisansla izinli oyunları sıraya al, durumunu takip et ve plugin üzerinden yönet. Paketler oyun ekleme hakkına göre düzenlenir.
+          </p>
+          <div class="hero-feature-strip anim d4">
+            <div class="hero-feature"><i class="fa-solid fa-layer-group"></i><strong>Oyun ekleme kuyruğu</strong><span>Seçilen oyunlar sırayla işlenir.</span></div>
+            <div class="hero-feature"><i class="fa-solid fa-shield-halved"></i><strong>Lisans kontrolü</strong><span>Hesap, cihaz ve hak yönetimi tek merkezde.</span></div>
+            <div class="hero-feature"><i class="fa-solid fa-wand-magic-sparkles"></i><strong>Rastgele oyun lisansı</strong><span>Sistem seçsin, sen sonucu takip et.</span></div>
+          </div>
+          <div class="flex flex-wrap gap-3 mt-8 anim d5">
+            <a href="#lisanslar" class="btn btn-g">
+              <i class="fa-solid fa-ticket"></i>
+              Lisans Paketlerini Gör
+            </a>
+            <a href="https://www.instagram.com/securityshoop/?hl=tr" target="_blank" class="btn btn-ig">
+              <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+              Instagram DM
+            </a>
+          </div>
+        </div>
+
+        <!-- TERMINAL CARD -->
+        <div class="anim d4 float">
+          <div class="term shadow-2xl">
+            <div class="t-scan"></div>
+            <div class="term-bar">
+              <div class="td" style="background:#ff5f57"></div>
+              <div class="td" style="background:#febc2e"></div>
+              <div class="td" style="background:#28c840"></div>
+              <span class="ml-3 text-xs" style="font-family:monospace;color:var(--muted)">securityshoop - oyun ekleme akışı</span>
+              <div class="ml-auto badge-live" style="font-size:10px;padding:3px 10px"><span class="dot"></span>Aktif</div>
+            </div>
+            <div class="p-5">
+              <div class="grid grid-cols-3 gap-3 mb-5">
+                <div class="stat" style="background:var(--green-dim);border:1px solid rgba(0,230,118,.15)">
+                  <div style="font-size:9px;font-weight:700;letter-spacing:.15em;color:rgba(0,230,118,.6);text-transform:uppercase;margin-bottom:8px">Online</div>
+                  <div id="onlineC" class="syne font-800 text-2xl" style="color:var(--green)">9</div>
+                  <div style="font-size:10px;margin-top:4px;color:var(--muted)">plugin oturumu</div>
+                </div>
+                <div class="stat" style="background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.15)">
+                  <div style="font-size:9px;font-weight:700;letter-spacing:.15em;color:rgba(0,229,255,.6);text-transform:uppercase;margin-bottom:8px">Toplam</div>
+                  <div id="totalC" class="syne font-800 text-2xl" style="color:var(--cyan)">248</div>
+                  <div style="font-size:10px;margin-top:4px;color:var(--muted)">oyun ekleme</div>
+                </div>
+                <div class="stat glass">
+                  <div style="font-size:9px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Bugün</div>
+                  <div id="todayC" class="syne font-800 text-2xl">5</div>
+                  <div style="font-size:10px;margin-top:4px;color:var(--muted)">sırada</div>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-3 rounded-xl p-3" style="background:rgba(255,255,255,.03);border:1px solid var(--border)">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--green-dim)">
+                    <svg width="13" height="13" fill="none" stroke="var(--green)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <div><div style="font-size:12px;font-weight:600">Sıralı Oyun Ekleme</div><div style="font-size:10px;color:var(--muted)">Bekliyor, indiriliyor, tamamlandı akışı</div></div>
+                </div>
+                <div class="flex items-center gap-3 rounded-xl p-3" style="background:rgba(255,255,255,.03);border:1px solid var(--border)">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(0,229,255,.08)">
+                    <svg width="13" height="13" fill="none" stroke="var(--cyan)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <div><div style="font-size:12px;font-weight:600">Hesap Lisans Paneli</div><div style="font-size:10px;color:var(--muted)">Hak, cihaz ve AppID kontrolü</div></div>
+                </div>
+                <div class="flex items-center gap-3 rounded-xl p-3" style="background:rgba(255,255,255,.03);border:1px solid var(--border)">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:rgba(103,58,183,.12)">
+                    <svg width="13" height="13" fill="none" stroke="#b39ddb" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+                  </div>
+                  <div><div style="font-size:12px;font-weight:600">Rastgele Oyun Modu</div><div style="font-size:10px;color:var(--muted)">Lisans seç, sistem havuzdan eklesin</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PUBLIC LICENSE PACKAGES -->
+    <section id="lisanslar" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="premium-band p-6 md:p-8">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-7">
+          <div>
+            <div class="slabel mb-4">Premium Lisans</div>
+            <h2 class="syne text-3xl md:text-4xl font-800">Lisans paketleri</h2>
+            <p class="text-sm leading-6 mt-3 max-w-2xl" style="color:var(--muted)">Her paket hesabına oyun ekleme hakkı tanımlar. İstersen belirli AppID seç, istersen rastgele oyun lisansıyla sistemi serbest bırak.</p>
+          </div>
+          <span class="badge-live"><span class="dot"></span>Admin onaylı aktivasyon</span>
+        </div>
+        <div id="publicLicenseGrid" class="public-license-grid">
+          <div class="glass rounded-2xl p-5 text-sm" style="color:var(--muted)">Lisans paketleri yükleniyor.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="paket-karsilastirma" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7"><div><div class="slabel mb-3">Karşılaştır</div><h2 class="syne text-3xl font-800">Sana uygun paketi seç</h2></div><div class="flex gap-2"><input id="publicCouponCode" class="fi2" style="max-width:190px" placeholder="Kupon kodu" /><button id="validateCouponBtn" class="btn btn-o px-4 py-2 text-sm">Kuponu Kontrol Et</button></div></div>
+      <p id="publicCouponMessage" class="text-xs mb-4" style="color:var(--muted)"></p>
+      <div class="overflow-x-auto glass rounded-2xl"><table class="w-full text-sm"><thead><tr style="color:var(--muted)"><th class="p-4 text-left">Paket</th><th class="p-4 text-left">Oyun hakkı</th><th class="p-4 text-left">Lisans</th><th class="p-4 text-left">Fiyat</th><th class="p-4"></th></tr></thead><tbody id="licenseCompareBody"></tbody></table></div>
+    </section>
+
+    <section id="durum" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="flex items-end justify-between gap-4 mb-6"><div><div class="slabel mb-3">Canlı Durum</div><h2 class="syne text-3xl font-800">Sistem durumu</h2></div><span id="statusCheckedAt" class="text-xs" style="color:var(--muted)">Kontrol ediliyor</span></div>
+      <div id="publicStatusGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section id="accountPanel" class="hidden mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="admin-shell mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+          <div>
+            <div class="slabel mb-3">Hesabım</div>
+            <h2 class="syne text-2xl md:text-3xl font-800">SecurityShoop Hesap Merkezi</h2>
+            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Lisans, cihaz, sipariş ve plugin erişim bilgilerin burada.</p>
+          </div>
+          <a id="accountDownloadBtn" href="/securityshoop-plugin.zip" class="btn btn-g px-5 py-2.5 text-sm">Plugin İndir</a>
+        </div>
+        <div id="accountStatsGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Siparişler</div>
+            <div id="accountOrdersList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Cihaz / HWID</div>
+            <div id="accountDeviceBox" class="space-y-3"></div>
+            <textarea id="deviceResetReason" rows="3" class="fi2 resize-none mt-3" placeholder="PC değiştirdim, yeni cihazı bağlamak istiyorum."></textarea>
+            <button id="requestDeviceResetBtn" class="btn btn-o px-4 py-2 text-sm mt-3">Cihaz Sıfırlama Talebi Gönder</button>
+            <p id="deviceResetMessage" class="text-xs mt-3" style="color:var(--muted)"></p>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Plugin Cihazları</div>
+            <div id="accountPluginList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Eklenmiş Oyunlar</div>
+            <div id="accountInstalledGamesList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Cihaz Talepleri</div>
+            <div id="accountResetList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4 lg:col-span-2">
+            <div class="font-800 syne mb-3">Destek Talebi</div>
+            <div class="grid lg:grid-cols-2 gap-3">
+              <div class="space-y-3">
+                <input id="supportSubject" class="fi2" placeholder="Konu" />
+                <textarea id="supportMessage" rows="4" class="fi2 resize-none" placeholder="Sorunu veya talebini yaz"></textarea>
+                <button id="sendSupportTicketBtn" class="btn btn-g px-4 py-2 text-sm">Talep Gönder</button>
+                <p id="supportTicketMessage" class="text-xs" style="color:var(--muted)"></p>
+              </div>
+              <div id="accountSupportTicketsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Sipariş Doğrula</div>
+            <div class="space-y-3">
+              <input id="orderClaimId" class="fi2" placeholder="Shopier sipariş numarası" />
+              <select id="orderClaimPackage" class="fi2"></select>
+              <button id="sendOrderClaimBtn" class="btn btn-g px-4 py-2 text-sm">Onaya Gönder</button>
+              <p id="orderClaimMessage" class="text-xs" style="color:var(--muted)"></p>
+              <div id="accountOrderClaimsList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Lisans Kodu Aktivasyonu</div>
+            <div class="space-y-3">
+              <input id="licenseCodeInput" class="fi2" placeholder="SS-XXXXXXXX-XXXXXXXX" />
+              <button id="redeemLicenseCodeBtn" class="btn btn-g px-4 py-2 text-sm">Kodu Kullan</button>
+              <p id="licenseCodeMessage" class="text-xs" style="color:var(--muted)"></p>
+              <div class="text-xs leading-5" style="color:var(--muted)">Tek kullanımlık kod, bağlı paketi doğrudan hesabına tanımlar.</div>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Güvenlik Merkezi</div>
+            <div class="space-y-3">
+              <input id="currentPasswordInput" type="password" class="fi2" placeholder="Mevcut şifre" />
+              <input id="newPasswordInput" type="password" class="fi2" placeholder="Yeni şifre, en az 8 karakter" />
+              <div class="flex flex-wrap gap-2"><button id="changePasswordBtn" class="btn btn-o px-4 py-2 text-sm">Şifreyi Değiştir</button><button id="logoutAllBtn" class="btn btn-o px-4 py-2 text-sm">Plugin Oturumlarını Kapat</button></div>
+              <p id="securityMessage" class="text-xs" style="color:var(--muted)"></p>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Giriş ve Güvenlik Geçmişi</div>
+            <div id="accountSecurityActivity" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4 lg:col-span-2">
+            <div class="font-800 syne mb-3">Oyun Kataloğu ve İstek Listesi</div>
+            <div class="grid lg:grid-cols-2 gap-4"><div><div class="flex gap-2"><input id="catalogSearchInput" class="fi2" placeholder="Oyun adı ara" /><button id="catalogSearchBtn" class="btn btn-g px-4 py-2 text-sm">Ara</button></div><div id="catalogResults" class="space-y-2 max-h-72 overflow-y-auto mt-3 pr-1"></div></div><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">İstek listen</div><div id="accountWishlist" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div></div></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Referans Programı</div>
+            <div id="referralCodeBox" class="text-sm mb-3" style="color:var(--muted)">Kod hazırlanıyor</div>
+            <button id="copyReferralBtn" class="btn btn-o px-4 py-2 text-sm">Davet Linkini Kopyala</button>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Lisans Hediye Et</div>
+            <div class="space-y-2"><input id="giftLicenseCode" class="fi2" placeholder="Aktif lisans kodu" /><input id="giftRecipientEmail" type="email" class="fi2" placeholder="Alıcı e-posta" /><button id="giftLicenseBtn" class="btn btn-o px-4 py-2 text-sm">Alıcıya Ayır</button><p id="giftLicenseMessage" class="text-xs" style="color:var(--muted)"></p></div>
+          </div>
+          <div class="glass rounded-2xl p-4 lg:col-span-2">
+            <div class="font-800 syne mb-3">Paket Yükseltme Seçenekleri</div>
+            <div id="accountUpgradeOptions" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="adminPanel" class="hidden mx-auto max-w-[1500px] px-5 sm:px-8 pb-20 rv">
+      <div class="admin-shell admin-hero">
+        <div>
+          <div class="admin-kicker mb-3">Admin Operasyon Merkezi</div>
+          <h2 class="syne text-3xl font-800">SecurityShoop Komuta Paneli</h2>
+          <p class="text-sm mt-2 max-w-3xl" style="color:var(--muted)">Kullanıcı, plugin, komut, kaynak ve hata akışları tek ekranda. Kritik işlemler aşağıdaki canlı kartlardan yönetilir.</p>
+        </div>
+        <div id="adminLiveClock" class="admin-live">Hazır</div>
+      </div>
+      <div class="admin-shell mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+          <div>
+            <div class="slabel mb-3">Plugin Kontrol</div>
+            <h2 class="syne text-2xl font-800">SecurityShoop Kontrol Merkezi</h2>
+            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Plugin davranışını siteden yönet. Değişiklikler plugin oyun ekleme denemesinde otomatik kontrol edilir.</p>
+          </div>
+          <div id="pluginControlState" class="text-xs px-3 py-2 rounded-xl font-700" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)">Yükleniyor</div>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-4 mb-5">
+          <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+            <input id="pcAddGameEnabled" type="checkbox" class="mt-1 accent-green-400" />
+            <span><span class="block font-700 text-sm">Oyun ekleme açık</span><span class="block text-xs mt-1" style="color:var(--muted)">Kapalıysa plugin indirme başlatmaz.</span></span>
+          </label>
+          <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+            <input id="pcMaintenanceMode" type="checkbox" class="mt-1 accent-green-400" />
+            <span><span class="block font-700 text-sm">Bakım modu</span><span class="block text-xs mt-1" style="color:var(--muted)">Tüm ekleme işlemlerini geçici durdurur.</span></span>
+          </label>
+          <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+            <input id="pcAccountRequired" type="checkbox" class="mt-1 accent-green-400" />
+            <span><span class="block font-700 text-sm">Hesap zorunlu</span><span class="block text-xs mt-1" style="color:var(--muted)">Giriş yapmayan plugin kullanıcısı ekleme yapamaz.</span></span>
+          </label>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="space-y-3">
+            <label class="block text-xs font-700" style="color:var(--muted)">Plugin bildirimi başlığı</label>
+            <input id="pcNoticeTitle" class="fi2" placeholder="SecurityShoop" />
+            <label class="block text-xs font-700" style="color:var(--muted)">Plugin bildirimi mesajı</label>
+            <textarea id="pcNoticeMessage" rows="4" class="fi2 resize-none" placeholder="Kullanıcıya gösterilecek kısa mesaj"></textarea>
+          </div>
+          <div class="space-y-3">
+            <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
+              <input id="pcForceUpdate" type="checkbox" class="mt-1 accent-green-400" />
+              <span><span class="block font-700 text-sm">Güncelleme uyarısı</span><span class="block text-xs mt-1" style="color:var(--muted)">Yeni sürümü duyurur; kullanıcı onaylarsa plugin indirip uygular.</span></span>
+            </label>
+            <input id="pcLatestVersion" class="fi2" placeholder="Son sürüm örn: 7.2.5" />
+            <input id="pcUpdateUrl" class="fi2" placeholder="Güncelleme ZIP linki" />
+            <select id="pcRolloutChannel" class="fi2"><option value="stable">Stable</option><option value="beta">Beta</option><option value="silent">Sessiz</option></select>
+            <textarea id="pcReleaseNotes" rows="3" class="fi2 resize-none" placeholder="Sürüm notu"></textarea>
+            <input id="pcSupportUrl" class="fi2" placeholder="Destek linki" />
+          </div>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5">
+          <p id="pluginControlMessage" class="text-sm" style="color:var(--muted)"></p>
+          <div class="flex flex-wrap gap-2"><button id="publishReleaseBtn" class="btn btn-o px-5 py-2.5 text-sm">Güncellemeyi Yayına Al</button><button id="savePluginControlBtn" class="btn btn-g px-5 py-2.5 text-sm">Kontrolü Kaydet</button></div>
+        </div>
+      </div>
+      <div class="admin-shell mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div><div class="slabel mb-3">Canlı Operasyon</div><h2 class="syne text-2xl font-800">Dashboard</h2></div>
+          <button id="refreshAdminDashboardBtn" class="btn btn-o px-5 py-2.5 text-sm">Dashboard Yenile</button>
+        </div>
+        <div id="adminStatsGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+        <div id="adminMobilePanel" class="admin-mobile-panel mb-6"></div>
+        <div id="monitorPanel" class="grid lg:grid-cols-3 gap-4 mb-6"></div>
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Canlı Plugin Durumu</div>
+            <div id="livePluginsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Oyun Ekleme Geçmişi</div>
+            <div id="gameHistoryList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">API Kaynak Sağlığı</div>
+            <div id="sourceHealthList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Otomatik Teşhis Merkezi</div>
+            <div id="diagnosticsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Komut Kuyruğu ve Uyarılar</div>
+            <div id="commandQueueList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Hata Raporları</div>
+            <div id="errorReportsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Şüpheli Kullanım</div>
+            <div id="suspiciousList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Risk Skoru</div>
+            <div id="highRiskList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Audit Log</div>
+            <div id="auditLogList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Cihaz Sıfırlama Talepleri</div>
+            <div id="deviceResetQueueList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Destek Talepleri</div>
+            <div id="supportTicketsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          </div>
+          <div class="glass rounded-2xl p-4">
+            <div class="font-800 syne mb-3">Yedekleme ve Geri Yükleme</div>
+            <div class="space-y-3">
+              <button id="downloadBackupBtn" class="btn btn-g px-4 py-2 text-sm w-full">DB Yedeği İndir</button>
+              <label class="btn btn-o px-4 py-2 text-sm w-full cursor-pointer">
+                Yedekten Geri Yükle
+                <input id="restoreBackupInput" type="file" accept="application/json,.json" class="hidden" />
+              </label>
+              <p id="backupMessage" class="text-xs leading-5" style="color:var(--muted)">Geri yükleme mevcut verileri silmeden birleştirir.</p>
+            </div>
+          </div>
+          <div class="glass rounded-2xl p-4 lg:col-span-2">
+            <div class="font-800 syne mb-3">Satış ve Lisans Merkezi</div>
+            <div class="grid lg:grid-cols-3 gap-3 mb-4">
+              <div class="space-y-2"><select id="adminLicenseCodePackage" class="fi2"></select><input id="adminLicenseCodeCount" type="number" min="1" max="100" value="1" class="fi2" /><button id="createLicenseCodesBtn" class="btn btn-g px-4 py-2 text-sm w-full">Lisans Kodu Üret</button></div>
+              <div class="space-y-2"><input id="adminCouponCode" class="fi2" placeholder="Kupon kodu" /><input id="adminCouponDiscount" type="number" min="1" max="90" value="10" class="fi2" placeholder="İndirim %" /><select id="adminCouponPackage" class="fi2"><option value="">Tüm paketler</option></select><button id="createCouponBtn" class="btn btn-o px-4 py-2 text-sm w-full">Kupon Oluştur</button></div>
+              <div id="commerceFunnelList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+            </div>
+            <div class="grid lg:grid-cols-3 gap-3"><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">Sipariş Onayları</div><div id="orderClaimsAdminList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div></div><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">Lisans Kodları</div><div id="licenseCodesAdminList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div></div><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">Kuponlar</div><div id="couponsAdminList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div></div></div>
+            <p id="commerceMessage" class="text-xs mt-3" style="color:var(--muted)"></p>
+          </div>
+        </div>
+        <div id="userDetailPanel" class="hidden mt-5 glass rounded-2xl p-4"></div>
+      </div>
+      <div class="admin-shell">
+        <div class="admin-section-head">
+          <div><div class="slabel mb-3">Admin Paneli</div><h2 class="syne text-2xl font-800">Kayıtlı Kullanıcılar</h2></div>
+          <button id="refreshUsersBtn" class="btn btn-g px-5 py-2.5 text-sm">Yenile</button>
+        </div>
+        <div class="admin-actions-bar mb-4 flex flex-wrap items-center gap-3">
+          <input id="userSearchInput" class="fi2" style="max-width:280px" placeholder="Kullanıcı, e-posta veya HWID ara" />
+          <select id="userFilterSelect" class="fi2" style="max-width:230px">
+            <option value="all">Tüm kullanıcılar</option>
+            <option value="pending">Onay bekleyenler</option>
+            <option value="blocked">Sadece banlı/engelli</option>
+            <option value="expired">Lisansı bitenler</option>
+            <option value="today">Bugün aktif olanlar</option>
+            <option value="risky">Riskli kullanıcılar</option>
+            <option value="review">İncelemede olanlar</option>
+            <option value="pcban">PC banlılar</option>
+          </select>
+          <button id="clearUserFiltersBtn" class="btn btn-o px-4 py-2 text-sm">Filtreyi Temizle</button>
+        </div>
+        <div class="admin-actions-bar mb-4 flex flex-wrap items-center gap-3">
+          <select id="bulkAction" class="fi2" style="max-width:190px"><option value="block">Engelle</option><option value="unblock">Engeli Aç</option><option value="approve">Hesap Onayla</option><option value="reject">Hesap Reddet</option><option value="license">Lisans Ver</option><option value="pcban">PC Ban</option><option value="command">Komut Gönder</option><option value="delete">Sil</option></select>
+          <select id="bulkCommand" class="fi2" style="max-width:210px"><option value="refresh_control">Kontrol Yenile</option><option value="health_check">Sağlık Kontrol</option><option value="repair_health_shield">Kalkan Onar</option><option value="integrity_check">Dosya Kontrol</option><option value="repair_integrity">Dosya Onar</option><option value="logout">Çıkış Yaptır</option><option value="cleanup_games">Oyunları Temizle</option><option value="reset_account">Ayar Sıfırla</option><option value="install_cleanup_watchdog">Temizleme Koruması Aç</option><option value="remove_cleanup_watchdog">Temizleme Koruması Kapat</option></select>
+          <select id="bulkLicensePackage" class="fi2" style="max-width:210px"><option value="">Lisans paketi seç</option></select>
+          <input id="bulkLicenseUntil" class="fi2" style="max-width:170px" placeholder="Lisans YYYY-MM-DD" />
+          <input id="bulkDailyLimit" class="fi2" style="max-width:140px" placeholder="Günlük limit" />
+          <button id="runBulkActionBtn" class="btn btn-o px-4 py-2 text-sm">Toplu Uygula</button>
+        </div>
+        <p id="adminMessage" class="text-sm mb-4" style="color:var(--muted)"></p>
+        <div class="overflow-x-auto admin-panel-table">
+          <table class="min-w-full text-sm">
+            <thead><tr style="background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)">
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)"><input id="selectAllUsers" type="checkbox" class="accent-green-400" /></th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">ID</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Kullanıcı</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">E-posta</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Rol</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Durum</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">İstatistik</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Lisans</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Risk</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Kayıt</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">İşlem</th>
+            </tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY US -->
+    <section id="nedenbiz" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="text-center mb-12">
+        <div class="slabel mb-4 justify-center">Neden Biz</div>
+        <h2 class="syne text-3xl md:text-4xl font-800">Fark yaratan özellikler</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div class="glass rounded-3xl p-7 gc">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style="background:var(--green-dim)">
+            <svg width="22" height="22" fill="none" stroke="var(--green)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="syne font-700 text-lg mb-3">Hızlı Erişim</h3>
+          <p class="text-sm leading-6" style="color:var(--muted)">Ürün, ödeme ve destek bağlantılarına tek ekrandan ulaş. Zaman kaybetme.</p>
+        </div>
+        <div class="glass rounded-3xl p-7 gc">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style="background:rgba(0,229,255,.07)">
+            <svg width="22" height="22" fill="none" stroke="var(--cyan)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 4h16v12H4z"/><path d="M8 20h8M12 16v4"/></svg>
+          </div>
+          <h3 class="syne font-700 text-lg mb-3">Kolay Sipariş</h3>
+          <p class="text-sm leading-6" style="color:var(--muted)">Sade akış sayesinde müşteri karışmadan ürün sayfasına veya DM alanına geçebilir.</p>
+        </div>
+        <div class="glass rounded-3xl p-7 gc">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style="background:rgba(103,58,183,.1)">
+            <svg width="22" height="22" fill="none" stroke="#b39ddb" stroke-width="1.5" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+          </div>
+          <h3 class="syne font-700 text-lg mb-3">Mobil Uyumlu</h3>
+          <p class="text-sm leading-6" style="color:var(--muted)">Telefon, tablet ve masaüstünde kusursuz çalışan tam responsive yapı.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIDEO -->
+    <section id="urunler" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+        <div><div class="slabel mb-4">Nasıl Yapılır?</div><h2 class="syne text-3xl md:text-4xl font-800">Kurulum ve Kullanım</h2></div>
+        <p class="text-sm leading-6 max-w-xs" style="color:var(--muted)">Videodan adım adım nasıl çalıştığını öğren.</p>
+      </div>
+      <div class="term gc" style="border-radius:22px">
+        <div class="term-bar">
+          <div class="td" style="background:#ff5f57"></div>
+          <div class="td" style="background:#febc2e"></div>
+          <div class="td" style="background:#28c840"></div>
+          <span class="ml-3 text-xs" style="font-family:monospace;color:var(--muted)">nasil-yapilir.mp4</span>
+          <div class="ml-auto badge-live" style="font-size:10px;padding:3px 10px"><span class="dot"></span>Bilgilendirme</div>
+        </div>
+        <div class="p-4">
+          <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,.06)">
+            <div class="aspect-video w-full">
+              <iframe class="h-full w-full" loading="lazy" src="https://www.youtube.com/embed/HSVsoVUmmSk" title="Nasıl Yapılır?" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCESS -->
+    <section id="erisim" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="rounded-3xl p-8 md:p-12" style="background:linear-gradient(135deg,rgba(0,230,118,.05),rgba(0,229,255,.03));border:1px solid rgba(0,230,118,.1)">
+        <div class="grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <div class="slabel mb-4">Nasıl Erişilir?</div>
+            <h2 class="syne text-3xl md:text-4xl font-800 mb-5">Satın al,<br/>otomatik tanımlansın</h2>
+            <p class="text-sm leading-7" style="color:var(--muted)">SecurityShoop ile satın aldığın içerikler otomatik olarak hesabına tanımlanır. Ekstra işlem gerektirmeyen, anlık sistem.</p>
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-center gap-4 glass rounded-2xl p-4">
+              <div class="step-n" style="background:var(--green-dim);color:var(--green)">1</div>
+              <div><div class="font-600 text-sm">Shopier'dan satın al</div><div class="text-xs mt-0.5" style="color:var(--muted)">Güvenli ödeme altyapısı</div></div>
+            </div>
+            <div class="flex items-center gap-4 glass rounded-2xl p-4">
+              <div class="step-n" style="background:rgba(0,229,255,.08);color:var(--cyan)">2</div>
+              <div><div class="font-600 text-sm">Otomatik tanımlama</div><div class="text-xs mt-0.5" style="color:var(--muted)">Sistem anında işleme alır</div></div>
+            </div>
+            <div class="flex items-center gap-4 glass rounded-2xl p-4">
+              <div class="step-n" style="background:rgba(103,58,183,.12);color:#b39ddb">3</div>
+              <div><div class="font-600 text-sm">Erişime başla</div><div class="text-xs mt-0.5" style="color:var(--muted)">Sıfır bekleme süresi</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVIEWS -->
+    <section id="yorumlar" class="mx-auto max-w-7xl px-5 sm:px-8 pb-24 rv">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+        <div><div class="slabel mb-4">Topluluk</div><h2 class="syne text-3xl md:text-4xl font-800">Son Yorumlar</h2></div>
+        <p class="text-sm leading-6 max-w-xs" style="color:var(--muted)">Kayıt olan üyeler yorum bırakabilir.</p>
+      </div>
+      <div class="grid lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-3 glass rounded-3xl p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="syne font-700">Müşteri Yorumları</h3>
+            <span class="text-xs px-3 py-1.5 rounded-full" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)">Herkese açık</span>
+          </div>
+          <div id="reviewsList" class="space-y-3 overflow-y-auto pr-1" style="max-height:280px"></div>
+        </div>
+        <div class="lg:col-span-2 rounded-3xl p-6" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)">
+          <h3 class="syne font-700 text-lg mb-2">Yorum Bırak</h3>
+          <p id="reviewGateText" class="text-sm mb-5" style="color:var(--muted)">Yorum yazmak için giriş yapman gerekir.</p>
+          <form id="reviewForm" class="space-y-4">
+            <textarea id="reviewText" rows="5" maxlength="500" placeholder="Deneyimini paylaş..." class="fi2 resize-none" disabled></textarea>
+            <div class="flex items-center justify-between">
+              <span id="reviewMessage" class="text-sm" style="color:var(--muted)"></span>
+              <button id="reviewSubmitBtn" type="submit" class="btn btn-g px-5 py-2.5 text-sm opacity-50" disabled>Gönder</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="iletisim" class="mx-auto max-w-7xl px-5 sm:px-8 pb-24 rv">
+      <div class="grid lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-3 glass-s rounded-3xl p-8">
+          <div class="slabel mb-4">Satış & Destek</div>
+          <h2 class="syne text-3xl font-800 mb-6">Oyun ekleme lisansını seç</h2>
+          <div class="flex flex-wrap gap-3 mb-6">
+            <span class="ubadge" style="background:var(--green-dim);border:1px solid rgba(0,230,118,.2);color:#7dffc0">Oyun ekleme hakkı paketleri</span>
+            <span class="ubadge" style="background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:#9befff">Rastgele oyun lisansı</span>
+            <span class="ubadge" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fde68a">Admin onaylı aktivasyon</span>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <a href="#lisanslar" class="btn btn-g">Paketleri İncele</a>
+            <a href="https://www.instagram.com/securityshoop/?hl=tr" target="_blank" class="btn btn-ig">Instagram DM</a>
+            <button id="copyDmBtn" class="btn btn-o">Hazır DM Kopyala</button>
+            <a href="mailto:securityshoop@gmail.com" class="btn btn-o">Mail Gönder</a>
+          </div>
+        </div>
+        <div class="lg:col-span-2 rounded-3xl p-8 space-y-3" style="background:rgba(255,255,255,.02);border:1px solid var(--border)">
+          <div class="slabel mb-5">İletişim</div>
+          <div class="glass rounded-2xl p-4 text-sm">
+            <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--muted)">E-posta</div>
+            <a href="mailto:securityshoop@gmail.com" class="font-600 transition-colors" style="color:var(--green)">securtiyshoop@gmail.com</a>
+          </div>
+          <div class="glass rounded-2xl p-4 text-sm">
+            <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--muted)">Instagram</div>
+            <a href="https://www.instagram.com/securityshoop/?hl=tr" target="_blank" class="font-600">@securityshoop</a>
+          </div>
+          <div class="glass rounded-2xl p-4 text-sm">
+            <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--muted)">Sipariş</div>
+            <a href="/api/shopier/checkout" class="font-600" style="color:var(--cyan)">Shopier Mağazası →</a>
+          </div>
+          <div class="glass rounded-2xl p-4 text-sm">
+            <div class="text-xs uppercase tracking-wider mb-1" style="color:var(--muted)">Canlı Destek</div>
+            <span class="font-600">Tawk.to ile aktif destek hattı</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="yasal" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="slabel mb-4">Şeffaflık</div><h2 class="syne text-3xl font-800 mb-6">Satış ve kullanım koşulları</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="glass rounded-2xl p-5"><div class="font-800 mb-2">Dijital teslimat</div><p class="text-sm leading-6" style="color:var(--muted)">Ödeme doğrulandıktan sonra lisans hesabına tanımlanır. Dijital ürünlerde işlem başladıktan sonra iade değerlendirmesi hizmet durumuna göre yapılır.</p></div>
+        <div class="glass rounded-2xl p-5"><div class="font-800 mb-2">Hizmet kapsamı</div><p class="text-sm leading-6" style="color:var(--muted)">Paket yalnızca belirtilen oyun hakkı, süre ve cihaz sınırı kapsamında kullanılabilir. Yetkisiz içerik ve hesap paylaşımı desteklenmez.</p></div>
+        <div class="glass rounded-2xl p-5"><div class="font-800 mb-2">Gizlilik ve güvenlik</div><p class="text-sm leading-6" style="color:var(--muted)">Hesap parolan paylaşılmaz. Sipariş, cihaz ve güvenlik hareketleri kötüye kullanımı önlemek ve destek sağlamak amacıyla kayıt altına alınır.</p></div>
+      </div>
+    </section>
+
+    <section id="sss" class="mx-auto max-w-2xl px-5 sm:px-8 pb-28 rv">
+      <div class="text-center mb-12">
+        <div class="slabel mb-4 justify-center">SSS</div>
+        <h2 class="syne text-3xl md:text-4xl font-800">Sık Sorulan Sorular</h2>
+      </div>
+      <div>
+        <div class="fi"><button class="fq">Teslimat ne kadar sürer?<span class="ficon">+</span></button><div class="fa">Sipariş sonrası süreç hızlı şekilde ilerler ve gerekli yönlendirme sağlanır. Genellikle anlık erişim sağlanmaktadır.</div></div>
+        <div class="fi"><button class="fq">Nasıl lisans alırım?<span class="ficon">+</span></button><div class="fa">Lisans paketlerinden birini seçip Shopier bağlantısı üzerinden güvenli ödeme yapabilirsin. Ödeme sonrası paket hesabına tanımlanır.</div></div>
+        <div class="fi"><button class="fq">Oyun erişimi nasıl olur?<span class="ficon">+</span></button><div class="fa">Satın aldığın içerik otomatik olarak hesabına tanımlanır, ekstra bir işlem yapman gerekmez. Sistem tamamen otomatik çalışır.</div></div>
+        <div class="fi"><button class="fq">Güvenli mi?<span class="ficon">+</span></button><div class="fa">Tüm ödemeler Shopier altyapısı üzerinden yapılır. Shopier, Türkiye'nin güvenilir dijital ödeme platformlarından biridir. Müşteri bilgilerin güvende.</div></div>
+        <div class="fi"><button class="fq">Sorun yaşarsam ne yapmalıyım?<span class="ficon">+</span></button><div class="fa">Instagram DM, e-posta veya Tawk.to canlı destek hattı üzerinden ulaşabilirsin. En hızlı yanıt için Instagram DM tercih edilir.</div></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FLOATING IG -->
+  <button id="ssSupportLauncher" type="button" class="ss-support-launcher" title="SecurityShoop destek">
+    <img src="/logo.jpeg" alt="SecurityShoop destek" />
+  </button>
+  <a href="https://www.instagram.com/securityshoop/?hl=tr" target="_blank" rel="noopener" class="btn btn-ig fixed bottom-6 right-5 z-40 shadow-2xl text-sm" style="border-radius:14px">
+    <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+    DM At
+  </a>
+
+  <button id="aiChatLauncher" type="button" class="ai-chat-launcher" title="AI Destek">
+    <i class="fa-solid fa-robot"></i><span>AI Destek</span>
+  </button>
+  <div id="aiChatPanel" class="ai-chat-panel" aria-live="polite">
+    <div class="ai-chat-head">
+      <div class="ai-chat-title"><i class="fa-solid fa-robot"></i><span>SecurityShoop AI</span></div>
+      <button id="aiChatClose" type="button" class="ai-chat-close" title="Kapat"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="aiChatMessages" class="ai-chat-messages"></div>
+    <form id="aiChatForm" class="ai-chat-form">
+      <input id="aiChatInput" class="ai-chat-input" maxlength="900" autocomplete="off" placeholder="Sorunu yaz..." />
+      <button id="aiChatSend" type="submit" class="ai-chat-send" title="Gönder"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div id="authModal" class="mo">
+    <div class="mb">
+      <div class="p-6 text-center" style="border-bottom:1px solid var(--border)">
+        <img src="/logo.jpeg" alt="SecurityShoop" class="mx-auto h-16 w-16 rounded-2xl object-cover mb-4 shadow-xl" />
+        <h2 class="syne font-800 text-xl">SecurityShoop</h2>
+        <p class="text-sm mt-1" style="color:var(--muted)">İstersen hesap aç, istersen direkt kullan.</p>
+      </div>
+      <div class="p-6">
+        <div class="flex rounded-2xl p-1 mb-5" style="background:rgba(255,255,255,.04);border:1px solid var(--border)">
+          <button id="tabLogin" class="tab on">Giriş Yap</button>
+          <button id="tabRegister" class="tab">Kayıt Ol</button>
+        </div>
+        <form id="authForm" class="space-y-3">
+          <div id="nameWrap" class="hidden">
+            <label class="block text-xs mb-1.5 font-500" style="color:var(--muted)">Kullanıcı adı</label>
+            <input id="registerName" type="text" class="fi2" placeholder="kullanıcı_adi" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1.5 font-500" style="color:var(--muted)">E-posta</label>
+            <input id="email" type="email" class="fi2" placeholder="ornek@mail.com" required />
+          </div>
+          <div>
+            <label class="block text-xs mb-1.5 font-500" style="color:var(--muted)">Şifre</label>
+            <input id="password" type="password" class="fi2" placeholder="••••••••" required />
+          </div>
+          <div id="confirmWrap" class="hidden">
+            <label class="block text-xs mb-1.5 font-500" style="color:var(--muted)">Şifre tekrar</label>
+            <input id="confirmPassword" type="password" class="fi2" placeholder="••••••••" />
+          </div>
+          <div id="referralWrap" class="hidden">
+            <label class="block text-xs mb-1.5 font-500" style="color:var(--muted)">Referans kodu (isteğe bağlı)</label>
+            <input id="registerReferral" type="text" class="fi2" placeholder="REF-XXXXXXXX" />
+          </div>
+          <button id="submitBtn" type="submit" class="btn btn-g w-full justify-center py-3">Giriş Yap</button>
+          <p id="authMessage" class="text-center text-sm" style="color:var(--muted)"></p>
+        </form>
+        <button id="closeModalBtn" class="btn btn-o w-full justify-center mt-3 py-2.5 text-sm">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // CURSOR
+    const cur = document.getElementById('cur'), curR = document.getElementById('cur-r');
+    let mx=0,my=0,rx=0,ry=0;
+    document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+    (function loop(){
+      rx+=(mx-rx)*.15; ry+=(my-ry)*.15;
+      if(cur&&curR){cur.style.left=mx+'px'; cur.style.top=my+'px'; curR.style.left=rx+'px'; curR.style.top=ry+'px';}
+      requestAnimationFrame(loop);
+    })();
+    document.querySelectorAll('a,button,.gc').forEach(el=>{
+      el.addEventListener('mouseenter',()=>{if(cur&&curR){cur.style.width='22px';cur.style.height='22px';curR.style.width='54px';curR.style.height='54px';}});
+      el.addEventListener('mouseleave',()=>{if(cur&&curR){cur.style.width='16px';cur.style.height='16px';curR.style.width='38px';curR.style.height='38px';}});
+    });
+
+    // SITE THEMES
+    function applySiteTheme(theme){
+      const clean=['dark','light','midnight','royal'].includes(theme)?theme:'dark';
+      document.body.dataset.theme=clean;
+      localStorage.setItem('sshop-site-theme',clean);
+      document.querySelectorAll('[data-site-theme]').forEach(btn=>btn.classList.toggle('active',btn.dataset.siteTheme===clean));
+    }
+    applySiteTheme(localStorage.getItem('sshop-site-theme')||'dark');
+    document.querySelectorAll('[data-site-theme]').forEach(btn=>btn.addEventListener('click',()=>applySiteTheme(btn.dataset.siteTheme)));
+
+    // PUBLIC CLOCK / WEATHER / PRAYER
+    function updatePublicClock(){
+      const el=document.getElementById('publicClock');
+      if(el)el.textContent=new Date().toLocaleString('tr-TR',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    }
+    function weatherLabel(code){
+      const c=Number(code);
+      if(c===0)return'Acik';
+      if([1,2,3].includes(c))return'Parcali bulutlu';
+      if([45,48].includes(c))return'Sisli';
+      if(c>=51&&c<=67)return'Yagmurlu';
+      if(c>=71&&c<=77)return'Karlı';
+      if(c>=80&&c<=99)return'Saganak';
+      return'Hazir';
+    }
+    async function loadPublicUtility(lat=41.0082,lon=28.9784,city='Istanbul'){
+      const weatherEl=document.getElementById('publicWeather');
+      const prayerEl=document.getElementById('publicPrayer');
+      try{
+        const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`);
+        const d=await w.json();
+        const cur=d.current||{};
+        if(weatherEl)weatherEl.textContent=`${city}: ${Math.round(Number(cur.temperature_2m||0))}°C · ${weatherLabel(cur.weather_code)}`;
+      }catch(_err){if(weatherEl)weatherEl.textContent=`${city}: hava durumu hazir degil`;}
+      try{
+        const today=new Date().toISOString().slice(0,10);
+        const r=await fetch(`https://api.aladhan.com/v1/timings/${today}?latitude=${lat}&longitude=${lon}&method=13`);
+        const d=await r.json();
+        const t=d?.data?.timings||{};
+        if(prayerEl)prayerEl.textContent=`Ezan: İmsak ${t.Fajr||'-'} · Akşam ${t.Maghrib||'-'}`;
+      }catch(_err){if(prayerEl)prayerEl.textContent='Ezan vakitleri hazir degil';}
+    }
+    updatePublicClock();
+    setInterval(updatePublicClock,30000);
+
+    const nativeFetch=window.fetch.bind(window);
+    function fastFetch(input,init){
+      init=init||{};
+      if(init.signal)return nativeFetch(input,init);
+      const timeout=Number(init.timeout||0)||2500;
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),timeout);
+      const next={...init,signal:controller.signal};
+      delete next.timeout;
+      return nativeFetch(input,next).finally(()=>clearTimeout(timer));
+    }
+
+    async function readJsonSafe(response){
+      try{return await response.json();}catch(_err){return {ok:false,message:'Sunucu cevabi okunamadi.'};}
+    }
+    const referralFromUrl=new URLSearchParams(location.search).get('ref');if(referralFromUrl&&document.getElementById('registerReferral'))document.getElementById('registerReferral').value=referralFromUrl;
+    async function loadPublicStatus(){
+      try{
+        const r=await fastFetch('/api/public/status',{timeout:1800}),d=await readJsonSafe(r),s=d.status||{};
+        const items=[['Site',s.site],['Veritabanı',s.database],['Plugin API',s.plugin_api],['Aktif kaynak',`${s.sources?.active||0}/${s.sources?.total||0}`]];
+        document.getElementById('publicStatusGrid').innerHTML=items.map(([name,state])=>`<div class="stat glass"><div class="text-xs font-800" style="color:var(--muted)">${esc(name)}</div><div class="font-800 mt-2" style="color:${String(state).includes('operational')?'#7dffc0':'#fde68a'}">${esc(state||'bilinmiyor')}</div></div>`).join('');
+        document.getElementById('statusCheckedAt').textContent=s.checked_at?new Date(s.checked_at).toLocaleString('tr-TR'):'Hazır';
+      }catch(_err){document.getElementById('statusCheckedAt').textContent='Durum alınamadı';}
+    }
+    loadPublicStatus();
+    setInterval(loadPublicStatus,60000);
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos=>loadPublicUtility(pos.coords.latitude,pos.coords.longitude,'Konumun'),
+        ()=>loadPublicUtility(),
+        {timeout:3500,maximumAge:30*60*1000}
+      );
+    }else{loadPublicUtility();}
+
+    // MOBILE MENU
+    document.getElementById('mmbtn').addEventListener('click',()=>document.getElementById('mmenu').classList.toggle('open'));
+    document.querySelectorAll('#mmenu a').forEach(a=>a.addEventListener('click',()=>document.getElementById('mmenu').classList.remove('open')));
+
+    // FAQ
+    document.querySelectorAll('.fq').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const it=btn.closest('.fi'), open=it.classList.contains('open');
+        document.querySelectorAll('.fi').forEach(i=>i.classList.remove('open'));
+        if(!open) it.classList.add('open');
+      });
+    });
+
+    // SCROLL REVEAL
+    const ro=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.08});
+    document.querySelectorAll('.rv').forEach(el=>ro.observe(el));
+
+    // TOAST
+    function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+    // COUNTERS
+    function hash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h)+s.charCodeAt(i);return Math.abs(h);}
+    function updateC(){
+      const s=hash('s'+Date.now()+navigator.userAgent);
+      const tod=s%8, tot=43+(s%45), dai=1+(s%14);
+      document.getElementById('todayC').textContent=tod;
+      document.getElementById('totalC').textContent=tot;
+      document.querySelectorAll('#doh,#doc').forEach(el=>{if(el)el.textContent=dai;});
+    }
+    function updateO(){
+      const slot=Math.floor(Date.now()/25000);
+      const n=3+(hash('o'+slot)%15);
+      document.getElementById('onlineC').textContent=n;
+    }
+
+    // COPY DM
+    document.getElementById('copyDmBtn')?.addEventListener('click',()=>{
+      const m='Merhaba, SecurityShoop üzerinden ürün almak istiyorum. Müsait ürünleri ve teslim süresini paylaşır mısınız?';
+      navigator.clipboard?.writeText(m).then(()=>toast('✓ DM mesajı kopyalandı')).catch(()=>alert('Kopyalanamadı'));
+    });
+
+    // AUTH
+    const authModal=document.getElementById('authModal');
+    const tabLogin=document.getElementById('tabLogin'),tabReg=document.getElementById('tabRegister');
+    const nameWrap=document.getElementById('nameWrap'),confWrap=document.getElementById('confirmWrap');
+    const authForm=document.getElementById('authForm'),authMsg=document.getElementById('authMessage'),submitBtn=document.getElementById('submitBtn');
+    const welcomeUser=document.getElementById('welcomeUser'),logoutBtn=document.getElementById('logoutBtn');
+    const adminPanel=document.getElementById('adminPanel'),adminLink=document.getElementById('adminMenuLink'),appKeysLink=document.getElementById('appKeysMenuLink');
+    const accountPanel=document.getElementById('accountPanel'),accountLink=document.getElementById('accountMenuLink'),accountLinkMobile=document.getElementById('accountMenuLinkMobile');
+    const accountStatsGrid=document.getElementById('accountStatsGrid'),accountOrdersList=document.getElementById('accountOrdersList'),accountDeviceBox=document.getElementById('accountDeviceBox'),accountPluginList=document.getElementById('accountPluginList'),accountInstalledGamesList=document.getElementById('accountInstalledGamesList'),accountResetList=document.getElementById('accountResetList'),accountSupportTicketsList=document.getElementById('accountSupportTicketsList'),accountOrderClaimsList=document.getElementById('accountOrderClaimsList'),accountSecurityActivity=document.getElementById('accountSecurityActivity');
+    const deviceResetMessage=document.getElementById('deviceResetMessage'),supportTicketMessage=document.getElementById('supportTicketMessage');
+    const usersBody=document.getElementById('usersTableBody'),adminMsg=document.getElementById('adminMessage');
+    const pcState=document.getElementById('pluginControlState'),pcMsg=document.getElementById('pluginControlMessage');
+    const pcFields={
+      maintenance_mode:document.getElementById('pcMaintenanceMode'),
+      add_game_enabled:document.getElementById('pcAddGameEnabled'),
+      account_required:document.getElementById('pcAccountRequired'),
+      force_update:document.getElementById('pcForceUpdate'),
+      latest_version:document.getElementById('pcLatestVersion'),
+      update_url:document.getElementById('pcUpdateUrl'),
+      release_notes:document.getElementById('pcReleaseNotes'),
+      rollout_channel:document.getElementById('pcRolloutChannel'),
+      notice_title:document.getElementById('pcNoticeTitle'),
+      notice_message:document.getElementById('pcNoticeMessage'),
+      support_url:document.getElementById('pcSupportUrl')
+    };
+    const adminStatsGrid=document.getElementById('adminStatsGrid');
+    const adminMobilePanel=document.getElementById('adminMobilePanel');
+
+    function updateAdminLiveClock(){
+      const el=document.getElementById('adminLiveClock');
+      if(!el)return;
+      el.textContent=new Date().toLocaleString('tr-TR',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+    updateAdminLiveClock();
+    setInterval(updateAdminLiveClock,30000);
+    const monitorPanel=document.getElementById('monitorPanel');
+    const livePluginsList=document.getElementById('livePluginsList');
+    const gameHistoryList=document.getElementById('gameHistoryList');
+    const sourceHealthList=document.getElementById('sourceHealthList');
+    const diagnosticsList=document.getElementById('diagnosticsList');
+    const commandQueueList=document.getElementById('commandQueueList');
+    const errorReportsList=document.getElementById('errorReportsList');
+    const suspiciousList=document.getElementById('suspiciousList');
+    const highRiskList=document.getElementById('highRiskList');
+    const auditLogList=document.getElementById('auditLogList');
+    const deviceResetQueueList=document.getElementById('deviceResetQueueList');
+    const supportTicketsList=document.getElementById('supportTicketsList');
+    const commerceFunnelList=document.getElementById('commerceFunnelList'),orderClaimsAdminList=document.getElementById('orderClaimsAdminList'),licenseCodesAdminList=document.getElementById('licenseCodesAdminList'),couponsAdminList=document.getElementById('couponsAdminList'),commerceMessage=document.getElementById('commerceMessage');
+    const backupMessage=document.getElementById('backupMessage');
+    const userDetailPanel=document.getElementById('userDetailPanel');
+    const rvList=document.getElementById('reviewsList'),rvForm=document.getElementById('reviewForm');
+    const rvText=document.getElementById('reviewText'),rvMsg=document.getElementById('reviewMessage');
+    const rvGate=document.getElementById('reviewGateText'),rvBtn=document.getElementById('reviewSubmitBtn');
+    let authMode='login';
+    let allAdminUsers=[];
+    let licensePackages=[];
+
+    function openModal(m){switchMode(m);authModal.classList.add('active');}
+    function closeModal(){authModal.classList.remove('active');authMsg.textContent='';authForm.reset();}
+    function switchMode(m){
+      authMode=m;authMsg.textContent='';
+      const referralWrap=document.getElementById('referralWrap');
+      if(m==='login'){tabLogin.classList.add('on');tabReg.classList.remove('on');nameWrap.classList.add('hidden');confWrap.classList.add('hidden');referralWrap?.classList.add('hidden');submitBtn.textContent='Giriş Yap';}
+      else{tabReg.classList.add('on');tabLogin.classList.remove('on');nameWrap.classList.remove('hidden');confWrap.classList.remove('hidden');referralWrap?.classList.remove('hidden');submitBtn.textContent='Hesap Oluştur';}
+    }
+
+    function renderUsers(users){
+      usersBody.innerHTML='';
+      if(!users.length){usersBody.innerHTML='<tr><td colspan="11" class="px-4 py-6 text-center text-sm" style="color:var(--muted)">Hiç kullanıcı yok.</td></tr>';return;}
+      users.forEach(u=>{
+        const tr=document.createElement('tr');
+        tr.style.borderBottom='1px solid var(--border)';
+        const lastLogin=u.last_login_at?new Date(u.last_login_at).toLocaleString('tr-TR'):'Yok';
+        const license=u.license_until?new Date(u.license_until).toLocaleDateString('tr-TR'):'Sınırsız';
+        const limit=Number(u.daily_limit||0);
+        const allowedAppids=String(Array.isArray(u.allowed_appids)?u.allowed_appids.join(','):u.allowed_appids||'').trim();
+        const risk=u.risk||{score:0,level:'low',reasons:[]};
+        const riskColor=risk.level==='high'?'#fca5a5':(risk.level==='medium'?'#fde68a':'#7dffc0');
+        const pluginOnly=!!u.plugin_only;
+        const approval=(u.role==='admin'?'approved':String(u.approval_status||'approved'));
+        const approvalText=pluginOnly?'Plugin kaydı':(approval==='pending'?'Onay Bekliyor':(approval==='rejected'?'Reddedildi':'Onaylandi'));
+        const approvalColor=pluginOnly?'#7dd3fc':(approval==='pending'?'#fde68a':(approval==='rejected'?'#fca5a5':'#7dffc0'));
+        const roleLabel=pluginOnly?'plugin':u.role;
+        const rowId=esc(String(u.virtual_id||u.id||''));
+        const reviewMode=!!u.review_mode;
+        const actionCell=pluginOnly
+          ? `<span class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(56,189,248,.1);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)">Eski plugin girişi</span><span class="text-xs" style="color:var(--muted)">Kullanıcı tablosunda yok; e-posta/HWID izi plugin durum/log kayıtlarından alındı.</span>`
+          : `${u.role==='admin'?'<span class="text-xs" style="color:var(--muted)">Admin</span>':`${approval!=='approved'?`<button data-action="approve" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Onayla</button>`:''}${approval!=='rejected'?`<button data-action="reject" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)">Reddet</button>`:''}<button data-action="${reviewMode?'reviewoff':'reviewon'}" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.25)">${reviewMode?'İnceleme Kapat':'İncelemeye Al'}</button>${u.is_blocked?`<button data-action="unblock" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-600" style="background:var(--surface);border:1px solid var(--border)">Engeli Aç</button>`:`<button data-action="block" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-600" style="background:var(--surface);border:1px solid var(--border)">Engelle</button>`}${u.is_pc_banned?'<span class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)">PC Banlı</span>':`<button data-action="pcban" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.3)" ${u.hwid?'':'disabled title="HWID yok"'}>PC Ban</button>`}<button data-action="license" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(56,189,248,.1);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)">Lisans</button><button data-action="delete" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)">Sil</button>`}`;
+        const reviewBadge=reviewMode?'<br><span class="text-xs px-2.5 py-1 rounded-full font-700 inline-block mt-1" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#fbbf24">İncelemede</span>':'';
+        tr.innerHTML=`<td class="px-4 py-3"><input type="checkbox" class="userSelect accent-green-400" value="${rowId}" ${u.role==='admin'||pluginOnly?'disabled':''} /></td><td class="px-4 py-3 text-sm">${rowId}</td>
+          <td class="px-4 py-3 text-sm font-600">${u.username}</td>
+          <td class="px-4 py-3 text-sm" style="color:var(--muted)">${u.email}</td>
+          <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full font-700" style="${u.role==='admin'?'background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,.2)':(pluginOnly?'background:rgba(56,189,248,.1);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)':'background:var(--surface);border:1px solid var(--border);color:var(--muted)')}">${roleLabel}</span></td>
+          <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full font-700" style="${u.is_blocked?'background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)':'background:var(--green-dim);color:#7dffc0;border:1px solid rgba(0,230,118,.2)'}">${u.is_blocked?'Engelli':'Aktif'}</span><br><span class="text-xs px-2.5 py-1 rounded-full font-700 inline-block mt-1" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:${approvalColor}">${approvalText}</span>${reviewBadge}</td>
+          <td class="px-4 py-3 text-xs" style="color:var(--muted)">Oyun: ${u.add_game_count||0}<br>Son giriş: ${lastLogin}</td>
+          <td class="px-4 py-3 text-xs" style="color:var(--muted)">Bitiş: ${license}<br>Günlük limit: ${limit?limit:'Sınırsız'}<br>AppID: ${allowedAppids?esc(allowedAppids).slice(0,32):'Sınırsız'}</td>
+          <td class="px-4 py-3 text-xs"><span class="px-2.5 py-1 rounded-full font-800" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:${riskColor}">${risk.score}</span><br><span style="color:var(--muted)">${esc((risk.reasons||[]).slice(0,2).join(', ')||'Düşük')}</span></td>
+          <td class="px-4 py-3 text-sm" style="color:var(--muted)">${new Date(u.created_at).toLocaleString('tr-TR')}</td>
+          <td class="px-4 py-3"><div class="flex gap-2 flex-wrap"><button data-action="detail" data-id="${rowId}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Detay</button>${actionCell}</div></td>`;
+        usersBody.appendChild(tr);
+      });
+    }
+
+    function applyUserFilters(){
+      const q=(document.getElementById('userSearchInput')?.value||'').trim().toLowerCase();
+      const f=document.getElementById('userFilterSelect')?.value||'all';
+      const today=new Date().toISOString().slice(0,10);
+      const filtered=allAdminUsers.filter(u=>{
+        const hay=`${u.username||''} ${u.email||''} ${u.hwid||''} ${u.id||''}`.toLowerCase();
+        if(q&&!hay.includes(q))return false;
+        const expired=!!u.license_until&&new Date(u.license_until).getTime()<Date.now();
+        const todayActive=String(u.last_action_at||u.last_login_at||'').startsWith(today);
+        const risky=Number(u.risk?.score||0)>=35;
+        if(f==='pending')return String(u.approval_status||'approved')==='pending';
+        if(f==='blocked')return !!u.is_blocked||!!u.is_pc_banned;
+        if(f==='expired')return expired;
+        if(f==='today')return todayActive;
+        if(f==='risky')return risky;
+        if(f==='review')return !!u.review_mode;
+        if(f==='pcban')return !!u.is_pc_banned;
+        return true;
+      });
+      renderUsers(filtered);
+      adminMsg.textContent=`${filtered.length}/${allAdminUsers.length} kullanıcı gösteriliyor`;
+    }
+
+    async function loadAdminUsers(){
+      try{
+        adminMsg.textContent='Kullanıcılar yükleniyor...';
+        const r=await fastFetch('/api/admin/users',{cache:'no-store',timeout:2200}),d=await readJsonSafe(r);
+        if(!d.ok){adminMsg.textContent=d.message||'Alınamadı.';return;}
+        allAdminUsers=d.users||[];
+        applyUserFilters();
+        if(d.warning)adminMsg.textContent=`${allAdminUsers.length} kullanıcı gösteriliyor · ${d.warning}`;
+        else if(d.storage)adminMsg.textContent=`${allAdminUsers.length} kullanıcı gösteriliyor · depolama: ${d.storage}`;
+      }catch(err){
+        adminMsg.textContent='Kullanıcılar alınamadı. Oturum, API veya veritabanı bağlantısını kontrol et.';
+      }
+    }
+
+    function renderPluginControl(control){
+      if(!control)return;
+      pcFields.maintenance_mode.checked=!!control.maintenance_mode;
+      pcFields.add_game_enabled.checked=control.add_game_enabled!==false;
+      pcFields.account_required.checked=control.account_required!==false;
+      pcFields.force_update.checked=!!control.force_update;
+      pcFields.latest_version.value=control.latest_version||'';
+      pcFields.update_url.value=control.update_url||'';
+      pcFields.release_notes.value=control.release_notes||'';
+      pcFields.rollout_channel.value=control.rollout_channel||'stable';
+      pcFields.notice_title.value=control.notice_title||'SecurityShoop';
+      pcFields.notice_message.value=control.notice_message||'';
+      pcFields.support_url.value=control.support_url||'';
+      const locked=control.maintenance_mode||control.add_game_enabled===false;
+      pcState.textContent=locked?'Ekleme Kapalı':'Ekleme Açık';
+      pcState.style.color=locked?'#fca5a5':'#7dffc0';
+      pcState.style.borderColor=locked?'rgba(239,68,68,.25)':'rgba(0,230,118,.25)';
+      pcState.style.background=locked?'rgba(239,68,68,.08)':'var(--green-dim)';
+      pcMsg.textContent=control.updated_at?`Son güncelleme: ${new Date(control.updated_at).toLocaleString('tr-TR')}`:'Hazır';
+    }
+
+    async function loadPluginControl(){
+      try{
+        const r=await fastFetch('/api/admin/plugin-control',{timeout:2200}),d=await readJsonSafe(r);
+        if(!d.ok){pcMsg.textContent=d.message||'Kontrol alınamadı.';return;}
+        renderPluginControl(d.control);
+      }catch(err){pcMsg.textContent='Kontrol alınamadı.';}
+    }
+
+    async function savePluginControl(){
+      const payload={
+        maintenance_mode:pcFields.maintenance_mode.checked,
+        add_game_enabled:pcFields.add_game_enabled.checked,
+        account_required:pcFields.account_required.checked,
+        force_update:pcFields.force_update.checked,
+        latest_version:pcFields.latest_version.value.trim(),
+        update_url:pcFields.update_url.value.trim(),
+        release_notes:pcFields.release_notes.value.trim(),
+        rollout_channel:pcFields.rollout_channel.value,
+        notice_title:pcFields.notice_title.value.trim(),
+        notice_message:pcFields.notice_message.value.trim(),
+        support_url:pcFields.support_url.value.trim()
+      };
+      const btn=document.getElementById('savePluginControlBtn');
+      btn.disabled=true;btn.textContent='Kaydediliyor...';
+      const r=await fetch('/api/admin/plugin-control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const d=await r.json();
+      btn.disabled=false;btn.textContent='Kontrolü Kaydet';
+      pcMsg.textContent=d.message||'';
+      if(d.ok){renderPluginControl(d.control);toast('✓ Plugin kontrolü güncellendi');}
+    }
+
+    async function publishRelease(){
+      const payload={
+        latest_version:pcFields.latest_version.value.trim(),
+        update_url:pcFields.update_url.value.trim(),
+        release_notes:pcFields.release_notes.value.trim(),
+        rollout_channel:pcFields.rollout_channel.value,
+        force_update:pcFields.force_update.checked
+      };
+      if(!payload.latest_version||!payload.update_url){pcMsg.textContent='Sürüm ve ZIP linki gerekli.';return;}
+      const r=await fetch('/api/admin/release',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const d=await r.json();
+      pcMsg.textContent=d.message||'';
+      if(d.ok){renderPluginControl(d.control);toast('✓ Güncelleme yayında');loadAdminDashboard();}
+    }
+
+    function smallRow(title,meta,badge){
+      return `<div class="rounded-xl p-3" style="background:rgba(255,255,255,.025);border:1px solid var(--border)"><div class="flex items-start justify-between gap-3"><div><div class="text-sm font-700">${esc(title)}</div><div class="text-xs mt-1 leading-5" style="color:var(--muted)">${meta}</div></div>${badge||''}</div></div>`;
+    }
+
+    function statusPill(text,color){
+      return `<span class="text-[10px] px-2 py-1 rounded-full font-800" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:${color||'#7dffc0'}">${esc(text)}</span>`;
+    }
+
+    function adminUserUrl(id,suffix){
+      return `/api/admin/users/${encodeURIComponent(String(id||''))}${suffix||''}`;
+    }
+
+    function renderLicensePackageOptions(packages){
+      const select=document.getElementById('bulkLicensePackage');
+      const options=(packages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${esc(p.label||'')}</option>`).join('');
+      if(select){const current=select.value;select.innerHTML='<option value="">Lisans paketi seç</option>'+options;if(current&&[...select.options].some(o=>o.value===current))select.value=current;}
+      ['orderClaimPackage','adminLicenseCodePackage'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=options;});
+      const coupon=document.getElementById('adminCouponPackage');if(coupon)coupon.innerHTML='<option value="">Tüm paketler</option>'+options;
+    }
+
+    async function applyLicensePackage(id,packageId){
+      if(!id){adminMsg.textContent='Bu işlem için kalıcı site hesabı gerekli.';return;}
+      if(!packageId){adminMsg.textContent='Önce lisans paketi seç.';return;}
+      const r=await fetch(adminUserUrl(id,'/license-package'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:packageId})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ Lisans paketi uygulandı');loadAdminUsers();loadAdminDashboard();openUserDetail(id);}
+    }
+
+    function commandStatusBadge(status){
+      const map={
+        pending:['Gönderildi','#fde68a'],
+        delivered:['Plugine Ulaştı','#7dd3fc'],
+        running:['Çalışıyor','#c4b5fd'],
+        completed:['Tamamlandı','#7dffc0'],
+        failed:['Hata Verdi','#fca5a5'],
+        cancelled:['İptal','#cbd5e1']
+      };
+      const item=map[String(status||'pending')]||[status||'Bekliyor','#cbd5e1'];
+      return statusPill(item[0],item[1]);
+    }
+
+    function renderAccountSummary(summary){
+      const u=summary.user||{};
+      const license=summary.license_until?new Date(summary.license_until).toLocaleDateString('tr-TR'):'Sınırsız';
+      const limit=Number(summary.daily_limit||0);
+      const count=Number(summary.daily_add_count||0);
+      const allowedAppids=Array.isArray(summary.allowed_appids)?summary.allowed_appids.join(', '):String(summary.allowed_appids||'').trim();
+      const hwid=summary.hwid||'Henüz bağlanmadı';
+      const licenseBadge=summary.license_active?statusPill('Aktif','#7dffc0'):statusPill('Süresi doldu','#fca5a5');
+      accountStatsGrid.innerHTML=[
+        ['Lisans',`${license} ${licenseBadge}`],
+        ['Günlük limit',limit?`${count}/${limit}`:'Sınırsız'],
+        ['Eklenmiş oyun',Number(summary.installed_game_count||((summary.installed_games||[]).length)||0)],
+        ['İzinli AppID',esc(allowedAppids||'Sınırsız')],
+        ['Hesap',esc(u.email||u.username||'-')],
+        ['Cihaz',esc(String(hwid).slice(0,24))]
+      ].map(([k,v])=>`<div class="stat glass"><div class="text-xs font-700" style="color:var(--muted)">${k}</div><div class="text-sm mt-2 font-700">${v}</div></div>`).join('');
+      document.getElementById('accountDownloadBtn').href=summary.plugin_download_url||'/securityshoop-plugin.zip';
+      accountDeviceBox.innerHTML=smallRow('Kayıtlı HWID',esc(hwid),summary.hwid?statusPill('Bağlı','#7dffc0'):statusPill('Boş','#fde68a'));
+      accountOrdersList.innerHTML=(summary.orders||[]).map(o=>{
+        const color=o.status==='paid'?'#7dffc0':(o.status==='failed'?'#fca5a5':'#fde68a');
+        return smallRow(o.product_name||'SecurityShoop',`${esc(o.platform_order_id||'-')}<br>${esc(o.total_order_value||'-')} ${esc(o.currency||'')} · ${o.created_at?new Date(o.created_at).toLocaleString('tr-TR'):'-'}`,statusPill(o.status||'created',color));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Sipariş kaydı yok.</div>';
+      accountPluginList.innerHTML=(summary.plugin_statuses||[]).map(p=>{
+        const online=Date.now()-new Date(p.last_seen_at||0).getTime()<5*60*1000;
+        return smallRow(p.version||'Plugin',`HWID: ${esc((p.hwid||'').slice(0,24)||'-')}<br>${esc(p.status||'-')} · ${p.last_seen_at?new Date(p.last_seen_at).toLocaleString('tr-TR'):'-'}`,statusPill(online?'Online':'Offline',online?'#7dffc0':'#fca5a5'));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Plugin henüz bu hesapla görünmedi.</div>';
+      accountInstalledGamesList.innerHTML=(summary.installed_games||[]).map(g=>{
+        const manifests=Number(g.manifest_count||((g.manifest_files||[]).length)||0);
+        const seen=g.last_seen_at?new Date(g.last_seen_at).toLocaleString('tr-TR'):'-';
+        return smallRow(g.name||`AppID ${g.appid}`,`AppID: ${esc(g.appid||'-')}<br>Manifest: ${manifests} · Kaynak: ${esc(g.api||g.source||'-')}<br>Son plugin bildirimi: ${seen}`,statusPill('Ekli','#7dd3fc'));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Plugin henüz eklenmiş oyun bildirmedi. Plugin açıkken durum yenilenince burada görünür.</div>';
+      accountResetList.innerHTML=(summary.device_reset_requests||[]).map(r=>{
+        const color=r.status==='approved'?'#7dffc0':(r.status==='rejected'?'#fca5a5':'#fde68a');
+        return smallRow(r.status==='pending'?'Onay bekliyor':(r.status==='approved'?'Onaylandı':'Reddedildi'),`${esc(r.reason||'Sebep yazılmadı')}<br>${r.requested_at?new Date(r.requested_at).toLocaleString('tr-TR'):'-'}`,statusPill(r.status||'pending',color));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Cihaz talebi yok.</div>';
+      accountSupportTicketsList.innerHTML=(summary.support_tickets||[]).map(t=>{
+        const color=t.status==='closed'?'#cbd5e1':(t.status==='answered'?'#7dffc0':'#fde68a');
+        const reply=t.admin_reply?`<br><span style="color:#7dffc0">Admin: ${esc(t.admin_reply)}</span>`:'';
+        return smallRow(t.subject||'Destek talebi',`${esc(t.message||'').slice(0,180)}${reply}<br>${t.updated_at?new Date(t.updated_at).toLocaleString('tr-TR'):'-'}`,statusPill(t.status||'open',color));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Destek talebi yok.</div>';
+      accountOrderClaimsList.innerHTML=(summary.order_claims||[]).map(c=>{
+        const color=c.status==='approved'?'#7dffc0':(c.status==='rejected'?'#fca5a5':'#fde68a');
+        return smallRow(c.shopier_order_id||'Sipariş',`${esc(c.package_id||'')} · ${c.created_at?new Date(c.created_at).toLocaleString('tr-TR'):'-'}`,statusPill(c.status||'pending',color));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Doğrulama talebi yok.</div>';
+      accountSecurityActivity.innerHTML=(summary.security_activity||[]).map(a=>smallRow(a.action||'Hareket',`${esc(a.details||'')}<br>${a.timestamp?new Date(a.timestamp).toLocaleString('tr-TR'):'-'}`)).join('')||'<div class="text-sm" style="color:var(--muted)">Güvenlik hareketi yok.</div>';
+      document.getElementById('accountWishlist').innerHTML=(summary.wishlist||[]).map(g=>smallRow(g.game_name||`AppID ${g.appid}`,`AppID: ${esc(g.appid)} · ${esc(g.status||'waiting')}`,`<button data-remove-wishlist="${esc(g.appid)}" class="text-[10px] px-2 py-1 rounded-lg" style="border:1px solid var(--border);color:#fca5a5">Kaldır</button>`)).join('')||'<div class="text-sm" style="color:var(--muted)">İstek listen boş.</div>';
+      document.getElementById('referralCodeBox').innerHTML=`Kodun: <strong style="color:#7dffc0">${esc(summary.referral_code||'-')}</strong>`;
+      document.getElementById('copyReferralBtn').dataset.referralCode=summary.referral_code||'';
+      document.getElementById('accountUpgradeOptions').innerHTML=(summary.upgrade_options||[]).map(p=>`<div class="rounded-xl p-3" style="border:1px solid var(--border)"><div class="font-800">${esc(p.name)}</div><div class="text-xs my-2" style="color:var(--muted)">${esc(p.label||'')} · Tahmini fark ${esc(p.estimated_difference||'0.00')} TL</div><button data-upgrade-package="${esc(p.id)}" class="btn btn-g px-3 py-2 text-xs">Yükseltme Talebi</button></div>`).join('')||'<div class="text-sm" style="color:var(--muted)">Daha yüksek paket bulunmuyor.</div>';
+    }
+
+    async function loadAccountSummary(){
+      try{
+        const r=await fastFetch('/api/account/summary',{timeout:2200}),d=await readJsonSafe(r);
+        if(!d.ok){deviceResetMessage.textContent=d.message||'Hesap bilgileri alınamadı.';return;}
+        renderAccountSummary(d.summary||{});
+      }catch(err){deviceResetMessage.textContent='Hesap bilgileri alınamadı.';}
+    }
+
+    function renderAdminDashboard(data){
+      const s=data.stats||{};
+      const statItems=[
+        ['fa-users','Toplam kullanıcı',s.users||0,'Hesap tabanı'],
+        ['fa-signal','Online plugin',s.online_plugins||0,'Son heartbeat'],
+        ['fa-gamepad','Bugünkü oyun',s.today_games||0,'Günlük ekleme'],
+        ['fa-terminal','Bekleyen komut',s.pending_commands||0,'Admin kuyruğu'],
+        ['fa-ban','Engelli hesap',s.blocked_users||0,'Kısıtlı kullanıcı'],
+        ['fa-triangle-exclamation','Hata raporu',s.errors||0,'Açık kayıt'],
+        ['fa-shield-halved','Yüksek risk',s.high_risk||0,'İnceleme gerekli'],
+        ['fa-chart-line','Orta risk',s.medium_risk||0,'Takipte'],
+        ['fa-computer','Cihaz talebi',s.pending_device_resets||0,'Onay bekliyor'],
+        ['fa-headset','Açık destek',s.open_tickets||0,'Ticket kuyruğu'],
+        ['fa-user-check','Onay bekleyen',s.pending_approvals||0,'Yeni hesap'],
+        ['fa-user-shield','İncelemede',s.review_mode||0,'Risk kilidi'],
+        ['fa-plug-circle-xmark','Pasif kaynak',s.disabled_sources||0,'Otomatik kapalı'],
+        ['fa-id-card','Aktif lisans',s.active_licenses||0,'Kullanılabilir hesap']
+      ];
+      adminStatsGrid.innerHTML=statItems.map(([ico,k,v,sub])=>`<div class="admin-stat-card"><div class="flex items-center justify-between gap-3"><div class="text-xs font-800" style="color:var(--muted)">${k}</div><div class="ico"><i class="fa-solid ${ico}"></i></div></div><div><div class="syne font-800 text-3xl mt-2">${v}</div><div class="text-xs mt-1" style="color:var(--muted)">${sub}</div></div></div>`).join('');
+
+      const m=data.monitor||{};
+      licensePackages=data.license_packages||licensePackages||[];
+      renderLicensePackageOptions(licensePackages);
+      if(adminMobilePanel){
+        const shieldOk=m.health==='ok'&&!(m.open_errors||0)&&!(m.old_plugins||0);
+        const pkgCards=(licensePackages||[]).map(p=>`<button type="button" data-pick-package="${esc(p.id)}" class="license-package-card"><div class="pkg-name">${esc(p.name)}</div><div class="pkg-meta">${esc(p.label||'')}<br>${esc(p.description||'')}</div></button>`).join('');
+        adminMobilePanel.innerHTML=`<div class="admin-mobile-grid">
+          <button type="button" data-mobile-filter="pending" class="admin-mobile-card"><span class="text-xs font-800" style="color:var(--muted)">Onay bekleyen</span><strong>${s.pending_approvals||0}</strong><span class="text-xs" style="color:#fde68a">Hesap kuyruğu</span></button>
+          <button type="button" data-mobile-filter="expired" class="admin-mobile-card"><span class="text-xs font-800" style="color:var(--muted)">Lisansı biten</span><strong>${s.expired_licenses||0}</strong><span class="text-xs" style="color:#fca5a5">Yenileme gerekli</span></button>
+          <button type="button" data-mobile-filter="risky" class="admin-mobile-card"><span class="text-xs font-800" style="color:var(--muted)">Riskli kullanıcı</span><strong>${(s.high_risk||0)+(s.medium_risk||0)}</strong><span class="text-xs" style="color:#fde68a">İnceleme</span></button>
+          <button type="button" data-mobile-filter="review" class="admin-mobile-card"><span class="text-xs font-800" style="color:var(--muted)">İncelemede</span><strong>${s.review_mode||0}</strong><span class="text-xs" style="color:#fbbf24">Geçici kilit</span></button>
+          <button type="button" data-mobile-scroll="shield" class="admin-mobile-card"><span class="text-xs font-800" style="color:var(--muted)">Plugin sağlık kalkanı</span><strong style="color:${shieldOk?'#7dffc0':'#fde68a'}">${shieldOk?'OK':'Bak'}</strong><span class="text-xs" style="color:var(--muted)">${m.pending_commands||0} komut · ${m.open_errors||0} hata</span></button>
+        </div>
+        <div class="glass rounded-2xl p-4"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3"><div><div class="font-800 syne">Lisans Paketleri</div><div class="text-xs mt-1" style="color:var(--muted)">Paket kartına basınca toplu lisans alanına seçilir.</div></div>${statusPill(`${licensePackages.length} paket`,'#7dffc0')}</div><div class="license-package-grid">${pkgCards||'<div class="text-sm" style="color:var(--muted)">Paket yok.</div>'}</div></div>`;
+      }
+      const ok=m.health==='ok';
+      const monitorCards=[
+        ['Sistem kontrolü',ok?'Temiz':'Uyarı',`DB: ${esc(m.storage||'-')} · Sürüm: ${esc(m.plugin_version||'-')}<br>${m.checked_at?new Date(m.checked_at).toLocaleString('tr-TR'):'-'}`,statusPill(ok?'OK':'Bak',ok?'#7dffc0':'#fde68a')],
+        ['Plugin takip',`${m.online_plugins||0} online`,`${m.stale_plugins||0} eski heartbeat · ${m.old_plugins||0} eski sürüm`,statusPill((m.online_plugins||0)>0?'Aktif':'Bekliyor',(m.online_plugins||0)>0?'#7dffc0':'#fde68a')],
+        ['Otomatik toparlama',(m.pending_commands||0)+' komut',`${m.open_errors||0} açık hata · ${m.disabled_sources||0} pasif kaynak`,statusPill((m.open_errors||0)?'İzleniyor':'Normal',(m.open_errors||0)?'#fde68a':'#7dffc0')]
+      ];
+      const recovery=(m.auto_recovery||[]).map(x=>`<div class="text-xs leading-5" style="color:var(--muted)">• ${esc(x)}</div>`).join('');
+      const issues=(m.issues||[]).map(x=>`<div class="text-xs leading-5" style="color:#fca5a5">• ${esc(x)}</div>`).join('');
+      monitorPanel.innerHTML=monitorCards.map(([k,v,sub,badge])=>smallRow(k,`${esc(String(v))}<br>${sub}`,badge)).join('')+
+        `<div class="glass rounded-2xl p-4 lg:col-span-3"><div class="font-800 syne mb-2">Otomatik İşlem Notları</div>${issues||''}${recovery||'<div class="text-xs" style="color:var(--muted)">Kayıt yok.</div>'}</div>`;
+
+      livePluginsList.innerHTML=(data.live_plugins||[]).map(p=>{
+        const badge=`<span class="text-[10px] px-2 py-1 rounded-full font-700" style="background:${p.online?'var(--green-dim)':'rgba(239,68,68,.08)'};color:${p.online?'#7dffc0':'#fca5a5'}">${p.online?'Online':'Offline'}</span>`;
+        return smallRow(p.email||'Bilinmeyen',`Sürüm: ${esc(p.version||'-')} · HWID: ${esc((p.hwid||'').slice(0,16))}<br>Durum: ${esc(p.status||'-')} · ${p.last_seen_at?new Date(p.last_seen_at).toLocaleString('tr-TR'):'-'}`,badge);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Henüz canlı plugin yok.</div>';
+
+      gameHistoryList.innerHTML=(data.game_history||[]).map(log=>smallRow(log.email||log.username||'Kullanıcı',`${esc(log.action||'')} · ${esc(log.details||'')}<br>${log.timestamp?new Date(log.timestamp).toLocaleString('tr-TR'):'-'}`)).join('')||'<div class="text-sm" style="color:var(--muted)">Oyun geçmişi yok.</div>';
+
+      sourceHealthList.innerHTML=(data.source_health||[]).map(src=>{
+        const rate=Number(src.successRate||0);
+        const score=Number(src.source_score||0);
+        const grade=src.source_grade||'-';
+        const badge=src.disabled?`<button data-enable-source="${encodeURIComponent(src.name||'')}" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Aç</button>`:statusPill('Aktif','#7dffc0');
+        return smallRow(src.name||'Kaynak',`Skor: ${score}/100 (${esc(grade)}) · Başarı: ${rate.toFixed(0)}% · Hata: ${src.failures||0} · Deneme: ${src.attempts||0}<br>${esc(src.disabled_reason||src.lastError||src.status||'Sorun yok')}`,badge);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Kaynak verisi yok.</div>';
+
+      diagnosticsList.innerHTML=((data.diagnostics&&data.diagnostics.items)||[]).map(item=>{
+        const color=item.severity==='critical'?'#fca5a5':(item.severity==='warning'?'#fde68a':'#7dd3fc');
+        return smallRow(item.title||'Teşhis',`${esc(item.message||'')}<br><span style="color:#7dffc0">${esc(item.action||'İzleniyor')}</span><br>${item.created_at?new Date(item.created_at).toLocaleString('tr-TR'):'-'}`,statusPill(item.severity||'info',color));
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Teşhis uyarısı yok.</div>';
+
+      commandQueueList.innerHTML=(data.commands||[]).map(cmd=>{
+        const cancel=['pending','delivered'].includes(cmd.status)?`<button data-cancel-command="${cmd.id}" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)">İptal</button>`:'';
+        return smallRow(cmd.command||'Komut',`${esc(cmd.email||'')}<br>${esc(cmd.result||cmd.reason||'')}<br>${cmd.created_at?new Date(cmd.created_at).toLocaleString('tr-TR'):'-'}`,commandStatusBadge(cmd.status)+cancel);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Komut yok.</div>';
+
+      errorReportsList.innerHTML=(data.error_reports||[]).map(r=>{
+        const resolved=String(r.status||'open')==='resolved';
+        const state=`<span class="text-[10px] px-2 py-1 rounded-full font-700" style="background:${resolved?'rgba(56,189,248,.08)':'rgba(239,68,68,.08)'};color:${resolved?'#7dd3fc':'#fca5a5'}">${resolved?'Çözüldü':'Açık'}</span>`;
+        const action=`<button data-resolve-report="${r.id}" data-open="${resolved?'1':'0'}" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(255,255,255,.04);color:#cbd5e1;border:1px solid var(--border)">${resolved?'Tekrar Aç':'Çözüldü'}</button>`;
+        const meta=`${esc(r.message||'')}<br>Surum: ${esc(r.version||'-')} · HWID: ${esc((r.hwid||'').slice(0,16)||'-')} · ${esc(r.severity||'normal')}<br>${r.auto_action?'<span style="color:#7dffc0">'+esc(r.auto_action)+'</span><br>':''}${r.page_url?esc(r.page_url).slice(0,120)+'<br>':''}${r.created_at?new Date(r.created_at).toLocaleString('tr-TR'):'-'}`;
+        return smallRow(r.email||r.username||'Kullanıcı',meta,state+action);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Hata raporu yok.</div>';
+      suspiciousList.innerHTML=(data.suspicious||[]).map(log=>smallRow(log.email||'Kullanıcı',`${esc(log.details||log.action||'')}<br>${log.timestamp?new Date(log.timestamp).toLocaleString('tr-TR'):'-'}`)).join('')||'<div class="text-sm" style="color:var(--muted)">Şüpheli kullanım yok.</div>';
+      highRiskList.innerHTML=(data.high_risk_users||[]).map(u=>{
+        const review=!!u.review_mode;
+        const action=(u.role==='admin'||u.plugin_only)?'':`<button data-risk-review="${esc(String(u.id||''))}" data-enabled="${review?'0':'1'}" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.25)">${review?'İnceleme Kapat':'İncelemeye Al'}</button>`;
+        return smallRow(`${u.email} · ${u.risk?.score||0}`,`${esc((u.risk?.reasons||[]).join(', ')||'Risk nedeni yok')}<br>HWID: ${esc((u.hwid||'').slice(0,16)||'Yok')}${u.review_note?'<br>Not: '+esc(u.review_note):''}`,action);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Riskli kullanıcı yok.</div>';
+      auditLogList.innerHTML=(data.audit||[]).map(log=>smallRow(log.action||'Audit',`${esc(log.email||log.username||'admin')} · ${esc(log.details||'')}<br>${log.timestamp?new Date(log.timestamp).toLocaleString('tr-TR'):'-'}`)).join('')||'<div class="text-sm" style="color:var(--muted)">Audit kaydı yok.</div>';
+      deviceResetQueueList.innerHTML=(data.device_reset_requests||[]).map(r=>{
+        const actions=`<div class="flex gap-1"><button data-device-reset-review="${r.id}" data-approve="1" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Onay</button><button data-device-reset-review="${r.id}" data-approve="0" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)">Ret</button></div>`;
+        return smallRow(r.email||r.username||'Kullanıcı',`HWID: ${esc((r.old_hwid||'').slice(0,24)||'Yok')}<br>${esc(r.reason||'Sebep yok')}<br>${r.requested_at?new Date(r.requested_at).toLocaleString('tr-TR'):'-'}`,actions);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Bekleyen cihaz talebi yok.</div>';
+      supportTicketsList.innerHTML=(data.support_tickets||[]).map(t=>{
+        const color=t.status==='closed'?'#cbd5e1':(t.status==='answered'?'#7dffc0':'#fde68a');
+        const actions=`<div class="flex gap-1"><button data-ticket-reply="${t.id}" data-status="answered" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Cevap</button><button data-ticket-reply="${t.id}" data-status="closed" class="text-[10px] px-2 py-1 rounded-lg font-700" style="background:rgba(255,255,255,.04);color:#cbd5e1;border:1px solid var(--border)">Kapat</button></div>`;
+        return smallRow(t.email||t.username||'Kullanıcı',`${esc(t.subject||'Destek')} · ${esc(t.message||'').slice(0,160)}<br>${t.admin_reply?'<span style="color:#7dffc0">Cevap: '+esc(t.admin_reply)+'</span><br>':''}${t.updated_at?new Date(t.updated_at).toLocaleString('tr-TR'):'-'}`,statusPill(t.status||'open',color)+actions);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Destek talebi yok.</div>';
+      renderCommerceCenter(data.commerce||{});
+    }
+
+    function renderCommerceCenter(commerce){
+      const growth=commerce.growth||{};
+      const growthRows=[['Ödenen sipariş',growth.paid_orders||0],['Referans kayıt',growth.referrals||0],['İstek listesi',growth.wishlist_games||0],['Otomatik yedek',growth.backups||0]].map(([k,v])=>smallRow(k,'Son durum',statusPill(String(v),'#7dffc0'))).join('');
+      commerceFunnelList.innerHTML=growthRows+(commerce.funnel||[]).map(x=>smallRow(x.event_type||'Olay',`${esc(x.package_id||'Tüm paketler')}`,statusPill(String(x.total||0),'#7dd3fc'))).join('');
+      orderClaimsAdminList.innerHTML=(commerce.order_claims||[]).map(c=>{
+        const actions=c.status==='pending'?`<div class="flex gap-1"><button data-claim-review="${c.id}" data-approved="1" class="text-[10px] px-2 py-1 rounded-lg font-700" style="color:#7dffc0;border:1px solid var(--border)">Onay</button><button data-claim-review="${c.id}" data-approved="0" class="text-[10px] px-2 py-1 rounded-lg font-700" style="color:#fca5a5;border:1px solid var(--border)">Ret</button></div>`:statusPill(c.status,c.status==='approved'?'#7dffc0':'#fca5a5');
+        return smallRow(c.shopier_order_id||'Sipariş',`${esc(c.email||'')} · ${esc(c.package_id||'')}`,actions);
+      }).join('')||'<div class="text-sm" style="color:var(--muted)">Sipariş onayı yok.</div>';
+      licenseCodesAdminList.innerHTML=(commerce.license_codes||[]).map(c=>smallRow(c.code||'-',`${esc(c.package_id||'')} · ${esc(c.redeemed_email||'Kullanılmadı')}`,statusPill(c.status||'active',c.status==='active'?'#7dffc0':'#cbd5e1'))).join('')||'<div class="text-sm" style="color:var(--muted)">Lisans kodu yok.</div>';
+      couponsAdminList.innerHTML=(commerce.coupons||[]).map(c=>smallRow(c.code||'-',`${esc(c.package_id||'Tüm paketler')} · ${c.used_count||0}/${c.max_uses||'∞'}`,statusPill(`%${c.discount_percent}`,'#fde68a'))).join('')||'<div class="text-sm" style="color:var(--muted)">Kupon yok.</div>';
+    }
+
+    async function loadAdminDashboard(){
+      const r=await fastFetch('/api/admin/dashboard',{timeout:2500}),d=await readJsonSafe(r);
+      if(!d.ok){adminMsg.textContent=d.message||'Dashboard alınamadı.';return;}
+      renderAdminDashboard(d.dashboard||{});
+    }
+
+    async function openUserDetail(id){
+      const r=await fastFetch(`/api/admin/users/${encodeURIComponent(id)}/detail`,{timeout:2200}),d=await readJsonSafe(r);
+      if(!d.ok){adminMsg.textContent=d.message||'Detay alınamadı.';return;}
+      const u=d.user||{};
+      const targetId=esc(String(u.virtual_id||u.id||id));
+      const pluginOnly=!!u.plugin_only;
+      const accountTargetId=esc(String(u.id||''));
+      const accountDisabled=pluginOnly?' disabled title="Bu işlem için kalıcı site hesabı gerekli"':'';
+      const games=d.installed_games||[];
+      const allowedAppids=String(Array.isArray(u.allowed_appids)?u.allowed_appids.join(','):u.allowed_appids||'').trim();
+      const reviewMode=!!u.review_mode;
+      const gameRows=games.map(g=>{
+        const manifestCount=Number(g.manifest_count||((g.manifest_files||[]).length)||0);
+        return `<label class="rounded-xl p-3 flex items-start gap-3" style="background:rgba(255,255,255,.025);border:1px solid var(--border)">
+          <input type="checkbox" class="cleanupGameSelect mt-1 accent-green-400" value="${esc(g.appid)}" />
+          <span class="flex-1 min-w-0"><span class="block text-sm font-800">${esc(g.name||('AppID '+g.appid))}</span><span class="block text-xs mt-1" style="color:var(--muted)">AppID: ${esc(g.appid)} · Manifest: ${manifestCount} · Kaynak: ${esc(g.api||'-')}</span></span>
+        </label>`;
+      }).join('');
+      userDetailPanel.classList.remove('hidden');
+      const detailPackageOptions=(licensePackages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${esc(p.label||'')}</option>`).join('');
+      userDetailPanel.innerHTML=`<div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4"><div><div class="slabel mb-2">Kullanıcı Detayı</div><div class="syne font-800 text-xl">${esc(u.username||u.email)}</div><div class="text-xs mt-1" style="color:var(--muted)">${esc(u.email||'')} · HWID: ${esc(u.hwid||'Yok')}${pluginOnly?' · Plugin kaydı':''}</div></div><div class="flex flex-wrap gap-2"><button data-user-command="health_check" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Sağlık Kontrol</button><button data-user-command="repair_health_shield" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Kalkan Onar</button><button data-user-command="logout" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Çıkış</button><button data-user-command="cleanup_games" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Oyunları Temizle</button><button data-user-command="install_cleanup_watchdog" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Koruma Aç</button><button data-user-command="remove_cleanup_watchdog" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Koruma Kapat</button><button data-user-command="reset_account" data-id="${targetId}" class="btn btn-o px-3 py-2 text-xs">Ayar Sıfırla</button><button data-user-command="refresh_control" data-id="${targetId}" class="btn btn-g px-3 py-2 text-xs">Kontrol Yenile</button></div></div>
+        <div class="grid lg:grid-cols-3 gap-3 text-xs">
+          <div>${smallRow('Plugin cihazları',(d.plugin||[]).map(p=>`${esc(p.version||'-')} · ${esc((p.hwid||'').slice(0,16))} · ${p.last_seen_at?new Date(p.last_seen_at).toLocaleString('tr-TR'):'-'}`).join('<br>')||'Yok')}</div>
+          <div>${smallRow('Son loglar',(d.logs||[]).slice(0,6).map(l=>`${esc(l.action||'')} · ${esc(l.details||'')}`).join('<br>')||'Yok')}</div>
+          <div>${smallRow('Komutlar',(d.commands||[]).slice(0,6).map(c=>`${esc(c.command||'')} · ${esc(c.status||'')}`).join('<br>')||'Yok')}</div>
+        </div>
+        <div class="mt-4 glass rounded-2xl p-4">
+          <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+            <div class="flex-1">
+              <div class="font-800 syne mb-1">Risk İnceleme Modu</div>
+              <div class="text-xs mb-2" style="color:var(--muted)">Açıkken kullanıcı giriş yapabilir ama plugin oyun ekleme kontrolünden geçemez.</div>
+              <textarea id="reviewModeNoteInput" class="fi2 min-h-[64px]" placeholder="Admin notu">${esc(u.review_note||'')}</textarea>
+            </div>
+            <button data-risk-review="${accountTargetId}" data-enabled="${reviewMode?'0':'1'}" class="btn btn-o px-4 py-2.5 text-xs"${accountDisabled}>${reviewMode?'İnceleme Modunu Kapat':'İnceleme Moduna Al'}</button>
+          </div>
+        </div>
+        <div class="mt-4 glass rounded-2xl p-4">
+          <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+            <div class="flex-1">
+              <div class="font-800 syne mb-1">Lisans Paketi</div>
+              <div class="text-xs mb-2" style="color:var(--muted)">Hazır paket seç, kullanıcıya tarih ve günlük limit otomatik işlensin.</div>
+              <select id="detailLicensePackage" class="fi2"><option value="">Paket seç</option>${detailPackageOptions}</select>
+            </div>
+            <button data-apply-license-package="${accountTargetId}" class="btn btn-g px-4 py-2.5 text-xs"${accountDisabled}>Paketi Uygula</button>
+          </div>
+        </div>
+        <div class="mt-4 glass rounded-2xl p-4">
+          <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+            <div class="flex-1">
+              <div class="font-800 syne mb-1">İzinli AppID Listesi</div>
+              <div class="text-xs mb-2" style="color:var(--muted)">Boş bırakılırsa kullanıcı tüm oyunları ekleyebilir. Doluysa sadece yazılan AppID'ler eklenir.</div>
+              <textarea id="allowedAppidsInput" class="fi2 min-h-[72px]" placeholder="Örn: 730, 570, 1519490">${esc(allowedAppids)}</textarea>
+            </div>
+            <button data-save-appids="${accountTargetId}" class="btn btn-g px-4 py-2.5 text-xs"${accountDisabled}>AppID İzinlerini Kaydet</button>
+          </div>
+        </div>
+        <div class="mt-4 glass rounded-2xl p-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <div><div class="font-800 syne">Eklenmiş Oyunlar</div><div class="text-xs mt-1" style="color:var(--muted)">Seçtiğin oyunların Lua scripti ve depotcache manifestleri silinir.</div></div>
+            <div class="flex flex-wrap gap-2"><button data-user-clean-selected="${targetId}" class="btn btn-o px-3 py-2 text-xs">Seçilen Manifestleri Sil</button><button data-user-command="cleanup_games" data-id="${targetId}" class="btn btn-g px-3 py-2 text-xs">Tümünü Temizle</button></div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1">${gameRows||'<div class="text-sm" style="color:var(--muted)">Bu kullanıcıdan henüz oyun listesi gelmedi. Plugin açıkken “Plugin Durumu > Yenile” veya admin “Kontrol Yenile” sonrası görünür.</div>'}</div>
+        </div>`;
+      userDetailPanel.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+
+    async function sendUserCommand(id,command,payload){
+      payload=payload||{};
+      let confirm_cleanup=false;
+      if(command==='cleanup_games'){
+        const selectedCount=(payload.appids||[]).length;
+        const msg=selectedCount?`${selectedCount} seçili oyunun Lua scripti ve manifestleri silinsin mi?`:'Bu kullanicinin SecurityShoop ile eklenen tüm oyun scriptleri ve manifestleri temizlensin mi?';
+        if(!confirm(msg))return;
+        confirm_cleanup=true;
+        payload.confirm_cleanup=true;
+      }
+      const reason=(command==='health_check'||command==='repair_health_shield')?'Plugin saglik kalkanı':(prompt('Komut notu',command)||'');
+      const r=await fetch(`/api/admin/users/${encodeURIComponent(id)}/command`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command,reason,confirm_cleanup,payload})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ Komut gönderildi');loadAdminDashboard();openUserDetail(id);}
+    }
+
+    async function cancelCommand(id){
+      const r=await fetch(`/api/admin/plugin-commands/${id}/cancel`,{method:'POST'}),d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok)loadAdminDashboard();
+    }
+
+    async function saveAppidAccess(id){
+      if(!id){adminMsg.textContent='Bu işlem için kalıcı site hesabı gerekli.';return;}
+      const value=document.getElementById('allowedAppidsInput')?.value||'';
+      const r=await fetch(adminUserUrl(id,'/appid-access'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowed_appids:value})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ AppID izinleri kaydedildi');loadAdminUsers();openUserDetail(id);}
+    }
+
+    async function setReviewMode(id,enabled){
+      if(!id){adminMsg.textContent='Bu işlem için kalıcı site hesabı gerekli.';return;}
+      const note=enabled?(document.getElementById('reviewModeNoteInput')?.value||prompt('İnceleme notu','Risk incelemesi')||'Risk incelemesi'):(document.getElementById('reviewModeNoteInput')?.value||'');
+      const r=await fetch(adminUserUrl(id,'/review-mode'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled,note})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast(enabled?'✓ İnceleme modu açıldı':'✓ İnceleme modu kapandı');loadAdminUsers();loadAdminDashboard();openUserDetail(id);}
+    }
+
+    async function replySupportTicket(id,status){
+      const reply=status==='closed'?'':(prompt('Kullanıcıya cevap yaz','')||'');
+      if(status!=='closed'&&!reply.trim()){adminMsg.textContent='Cevap boş olamaz.';return;}
+      const r=await fetch(`/api/admin/support-tickets/${id}/reply`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,admin_reply:reply})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ Destek talebi güncellendi');loadAdminDashboard();}
+    }
+
+    function selectedUserIds(){
+      return [...document.querySelectorAll('.userSelect:checked')].map(el=>Number(el.value)).filter(Boolean);
+    }
+
+    async function runBulkAction(){
+      const ids=selectedUserIds();
+      if(!ids.length){adminMsg.textContent='Önce kullanıcı seç.';return;}
+      const action=document.getElementById('bulkAction').value;
+      if(action==='delete'&&!confirm(`${ids.length} kullanıcı silinsin mi?`))return;
+      const command=document.getElementById('bulkCommand').value;
+      let confirm_cleanup=false;
+      if(action==='command'&&command==='cleanup_games'){
+        if(!confirm(`${ids.length} kullanicinin SecurityShoop oyun scriptleri temizlensin mi?`))return;
+        confirm_cleanup=true;
+      }
+      const payload={
+        ids,
+        action,
+        command,
+        confirm_cleanup,
+        license_package_id:document.getElementById('bulkLicensePackage')?.value||'',
+        license_until:document.getElementById('bulkLicenseUntil').value.trim(),
+        daily_limit:Number(document.getElementById('bulkDailyLimit').value||0),
+        reason:'Bulk admin action'
+      };
+      const r=await fetch('/api/admin/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ Toplu işlem tamamlandı');loadAdminUsers();loadAdminDashboard();}
+    }
+
+    async function refreshSession(){
+      const r=await fastFetch('/api/session',{timeout:1500}),d=await readJsonSafe(r);
+      if(d.authenticated){
+        welcomeUser.textContent='Merhaba, '+(d.user.username||d.user.email);
+        welcomeUser.classList.remove('hidden');logoutBtn.classList.remove('hidden');
+        document.getElementById('loginOpenBtn').classList.add('hidden');
+        document.getElementById('registerOpenBtn').classList.add('hidden');
+        rvText.disabled=false;rvBtn.disabled=false;rvBtn.classList.remove('opacity-50');
+        rvGate.textContent='Giriş yaptın. Yorumunu gönderebilirsin.';
+        accountPanel.classList.remove('hidden');accountLink.classList.remove('hidden');accountLinkMobile.classList.remove('hidden');
+        loadAccountSummary();
+        const isAdmin=d.user.role==='admin';
+        adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);appKeysLink?.classList.toggle('hidden',!isAdmin);
+        if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();}
+      } else {
+        welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
+        document.getElementById('loginOpenBtn').classList.remove('hidden');
+        document.getElementById('registerOpenBtn').classList.remove('hidden');
+        adminPanel.classList.add('hidden');adminLink.classList.add('hidden');appKeysLink?.classList.add('hidden');
+        accountPanel.classList.add('hidden');accountLink.classList.add('hidden');accountLinkMobile.classList.add('hidden');
+        rvText.disabled=true;rvBtn.disabled=true;rvBtn.classList.add('opacity-50');
+        rvGate.textContent='Yorum yazmak için giriş yapman gerekir.';
+      }
+    }
+
+    authForm.addEventListener('submit',async e=>{
+      e.preventDefault();submitBtn.disabled=true;submitBtn.textContent='Yükleniyor...';
+      try{
+        const p={email:document.getElementById('email').value.trim(),password:document.getElementById('password').value};
+        let ep='/api/login';
+        if(authMode==='register'){p.username=document.getElementById('registerName').value.trim();p.confirmPassword=document.getElementById('confirmPassword').value;p.referral_code=document.getElementById('registerReferral').value.trim();ep='/api/register';}
+        const r=await fastFetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),timeout:2200});
+        const d=await readJsonSafe(r);
+        if(!d.ok){authMsg.textContent=d.message||'Hata oluştu.';return;}
+        if(d.pending_approval){authMsg.textContent=d.message||'Hesap admin onayı bekliyor.';toast('Admin onayı bekliyor');return;}
+        closeModal();refreshSession();toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap oluşturuldu');
+      }catch(_err){
+        authMsg.textContent='Sunucu geç cevap verdi. Birazdan tekrar dene.';
+      }finally{
+        submitBtn.disabled=false;submitBtn.textContent=authMode==='login'?'Giriş Yap':'Hesap Oluştur';
+      }
+    });
+
+    document.getElementById('refreshUsersBtn')?.addEventListener('click',loadAdminUsers);
+    document.getElementById('userSearchInput')?.addEventListener('input',applyUserFilters);
+    document.getElementById('userFilterSelect')?.addEventListener('change',applyUserFilters);
+    document.getElementById('clearUserFiltersBtn')?.addEventListener('click',()=>{
+      document.getElementById('userSearchInput').value='';
+      document.getElementById('userFilterSelect').value='all';
+      applyUserFilters();
+    });
+    document.getElementById('savePluginControlBtn')?.addEventListener('click',savePluginControl);
+    document.getElementById('publishReleaseBtn')?.addEventListener('click',publishRelease);
+    document.getElementById('refreshAdminDashboardBtn')?.addEventListener('click',loadAdminDashboard);
+    document.getElementById('runBulkActionBtn')?.addEventListener('click',runBulkAction);
+    adminMobilePanel?.addEventListener('click',e=>{
+      const pkg=e.target.closest('button[data-pick-package]');
+      if(pkg){
+        const select=document.getElementById('bulkLicensePackage');
+        if(select){select.value=pkg.dataset.pickPackage||'';document.getElementById('bulkAction').value='license';toast('Paket toplu lisans alanına seçildi');}
+        return;
+      }
+      const filter=e.target.closest('button[data-mobile-filter]');
+      if(filter){
+        document.getElementById('userFilterSelect').value=filter.dataset.mobileFilter||'all';
+        applyUserFilters();
+        document.getElementById('usersTableBody')?.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+      const scroll=e.target.closest('button[data-mobile-scroll]');
+      if(scroll&&scroll.dataset.mobileScroll==='shield')monitorPanel?.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    document.getElementById('requestDeviceResetBtn')?.addEventListener('click',async()=>{
+      const btn=document.getElementById('requestDeviceResetBtn');
+      const reason=document.getElementById('deviceResetReason').value.trim();
+      btn.disabled=true;btn.textContent='Gönderiliyor...';
+      const r=await fetch('/api/account/device-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
+      const d=await r.json();
+      btn.disabled=false;btn.textContent='Cihaz Sıfırlama Talebi Gönder';
+      deviceResetMessage.textContent=d.message||'';
+      if(d.ok){toast('✓ Talep gönderildi');loadAccountSummary();}
+    });
+    document.getElementById('sendSupportTicketBtn')?.addEventListener('click',async()=>{
+      const btn=document.getElementById('sendSupportTicketBtn');
+      const subject=document.getElementById('supportSubject').value.trim();
+      const message=document.getElementById('supportMessage').value.trim();
+      btn.disabled=true;btn.textContent='Gönderiliyor...';
+      const r=await fetch('/api/account/support-tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,message})});
+      const d=await r.json();
+      btn.disabled=false;btn.textContent='Talep Gönder';
+      supportTicketMessage.textContent=d.message||'';
+      if(d.ok){document.getElementById('supportSubject').value='';document.getElementById('supportMessage').value='';toast('✓ Destek talebi gönderildi');loadAccountSummary();}
+    });
+    document.getElementById('sendOrderClaimBtn')?.addEventListener('click',async()=>{
+      const body={shopier_order_id:document.getElementById('orderClaimId').value.trim(),package_id:document.getElementById('orderClaimPackage').value};
+      const r=await fetch('/api/account/order-claims',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json();
+      document.getElementById('orderClaimMessage').textContent=d.message||'';if(d.ok){document.getElementById('orderClaimId').value='';loadAccountSummary();}
+    });
+    document.getElementById('redeemLicenseCodeBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/account/redeem-license',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('licenseCodeInput').value})}),d=await r.json();
+      document.getElementById('licenseCodeMessage').textContent=d.message||'';if(d.ok){document.getElementById('licenseCodeInput').value='';loadAccountSummary();}
+    });
+    document.getElementById('changePasswordBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/account/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:document.getElementById('currentPasswordInput').value,new_password:document.getElementById('newPasswordInput').value})}),d=await r.json();
+      document.getElementById('securityMessage').textContent=d.message||'';if(d.ok){document.getElementById('currentPasswordInput').value='';document.getElementById('newPasswordInput').value='';}
+    });
+    document.getElementById('logoutAllBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/account/logout-all',{method:'POST'}),d=await r.json();document.getElementById('securityMessage').textContent=d.message||'';
+    });
+    document.getElementById('validateCouponBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/coupons/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('publicCouponCode').value})}),d=await r.json();
+      document.getElementById('publicCouponMessage').textContent=d.message||'';
+    });
+    document.getElementById('createLicenseCodesBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/admin/license-codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:document.getElementById('adminLicenseCodePackage').value,count:document.getElementById('adminLicenseCodeCount').value})}),d=await r.json();
+      commerceMessage.textContent=d.ok?`${d.message} ${d.codes.join(', ')}`:(d.message||'');if(d.ok)loadAdminDashboard();
+    });
+    document.getElementById('createCouponBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/admin/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('adminCouponCode').value,discount_percent:document.getElementById('adminCouponDiscount').value,package_id:document.getElementById('adminCouponPackage').value})}),d=await r.json();
+      commerceMessage.textContent=d.message||'';if(d.ok)loadAdminDashboard();
+    });
+    orderClaimsAdminList?.addEventListener('click',async e=>{
+      const btn=e.target.closest('button[data-claim-review]');if(!btn)return;
+      const r=await fetch(`/api/admin/order-claims/${btn.dataset.claimReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved:btn.dataset.approved==='1'})}),d=await r.json();
+      commerceMessage.textContent=d.message||'';if(d.ok){loadAdminDashboard();loadAdminUsers();}
+    });
+    document.addEventListener('click',e=>{const a=e.target.closest('[data-commerce-package]');if(a)fetch('/api/commerce/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_type:'checkout_click',package_id:a.dataset.commercePackage})}).catch(()=>{});});
+    document.getElementById('giftLicenseBtn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/account/gift-license',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('giftLicenseCode').value,recipient_email:document.getElementById('giftRecipientEmail').value})}),d=await r.json();
+      document.getElementById('giftLicenseMessage').textContent=d.message||'';
+    });
+    document.getElementById('catalogSearchBtn')?.addEventListener('click',async()=>{
+      const box=document.getElementById('catalogResults');box.innerHTML='<div class="text-sm" style="color:var(--muted)">Aranıyor...</div>';
+      const r=await fetch(`/api/catalog/search?q=${encodeURIComponent(document.getElementById('catalogSearchInput').value)}`),d=await r.json();
+      box.innerHTML=(d.games||[]).map(g=>smallRow(g.name,`AppID: ${esc(g.appid)}`,`<button data-add-wishlist="${esc(g.appid)}" data-game-name="${esc(g.name)}" class="text-[10px] px-2 py-1 rounded-lg" style="border:1px solid var(--border);color:#7dffc0">Listeye Ekle</button>`)).join('')||`<div class="text-sm" style="color:var(--muted)">${esc(d.message||'Sonuç yok.')}</div>`;
+    });
+    document.getElementById('catalogResults')?.addEventListener('click',async e=>{
+      const btn=e.target.closest('[data-add-wishlist]');if(!btn)return;
+      const r=await fetch('/api/account/wishlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appid:btn.dataset.addWishlist,game_name:btn.dataset.gameName})}),d=await r.json();if(d.ok)loadAccountSummary();else toast(d.message||'Eklenemedi');
+    });
+    document.getElementById('accountWishlist')?.addEventListener('click',async e=>{
+      const btn=e.target.closest('[data-remove-wishlist]');if(!btn)return;
+      const r=await fetch(`/api/account/wishlist/${btn.dataset.removeWishlist}`,{method:'DELETE'}),d=await r.json();if(d.ok)loadAccountSummary();
+    });
+    document.getElementById('copyReferralBtn')?.addEventListener('click',async e=>{
+      const link=`${location.origin}?ref=${encodeURIComponent(e.currentTarget.dataset.referralCode||'')}`;await navigator.clipboard.writeText(link);toast('Davet linki kopyalandı');
+    });
+    document.getElementById('accountUpgradeOptions')?.addEventListener('click',async e=>{
+      const btn=e.target.closest('[data-upgrade-package]');if(!btn)return;
+      const r=await fetch('/api/account/upgrade-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:btn.dataset.upgradePackage})}),d=await r.json();toast(d.message||'Yükseltme talebi işlendi');if(d.ok)loadAccountSummary();
+    });
+    document.getElementById('downloadBackupBtn')?.addEventListener('click',()=>{window.location.href='/api/admin/backup';});
+    document.getElementById('restoreBackupInput')?.addEventListener('change',async e=>{
+      const file=e.target.files&&e.target.files[0];if(!file)return;
+      if(!confirm('Bu yedek mevcut verilerle birleştirilsin mi?')){e.target.value='';return;}
+      backupMessage.textContent='Yedek okunuyor...';
+      try{
+        const text=await file.text();
+        const backup=JSON.parse(text);
+        const r=await fetch('/api/admin/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm_restore:true,backup})});
+        const d=await r.json();
+        backupMessage.textContent=d.message||'';
+        if(d.ok){toast('✓ Yedek geri yüklendi');loadAdminUsers();loadAdminDashboard();}
+      }catch(err){backupMessage.textContent='Yedek dosyası okunamadı.';}
+      e.target.value='';
+    });
+    document.getElementById('selectAllUsers')?.addEventListener('change',e=>{
+      document.querySelectorAll('.userSelect:not(:disabled)').forEach(cb=>{cb.checked=e.target.checked;});
+    });
+    commandQueueList?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-cancel-command]');if(!btn)return;
+      cancelCommand(btn.dataset.cancelCommand);
+    });
+    errorReportsList?.addEventListener('click',async e=>{
+      const btn=e.target.closest('button[data-resolve-report]');if(!btn)return;
+      const r=await fetch(`/api/admin/error-reports/${btn.dataset.resolveReport}/resolve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({open:btn.dataset.open==='1'})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ Rapor guncellendi');loadAdminDashboard();}
+    });
+    sourceHealthList?.addEventListener('click',async e=>{
+      const btn=e.target.closest('button[data-enable-source]');if(!btn)return;
+      const r=await fetch(`/api/admin/source-health/${btn.dataset.enableSource}/enable`,{method:'POST'}),d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast('✓ Kaynak aktif');loadAdminDashboard();}
+    });
+    deviceResetQueueList?.addEventListener('click',async e=>{
+      const btn=e.target.closest('button[data-device-reset-review]');if(!btn)return;
+      const approved=btn.dataset.approve==='1';
+      const note=approved?'Admin onayladı':'Admin reddetti';
+      const r=await fetch(`/api/admin/device-reset-requests/${btn.dataset.deviceResetReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved,note})});
+      const d=await r.json();
+      adminMsg.textContent=d.message||'';
+      if(d.ok){toast(approved?'✓ HWID sıfırlandı':'Talep reddedildi');loadAdminDashboard();loadAdminUsers();}
+    });
+    supportTicketsList?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-ticket-reply]');if(!btn)return;
+      replySupportTicket(btn.dataset.ticketReply,btn.dataset.status||'answered');
+    });
+    highRiskList?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-risk-review]');if(!btn)return;
+      setReviewMode(btn.dataset.riskReview,btn.dataset.enabled==='1');
+    });
+    userDetailPanel?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-user-command]');if(!btn)return;
+      sendUserCommand(btn.dataset.id,btn.dataset.userCommand);
+    });
+    userDetailPanel?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-risk-review]');if(!btn)return;
+      setReviewMode(btn.dataset.riskReview,btn.dataset.enabled==='1');
+    });
+    userDetailPanel?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-save-appids]');if(!btn)return;
+      saveAppidAccess(btn.dataset.saveAppids);
+    });
+    userDetailPanel?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-apply-license-package]');if(!btn)return;
+      applyLicensePackage(btn.dataset.applyLicensePackage,document.getElementById('detailLicensePackage')?.value||'');
+    });
+    userDetailPanel?.addEventListener('click',e=>{
+      const btn=e.target.closest('button[data-user-clean-selected]');if(!btn)return;
+      const appids=[...userDetailPanel.querySelectorAll('.cleanupGameSelect:checked')].map(cb=>cb.value).filter(Boolean);
+      if(!appids.length){adminMsg.textContent='Önce silinecek oyunları seç.';return;}
+      sendUserCommand(btn.dataset.userCleanSelected,'cleanup_games',{appids});
+    });
+    usersBody?.addEventListener('click',async e=>{
+      const btn=e.target.closest('button[data-action]');if(!btn)return;
+      const id=btn.dataset.id,action=btn.dataset.action;
+      let ep='';
+      if(action==='detail'){openUserDetail(id);return;}
+      if(action==='approve'||action==='reject'){
+        const approved=action==='approve';
+        const r=await fetch(adminUserUrl(id,'/approval'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved})}),d=await r.json();
+        adminMsg.textContent=d.message||'';if(d.ok){toast(approved?'Hesap onaylandi':'Hesap reddedildi');loadAdminUsers();loadAdminDashboard();}return;
+      }
+      if(action==='reviewon'||action==='reviewoff'){
+        await setReviewMode(id,action==='reviewon');
+        return;
+      }
+      if(action==='block')ep=adminUserUrl(id,'/block');
+      if(action==='unblock')ep=adminUserUrl(id,'/unblock');
+      if(action==='pcban'){if(!confirm('Bu bilgisayar banlansın mı? Aynı HWID ile plugin oyun ekleyemeyecek.'))return;ep=adminUserUrl(id,'/ban-pc');}
+      if(action==='license'){
+        if(licensePackages.length){
+          const list=licensePackages.map(p=>`${p.id}: ${p.name} (${p.label||''})`).join('\n');
+          const defaultPackage=(licensePackages.find(p=>p.id==='single-1')||licensePackages.find(p=>Number(p.daily_limit||0)===1)||licensePackages[0]||{}).id||'';
+          const packageId=prompt('Uygulanacak paket ID yaz. 1 yazarsan tek oyun paketi uygulanır. Manuel tarih/limit için manual yaz.\n\n'+list,defaultPackage);
+          if(packageId===null)return;
+          if(packageId&&packageId.toLowerCase()!=='manual'){applyLicensePackage(id,packageId);return;}
+        }
+        const license_until=prompt('Lisans bitiş tarihi (YYYY-MM-DD). Boş bırakırsan sınırsız olur.','');
+        if(license_until===null)return;
+        const daily_limit=prompt('Günlük oyun ekleme limiti. 0 sınırsız demek.','0');
+        if(daily_limit===null)return;
+        const r=await fetch(adminUserUrl(id,'/license'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({license_until,daily_limit:Number(daily_limit||0)})}),d=await r.json();
+        adminMsg.textContent=d.message||'';if(d.ok)loadAdminUsers();return;
+      }
+      if(action==='delete'){if(!confirm('Bu kullanıcı silinsin mi?'))return;ep=adminUserUrl(id,'/delete');}
+      const r=await fetch(ep,{method:'POST'}),d=await r.json();
+      adminMsg.textContent=d.message||'';if(d.ok)loadAdminUsers();
+    });
+
+    logoutBtn.addEventListener('click',async()=>{
+      logoutBtn.disabled=true;
+      try{await fastFetch('/api/logout',{method:'POST',timeout:1200});}
+      catch(_err){}
+      finally{logoutBtn.disabled=false;refreshSession();toast('Çıkış yapıldı');}
+    });
+    document.getElementById('loginOpenBtn').addEventListener('click',()=>openModal('login'));
+    document.getElementById('registerOpenBtn').addEventListener('click',()=>openModal('register'));
+    document.getElementById('closeModalBtn').addEventListener('click',closeModal);
+    tabLogin.addEventListener('click',()=>switchMode('login'));
+    tabReg.addEventListener('click',()=>switchMode('register'));
+    authModal.addEventListener('click',e=>{if(e.target===authModal)closeModal();});
+
+    // REVIEWS
+    function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+    const aiChatPanel=document.getElementById('aiChatPanel');
+    const aiChatMessages=document.getElementById('aiChatMessages');
+    const aiChatInput=document.getElementById('aiChatInput');
+    const aiChatForm=document.getElementById('aiChatForm');
+    const aiChatSend=document.getElementById('aiChatSend');
+    const aiChatHistory=[
+      {role:'assistant',content:'Merhaba, SecurityShoop AI destek burada. Hesap, lisans, cihaz veya plugin konusunda yazabilirsin.'}
+    ];
+    function renderAiChat(){
+      if(!aiChatMessages)return;
+      aiChatMessages.innerHTML=aiChatHistory.map(msg=>`<div class="ai-msg ${msg.role==='user'?'user':'assistant'}">${esc(msg.content)}</div>`).join('');
+      aiChatMessages.scrollTop=aiChatMessages.scrollHeight;
+    }
+    async function sendAiChatMessage(){
+      const text=(aiChatInput?.value||'').trim();
+      if(!text)return;
+      aiChatInput.value='';
+      aiChatHistory.push({role:'user',content:text});
+      aiChatHistory.push({role:'assistant',content:'Yanıt hazırlanıyor...'});
+      renderAiChat();
+      if(aiChatSend)aiChatSend.disabled=true;
+      try{
+        const payload={messages:aiChatHistory.filter(m=>m.content!=='Yanıt hazırlanıyor...').slice(-8)};
+        const r=await fetch('/api/ai-chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const d=await r.json().catch(()=>({ok:false,message:'AI destek cevabı okunamadı.'}));
+        aiChatHistory.pop();
+        aiChatHistory.push({role:'assistant',content:d.ok?(d.reply||'Cevap alınamadı.'):d.message||'AI destek şu an cevap veremedi.'});
+      }catch(_err){
+        aiChatHistory.pop();
+        aiChatHistory.push({role:'assistant',content:'AI destek şu an cevap veremedi. Instagram DM üzerinden yazabilirsin.'});
+      }finally{
+        if(aiChatSend)aiChatSend.disabled=false;
+        renderAiChat();
+      }
+    }
+    document.getElementById('aiChatLauncher')?.addEventListener('click',()=>{aiChatPanel?.classList.add('open');renderAiChat();setTimeout(()=>aiChatInput?.focus(),80);});
+    document.getElementById('aiChatClose')?.addEventListener('click',()=>aiChatPanel?.classList.remove('open'));
+    aiChatForm?.addEventListener('submit',e=>{e.preventDefault();sendAiChatMessage();});
+
+    function renderReviews(reviews){
+      rvList.innerHTML='';
+      if(!reviews.length){rvList.innerHTML='<div class="text-sm text-center py-6" style="color:var(--muted)">Henüz yorum yok.</div>';return;}
+      reviews.forEach(r=>{
+        const card=document.createElement('article');card.className='rc';
+        const badge=r.is_demo?'<span class="text-[10px] font-700 px-2 py-0.5 rounded-full" style="background:rgba(245,158,11,.08);color:#fde68a;border:1px solid rgba(245,158,11,.2)">Örnek</span>':'<span class="text-[10px] font-700 px-2 py-0.5 rounded-full" style="background:var(--green-dim);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Üye</span>';
+        card.innerHTML=`<div class="flex items-start justify-between gap-3 mb-2"><div><div class="text-sm font-700">${esc(r.username)}</div><div class="text-[10px] mt-0.5" style="color:var(--muted)">${new Date(r.created_at).toLocaleString('tr-TR')}</div></div>${badge}</div><div class="text-xs mb-2" style="color:#f59e0b">★★★★★</div><p class="text-xs leading-5" style="color:var(--muted)">${esc(r.text)}</p>`;
+        rvList.appendChild(card);
+      });
+    }
+    async function loadReviews(){
+      const r=await fetch('/api/reviews'),d=await r.json();
+      if(!d.ok){rvList.innerHTML='<div class="text-sm" style="color:#fca5a5">Yorumlar alınamadı.</div>';return;}
+      renderReviews(d.reviews||[]);
+    }
+    rvForm?.addEventListener('submit',async e=>{
+      e.preventDefault();rvMsg.textContent='';
+      const t=rvText.value.trim();if(!t){rvMsg.textContent='Önce yorum yaz.';return;}
+      const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})});
+      const d=await r.json();rvMsg.textContent=d.message||'';
+      if(d.ok){rvText.value='';loadReviews();toast('✓ Yorum eklendi');}
+    });
+
+    const publicLicenseFallback=[
+      {id:'random-1',name:'Rastgele 1 Oyun',label:'Hesabına rastgele 1 oyun ekleme',price:'30 TL',badge:'Rastgele',image:'/license-packages/license-random.jpg',description:'Sistem tarafından seçilen rastgele 1 oyun hesabına eklenir.',features:['Rastgele 1 oyun','3 gün lisans','Tek cihaz kontrolü'],checkout_url:'/api/shopier/checkout?package=random-1'},
+      {id:'single-1',name:'İstediğin 1 Oyun',label:'Hesabına istediğin 1 oyunu ekleme',price:'49,50 TL',badge:'Tek Oyun',image:'/license-packages/license-1-game.jpg',description:'Seçtiğin 1 oyunu hesabına eklemek için tek oyun paketi.',features:['İstediğin 1 oyun','7 gün lisans','Tek cihaz kontrolü'],checkout_url:'/api/shopier/checkout?package=single-1'},
+      {id:'pack-10',name:'İstediğin 10 Oyun',label:'Hesabına istediğin 10 oyunu ekleme',price:'200 TL',badge:'Başlangıç',image:'/license-packages/license-10-games.jpg',description:'Seçtiğin 10 oyunu hesabına eklemek için başlangıç paketi.',features:['İstediğin 10 oyun','15 gün lisans','Plugin hesap paneli'],checkout_url:'/api/shopier/checkout?package=pack-10'},
+      {id:'random-add',name:'Rastgele 25 Oyun',label:'Hesabına rastgele 25 oyun ekleme',price:'200 TL',badge:'Sürpriz',image:'/license-packages/license-25-games.jpg',description:'Sistem tarafından seçilen rastgele 25 oyun hesabına eklenir.',features:['Rastgele 25 oyun','30 gün lisans','Sistem seçimli oyun ekleme'],checkout_url:'/api/shopier/checkout?package=random-add'},
+      {id:'pack-50',name:'İstediğin 50 Oyun',label:'Hesabına istediğin 50 oyunu ekleme',price:'300 TL',badge:'VIP',image:'/license-packages/license-50-games.jpg',description:'Seçtiğin 50 oyunu hesabına eklemek için geniş VIP paket.',features:['İstediğin 50 oyun','90 gün VIP lisans','Cihaz sıfırlama talebi'],checkout_url:'/api/shopier/checkout?package=pack-50'},
+      {id:'pack-100',name:'İstediğin 100 Oyun',label:'Hesabına istediğin 100 oyunu ekleme',price:'600 TL',badge:'Pro Max',image:'/license-packages/license-100-games.jpg',description:'Seçtiğin 100 oyunu hesabına eklemek için üst seviye paket.',features:['İstediğin 100 oyun','700 gün lisans','Premium destek'],checkout_url:'/api/shopier/checkout?package=pack-100'},
+      {id:'unlimited',name:'Sınırsız Oyun',label:'Hesabına istediğin her oyunu ekleme',price:'999,99 TL',badge:'Premium',image:'/license-packages/license-unlimited.jpg',description:'İstediğin oyunları limitsiz eklemek için sınırsız erişim paketi.',features:['Sınırsız oyun','Süresiz lisans','Manuel VIP destek'],checkout_url:'/api/shopier/checkout?package=unlimited'}
+    ];
+    function renderPublicLicenses(packages){
+      const grid=document.getElementById('publicLicenseGrid');
+      if(!grid)return;
+      const list=(packages&&packages.length?packages:publicLicenseFallback);
+      grid.innerHTML=list.map(pkg=>{
+        const features=(pkg.features||[]).slice(0,4).map(f=>`<div class="public-license-feature"><i class="fa-solid fa-check"></i><span>${esc(f)}</span></div>`).join('');
+        return `<article class="public-license-card ${String(pkg.id||'').startsWith('random')?'is-random':''} ${pkg.id==='unlimited'?'is-unlimited':''}">
+          <img class="public-license-img" src="${esc(pkg.image||'/logo.jpeg')}" alt="${esc(pkg.name)} lisans paketi" loading="lazy" />
+          <span class="public-license-badge">${esc(pkg.badge||'Lisans')}</span>
+          <div class="public-license-body">
+            <div>
+              <h3 class="syne font-800 text-xl">${esc(pkg.name)}</h3>
+              <p class="text-xs mt-1" style="color:var(--muted)">${esc(pkg.label||'')}</p>
+            </div>
+            <p class="text-sm leading-6" style="color:var(--muted)">${esc(pkg.description||'')}</p>
+            <div class="public-license-features">${features}</div>
+            <div class="flex items-center justify-between gap-3 mt-2">
+              <div class="public-license-price">${esc(pkg.price||'Link yakında')}</div>
+              <a data-commerce-package="${esc(pkg.id)}" class="btn btn-g px-4 py-2 text-xs" href="${esc(pkg.checkout_url||'/api/shopier/checkout')}">${pkg.in_stock===false?'Tükendi':'Satın Al'}</a>
+            </div>
+          </div>
+        </article>`;
+      }).join('');
+      const compare=document.getElementById('licenseCompareBody');
+      if(compare)compare.innerHTML=list.map(pkg=>`<tr style="border-top:1px solid var(--border)"><td class="p-4 font-800">${esc(pkg.name)}</td><td class="p-4">${Number(pkg.game_limit||pkg.limit||0)||'Sınırsız'}</td><td class="p-4">${Number(pkg.days||0)?`${Number(pkg.days)} gün`:'Süresiz'}</td><td class="p-4 font-800">${esc(pkg.price||'-')}</td><td class="p-4"><a data-commerce-package="${esc(pkg.id)}" class="btn btn-g px-3 py-2 text-xs" href="${esc(pkg.checkout_url||'/api/shopier/checkout')}">Satın Al</a></td></tr>`).join('');
+      renderLicensePackageOptions(list);
+      fetch('/api/commerce/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_type:'package_view',metadata:`count=${list.length}`})}).catch(()=>{});
+    }
+    async function loadPublicLicenses(){
+      try{
+        const r=await fetch('/api/license-packages'),d=await r.json();
+        renderPublicLicenses(d.ok?d.packages:publicLicenseFallback);
+      }catch(_err){renderPublicLicenses(publicLicenseFallback);}
+    }
+
+    document.getElementById('ssSupportLauncher')?.addEventListener('click',()=>{
+      if(window.Tawk_API&&typeof window.Tawk_API.maximize==='function'){try{window.Tawk_API.showWidget?.();}catch(_err){} window.Tawk_API.maximize();}
+      else window.open('https://www.instagram.com/securityshoop/?hl=tr','_blank','noopener');
+    });
+
+    // INIT
+    switchMode('login');loadPublicLicenses();loadReviews();refreshSession();updateC();updateO();setInterval(updateO,25000);
+  </script>
+  <script>
+    setTimeout(async()=>{
+      if(!document.querySelector('.public-license-card')){
+        try{const r=await fetch('/api/license-packages'),d=await r.json();if(d.ok&&typeof window.renderPublicLicenses==='function')window.renderPublicLicenses(d.packages||[]);}catch(_err){}
+      }
+      if(!document.querySelector('#reviewsList > *')&&typeof window.loadReviews==='function'){try{window.loadReviews();}catch(_err){}}
+    },1800);
+  </script>
+
+  <!--Start of Tawk.to Script-->
+  <script type="text/javascript">
+    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    Tawk_API.onLoad=function(){try{if(Tawk_API.hideWidget)Tawk_API.hideWidget();}catch(_err){}};
+    (function(){
+      var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+      s1.async=true; s1.src='https://embed.tawk.to/69e56d4910d9851c34e0f4ef/1jmk35poq';
+      s1.charset='UTF-8'; s1.setAttribute('crossorigin','*');
+      s0.parentNode.insertBefore(s1,s0);
+    })();
+  </script>
+  <!--End of Tawk.to Script-->
+</body>
+</html>

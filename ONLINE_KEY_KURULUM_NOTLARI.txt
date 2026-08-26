@@ -1,0 +1,34 @@
+SecurityShoop online Python key kurulumu
+
+1. Bu siteyi Vercel'e deploy et.
+
+2. Vercel Environment Variables alaninda kalici MySQL bilgilerini tanimla:
+   DB_HOST
+   DB_PORT
+   DB_USER
+   DB_PASSWORD
+   DB_NAME
+   SESSION_SECRET
+
+   DB_* degerleri yoksa Vercel gecici JSON moduna duser. Bu mod test icindir;
+   keyler, online durum ve banlar kalici olmaz.
+
+3. securityshoop.vercel.app adresinde admin hesabinla giris yap.
+   Admin menude "App Key" linki gorunur.
+   Direkt adres: https://securityshoop.vercel.app/app-keys-admin.html
+
+4. App Key sayfasindan musteri icin key uret.
+   Key ilk giris yapan cihaza baglanir.
+   Ayni cihaz tekrar uygulamayi acabilir.
+   Baska cihaz ayni key ile giris yapamaz.
+   "Banla" tusu keyi ve aktif oturumlarini engeller.
+
+5. Python icin securityshoop_online_launcher.py dosyasini
+   gemini-code-1787683290351.py ile ayni klasore koy.
+   Kullanicinin launcher dosyasini calistirmasi gerekir.
+   Launcher once online key kontrolu yapar, sonra asil Python uygulamasini acar.
+
+6. Launcher tokeni yerel olarak su klasorde saklar:
+   %APPDATA%\SecurityShoopOnlineAuth\auth.json
+
+   Bu dosyada ham key saklanmaz; sadece site oturum tokeni tutulur.

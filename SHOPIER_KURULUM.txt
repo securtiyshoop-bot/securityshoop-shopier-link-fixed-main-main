@@ -1,0 +1,39 @@
+SECURITYSHOOP - SHOPIER API ODEME KURULUMU
+
+Bu pakette Satın Al butonları /api/shopier/checkout adresine gider.
+Artık sadece sabit link yok: SHOPIER_API_KEY ve SHOPIER_API_SECRET girilirse sistem Shopier için imzalı ödeme formu oluşturur ve müşteriyi otomatik Shopier kart ödeme sayfasına gönderir.
+
+Vercel > Project > Settings > Environment Variables bölümüne şunları ekle:
+
+SHOPIER_API_KEY=BURAYA_SHOPIER_API_KEY
+SHOPIER_API_SECRET=BURAYA_SHOPIER_API_SECRET
+PUBLIC_BASE_URL=https://senin-domainin.com
+SHOPIER_PRODUCT_NAME=SecurityShoop Dijital Ürün
+SHOPIER_PRODUCT_PRICE=1.00
+SHOPIER_CURRENCY=0
+SHOPIER_WEBSITE_INDEX=1
+SHOPIER_PRODUCT_TYPE=1
+
+Para birimi:
+0 = TL
+1 = USD
+2 = EUR
+
+Ürün tipi:
+1 = indirilebilir / dijital ürün
+0 = fiziksel ürün
+2 = varsayılan
+
+Callback/geri dönüş adresi:
+https://senin-domainin.com/api/shopier/callback
+
+Başarılı ödeme sonrası:
+/odeme-basarili.html
+
+Başarısız/iptal ödeme sonrası:
+/odeme-basarisiz.html
+
+Notlar:
+- API key ve secret kesinlikle public/index.html içine yazılmaz. Sadece Vercel Environment Variables içine yaz.
+- API key/secret boş bırakılırsa sistem eski SHOPIER_PAYMENT_URL linkine yedek olarak yönlendirir.
+- Sipariş kayıtları orders.json içinde created / paid / failed olarak tutulur.

@@ -1,0 +1,53 @@
+{
+  "statuses": [
+    {
+      "key": "sakatat7571@gmail.com|ss-1783429874-535141",
+      "user_id": 1,
+      "username": "admin",
+      "email": "sakatat7571@gmail.com",
+      "hwid": "ss-1783429874-535141",
+      "version": "8.5.2",
+      "ip": "",
+      "status": "online",
+      "appid": "",
+      "current_api": "",
+      "message": "Imported from SecurityShoop plugin ZIP snapshot.",
+      "installed_games": [
+        {
+          "manifest_files": [
+            "1971872_8552604172369068290.manifest",
+            "1971873_5676539294652549514.manifest",
+            "1971874_512005367846038723.manifest",
+            "1971875_2741683106529194428.manifest",
+            "2615191_4363176120155839027.manifest",
+            "3168021_9095445288428088123.manifest",
+            "3233541_9120506324946519517.manifest"
+          ],
+          "lua_path": "c:/program files (x86)/steam/config/stplug-in/1971870.lua",
+          "installed_at": "2026-07-08T12:23:33Z",
+          "package_sha256": "2e711d51ff1e58d5af1c7dc6b500755fbad877f1a3d3e975cd678b86dbd8df4b",
+          "package_bytes": 9085950,
+          "appid": "1971870",
+          "name": "AppID 1971870",
+          "verified_at": "2026-07-08T12:23:33Z",
+          "api": "Sushi"
+        },
+        {
+          "manifest_files": [
+            "2373991_1040043721404863303.manifest"
+          ],
+          "lua_path": "c:/program files (x86)/steam/config/stplug-in/2373990.lua",
+          "installed_at": "2026-07-07T13:22:21Z",
+          "package_sha256": "4b6943c11e7a1e1cd0bd4ae9e3a1aa4e514ec1ed8f8fe6d89eedaaf2ab8c1af8",
+          "package_bytes": 18307051,
+          "appid": "2373990",
+          "name": "AppID 2373990",
+          "verified_at": "2026-07-07T13:22:21Z",
+          "api": "Ryuu"
+        }
+      ],
+      "first_seen_at": "2026-07-08T12:23:33.000Z",
+      "last_seen_at": "2026-07-08T12:23:33.000Z"
+    }
+  ]
+}

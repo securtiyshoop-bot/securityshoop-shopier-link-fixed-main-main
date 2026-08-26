@@ -1,0 +1,23 @@
+{
+  "name": "securityshoop-mysql-app",
+  "version": "1.0.0",
+  "description": "SecurityShoop full-stack app with Node.js, Express, MySQL and sessions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ai": "^6.0.197",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-mysql-session": "^3.0.3",
+    "express-session": "^1.18.0",
+    "multer": "^2.1.1",
+    "mysql2": "^3.11.0"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

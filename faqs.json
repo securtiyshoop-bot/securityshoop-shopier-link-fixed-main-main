@@ -1,0 +1,24 @@
+{
+  "faqs": [
+    {
+      "id": 1,
+      "question": "Teslimat ne kadar surer?",
+      "answer": "Siparis sonrasi surec hizli sekilde ilerler ve gerekli yonlendirme saglanir. Genellikle kisa surede destek verilir."
+    },
+    {
+      "id": 2,
+      "question": "Nasil satin alirim?",
+      "answer": "Sitedeki Satin Al butonlarindan birine tiklayarak Shopier uzerinden guvenli odeme yapabilirsin."
+    },
+    {
+      "id": 3,
+      "question": "Siparisimi nasil takip ederim?",
+      "answer": "Shopier siparis numarani veya e-posta adresini Siparis Takip alanina yazabilirsin. Duz Shopier linkinde durum admin tarafindan kontrol edilip isaretlenir."
+    },
+    {
+      "id": 4,
+      "question": "Guvencem nedir?",
+      "answer": "Odeme Shopier altyapisi uzerinden yapilir. Sorun yasarsan Instagram DM veya e-posta ile destek alabilirsin."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+﻿work
+outputs
+node_modules
+.env
+.env.*
+server.pid
+*.zip
+!public/securityshoop-plugin.zip

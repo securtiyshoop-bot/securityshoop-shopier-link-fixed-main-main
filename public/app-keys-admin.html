@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecurityShoop Uygulama Keyleri</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b0f;
+      --panel: #111821;
+      --panel-2: #151f2b;
+      --line: rgba(255,255,255,.1);
+      --text: #eef6ff;
+      --muted: #9eb0c2;
+      --green: #31e981;
+      --red: #ff5d6c;
+      --amber: #ffca55;
+      --blue: #5cb8ff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+    main { width: min(1280px, calc(100vw - 32px)); margin: 0 auto; padding: 28px 0 52px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: clamp(24px, 4vw, 38px); letter-spacing: 0; }
+    a { color: var(--green); text-decoration: none; font-weight: 700; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    input, textarea, button { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 11px 12px; background: var(--panel-2); color: var(--text); font: inherit; }
+    textarea { min-height: 70px; resize: vertical; }
+    button { cursor: pointer; font-weight: 800; }
+    .primary { background: var(--green); color: #041108; border-color: transparent; }
+    .danger { color: #fff; background: rgba(255,93,108,.16); border-color: rgba(255,93,108,.35); }
+    .plain { background: rgba(255,255,255,.04); }
+    .row-actions { display: flex; gap: 8px; min-width: 210px; }
+    .msg { min-height: 22px; color: var(--muted); margin: 10px 0 0; font-size: 13px; }
+    .codes { white-space: pre-wrap; word-break: break-word; background: #05070a; border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-top: 12px; color: var(--green); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1040px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; background: rgba(255,255,255,.03); }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; border: 1px solid var(--line); }
+    .online { color: var(--green); border-color: rgba(49,233,129,.3); background: rgba(49,233,129,.08); }
+    .offline { color: var(--muted); }
+    .blocked { color: var(--red); border-color: rgba(255,93,108,.35); background: rgba(255,93,108,.09); }
+    .used { color: var(--blue); border-color: rgba(92,184,255,.3); background: rgba(92,184,255,.08); }
+    .active { color: var(--amber); border-color: rgba(255,202,85,.3); background: rgba(255,202,85,.08); }
+    .mono { font-family: Consolas, Monaco, monospace; }
+    .muted { color: var(--muted); }
+    @media (max-width: 760px) {
+      main { width: min(100vw - 20px, 1280px); padding-top: 18px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Uygulama Keyleri</h1>
+        <div class="muted">Python uygulamasi icin tek cihazlik online giris yonetimi</div>
+      </div>
+      <a href="/">Siteye Don</a>
+    </header>
+
+    <section class="panel">
+      <div class="grid">
+        <label>Ad / not
+          <input id="labelInput" placeholder="Orn: musteri adi veya siparis no">
+        </label>
+        <label>Adet
+          <input id="countInput" type="number" min="1" max="100" value="1">
+        </label>
+        <label>Bitis tarihi
+          <input id="expiresInput" type="datetime-local">
+        </label>
+        <button id="createBtn" class="primary">Key Uret</button>
+      </div>
+      <p id="message" class="msg"></p>
+      <div id="codesBox" class="codes" hidden></div>
+    </section>
+
+    <section class="panel">
+      <div class="grid" style="grid-template-columns: 1fr auto auto auto;">
+        <label>Arama
+          <input id="searchInput" placeholder="key, cihaz, IP veya not ara">
+        </label>
+        <button id="refreshBtn" class="plain">Yenile</button>
+        <button id="copyBtn" class="plain">Aktif Keyleri Kopyala</button>
+        <button id="clearSearchBtn" class="plain">Temizle</button>
+      </div>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Durum</th>
+            <th>Key</th>
+            <th>Etiket</th>
+            <th>Cihaz</th>
+            <th>IP</th>
+            <th>Son Gorulme</th>
+            <th>Oturum</th>
+            <th>Islem</th>
+          </tr>
+        </thead>
+        <tbody id="keysBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let allKeys = [];
+
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    function dateText(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('tr-TR');
+    }
+
+    function setMessage(text) {
+      $('message').textContent = text || '';
+    }
+
+    async function readJson(response) {
+      try { return await response.json(); } catch { return { ok: false, message: 'Sunucu cevabi okunamadi.' }; }
+    }
+
+    function statusPill(key) {
+      const online = key.online && key.status !== 'blocked';
+      if (key.status === 'blocked') return '<span class="pill blocked">Banli</span>';
+      if (online) return '<span class="pill online">Online</span>';
+      if (key.status === 'active') return '<span class="pill active">Kullanilmadi</span>';
+      return '<span class="pill used">Offline</span>';
+    }
+
+    function filterKeys() {
+      const query = $('searchInput').value.trim().toLowerCase();
+      if (!query) return allKeys;
+      return allKeys.filter((key) => `${key.code} ${key.label} ${key.assigned_hwid} ${key.device_name} ${key.app_version} ${key.last_ip} ${key.note}`.toLowerCase().includes(query));
+    }
+
+    function render() {
+      const keys = filterKeys();
+      $('keysBody').innerHTML = keys.length ? keys.map((key) => `
+        <tr>
+          <td>${statusPill(key)}</td>
+          <td class="mono">${esc(key.code)}</td>
+          <td>${esc(key.label || '-')}<br><span class="muted">${esc(key.note || '')}</span></td>
+          <td><span class="mono">${esc(key.assigned_hwid || '-')}</span><br><span class="muted">${esc(key.device_name || '')} ${esc(key.app_version || '')}</span></td>
+          <td>${esc(key.last_ip || key.first_ip || '-')}</td>
+          <td>${dateText(key.last_seen_at)}<br><span class="muted">Olusturma: ${dateText(key.created_at)}</span>${key.expires_at ? `<br><span class="muted">Bitis: ${dateText(key.expires_at)}</span>` : ''}</td>
+          <td>${Number(key.session_count || 0)}</td>
+          <td>
+            <div class="row-actions">
+              ${key.status === 'blocked'
+                ? `<button data-action="unblock" data-id="${key.id}" class="plain">Ban Ac</button>`
+                : `<button data-action="block" data-id="${key.id}" class="danger">Banla</button>`}
+              <button data-action="delete" data-id="${key.id}" class="plain">Sil</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="8" class="muted">Key bulunamadi.</td></tr>';
+    }
+
+    async function loadKeys() {
+      setMessage('Yukleniyor...');
+      const response = await fetch('/api/admin/app-keys', { cache: 'no-store' });
+      const data = await readJson(response);
+      if (!data.ok) {
+        setMessage(data.message || 'Keyler alinamadi. Admin olarak giris yaptigindan ve veritabaninin bagli oldugundan emin ol.');
+        allKeys = [];
+        render();
+        return;
+      }
+      allKeys = data.keys || [];
+      setMessage(`${allKeys.length} key gosteriliyor. Depolama: ${data.storage || '-'}`);
+      render();
+    }
+
+    async function createKeys() {
+      setMessage('Key uretiliyor...');
+      $('codesBox').hidden = true;
+      const response = await fetch('/api/admin/app-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: $('labelInput').value,
+          count: $('countInput').value,
+          expires_at: $('expiresInput').value
+        })
+      });
+      const data = await readJson(response);
+      setMessage(data.message || '');
+      if (data.ok) {
+        $('codesBox').hidden = false;
+        $('codesBox').textContent = (data.codes || []).join('\n');
+        await navigator.clipboard?.writeText((data.codes || []).join('\n')).catch(() => {});
+        loadKeys();
+      }
+    }
+
+    async function keyAction(id, action) {
+      if (action === 'delete' && !confirm('Bu key ve oturumlari silinsin mi?')) return;
+      if (action === 'block' && !confirm('Bu key banlansin mi? Uygulama tekrar acilmayacak.')) return;
+      const response = await fetch(`/api/admin/app-keys/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
+      const data = await readJson(response);
+      setMessage(data.message || '');
+      if (data.ok) loadKeys();
+    }
+
+    $('createBtn').addEventListener('click', createKeys);
+    $('refreshBtn').addEventListener('click', loadKeys);
+    $('searchInput').addEventListener('input', render);
+    $('clearSearchBtn').addEventListener('click', () => { $('searchInput').value = ''; render(); });
+    $('copyBtn').addEventListener('click', async () => {
+      const text = filterKeys().filter((key) => key.status !== 'blocked').map((key) => key.code).join('\n');
+      await navigator.clipboard?.writeText(text).catch(() => {});
+      setMessage(text ? 'Keyler kopyalandi.' : 'Kopyalanacak key yok.');
+    });
+    $('keysBody').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-action]');
+      if (button) keyAction(button.dataset.id, button.dataset.action);
+    });
+    loadKeys();
+    setInterval(loadKeys, 30000);
+  </script>
+</body>
+</html>

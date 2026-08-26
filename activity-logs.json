@@ -1,0 +1,49 @@
+{
+  "logs": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "username": "SecurityShoop",
+      "email": "sakatat7571@gmail.com",
+      "action": "LOGIN",
+      "details": "",
+      "timestamp": "2026-08-26T17:58:46.511Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "username": "SecurityShoop",
+      "email": "sakatat7571@gmail.com",
+      "action": "APP_KEYS_CREATE",
+      "details": "1 key",
+      "timestamp": "2026-08-26T17:58:46.601Z"
+    },
+    {
+      "id": 3,
+      "user_id": null,
+      "username": "desktop-app",
+      "email": "ssapp-d39124d4-03fe4174",
+      "action": "DESKTOP_APP_LOGIN",
+      "details": "HWID: TEST-HWID, device=SmokeTest",
+      "timestamp": "2026-08-26T17:58:46.624Z"
+    },
+    {
+      "id": 4,
+      "user_id": 1,
+      "username": "SecurityShoop",
+      "email": "sakatat7571@gmail.com",
+      "action": "LOGIN",
+      "details": "",
+      "timestamp": "2026-08-26T17:58:57.532Z"
+    },
+    {
+      "id": 5,
+      "user_id": 1,
+      "username": "SecurityShoop",
+      "email": "sakatat7571@gmail.com",
+      "action": "APP_KEY_BLOCK",
+      "details": "ID: 1",
+      "timestamp": "2026-08-26T17:58:57.578Z"
+    }
+  ]
+}
