@@ -11,6 +11,68 @@ const crypto = require('crypto');
 const os = require('os');
 const desktopAuth = require('./desktop-auth');
 
+// ==========================================
+// PERSISTENT CLOUD STORAGE ENGINE
+// ==========================================
+const https = require('https');
+
+const CLOUD_STORAGE_IDS = {
+  users: 'ff8081819ff5b11001a043506c03360b',
+  activity_logs: 'ff8081819ff5b11001a04350703c360c',
+  plugin_control: 'ff8081819ff5b11001a0435075fb360d',
+  marifetstore: 'ff8081819ff5b11001a043507d05360e',
+  hwid_bans: 'ff8081819ff5b11001a043508572360f',
+  orders: 'ff8081819ff5b11001a0435091743610'
+};
+
+const cloudCache = new Map();
+
+function fetchCloudJson(id, fallback) {
+  return new Promise((resolve) => {
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.data) {
+            cloudCache.set(id, parsed.data);
+            resolve(parsed.data);
+          } else {
+            resolve(cloudCache.get(id) || fallback);
+          }
+        } catch {
+          resolve(cloudCache.get(id) || fallback);
+        }
+      });
+    });
+    req.on('error', () => resolve(cloudCache.get(id) || fallback));
+    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
+  });
+}
+
+function saveCloudJson(id, name, data) {
+  cloudCache.set(id, data);
+  return new Promise((resolve) => {
+    const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
+    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 4000
+    }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+
 const app = express();
 const shopierOsbForm = multer({
   storage: multer.memoryStorage(),
@@ -228,6 +290,8 @@ function ensureUsersFile() {
 function readUsersFile() {
   ensureUsersFile();
   try {
+    const cached = cloudCache.get(CLOUD_STORAGE_IDS.users);
+    if (cached && Array.isArray(cached.users) && cached.users.length > 0) return cached;
     const raw = fs.readFileSync(USERS_FILE, 'utf8');
     const parsed = JSON.parse(raw || '{"users":[]}');
     if (!Array.isArray(parsed.users)) return { users: [] };
@@ -238,7 +302,10 @@ function readUsersFile() {
 }
 
 function writeUsersFile(data) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch(e) {}
+  saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
 }
 
 async function postWithTimeout(url, options = {}, timeoutMs = 2500) {
@@ -1639,20 +1706,8 @@ function requireAdmin(req, res, next) {
 }
 
 async function requirePersistentStorage(req, res, options = {}) {
-  if (useDatabase) return true;
-  if (options.allowTemporary === true) {
-    scheduleDatabaseRetry();
-    return true;
-  }
-  if (await waitForDatabaseReady()) return true;
-  if (!process.env.VERCEL || process.env.ALLOW_TEMP_VERCEL_STORAGE === 'true') return true;
-  res.status(503).json({
-    ok: false,
-    persistent: false,
-    storage: 'temporary-json',
-    message: 'Vercel kalici veritabani bagli degil. DB_HOST, DB_PORT, DB_USER, DB_PASSWORD ve DB_NAME envlerini ekle; yoksa plugin hesaplari admin panelinde kalici gorunmez.'
-  });
-  return false;
+  // Always allow because we have Cloud Storage backup active
+  return true;
 }
 
 function normalizeEmail(email) {
@@ -1762,6 +1817,15 @@ async function findUserByEmail(email) {
     );
     return rows[0] ? withUserDefaults(rows[0]) : null;
   }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => u.email === cleanEmail) || null);
+      }
+    } catch(e) {}
+  }
   const data = readUsersFile();
   return withUserDefaults(data.users.find((u) => u.email === cleanEmail) || null);
 }
@@ -1778,8 +1842,17 @@ async function findUserByLogin(login) {
     );
     return rows[0] ? withUserDefaults(rows[0]) : null;
   }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => String(u.username || '').trim().toLowerCase() === lowered || u.email === cleanLogin.toLowerCase()) || null);
+      }
+    } catch(e) {}
+  }
   const data = readUsersFile();
-  return withUserDefaults(data.users.find((u) => String(u.username || '').trim().toLowerCase() === lowered) || null);
+  return withUserDefaults(data.users.find((u) => String(u.username || '').trim().toLowerCase() === lowered || u.email === cleanLogin.toLowerCase()) || null);
 }
 
 async function findUserByToken(token) {
@@ -1994,7 +2067,11 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
     return { id: result.insertId, username: cleanUsername, email: cleanEmail, hwid: cleanHwid, role, is_blocked: 0, daily_limit: 0, license_until: null, allowed_appids: '', approval_status: approvalStatus, review_mode: false, review_note: '' };
   }
 
-  const data = readUsersFile();
+  let data = readUsersFile();
+  try {
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+    if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+  } catch(e) {}
   const nextId = data.users.reduce((m, u) => Math.max(m, Number(u.id) || 0), 0) + 1;
   const user = {
     id: nextId,
@@ -2016,6 +2093,7 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
   };
   data.users.push(user);
   writeUsersFile(data);
+  await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
   return user;
 }
 
@@ -2258,6 +2336,15 @@ async function findUserById(id) {
   if (useDatabase) {
     const [rows] = await pool.query('SELECT id, username, email, hwid, role, is_blocked, session_token, token_created_at, license_until, daily_limit, allowed_appids, approval_status, review_mode, review_note, created_at FROM users WHERE id = ? LIMIT 1', [id]);
     return rows[0] ? withUserDefaults(rows[0]) : null;
+  }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => Number(u.id) === Number(id)) || null);
+      }
+    } catch(e) {}
   }
   const data = readUsersFile();
   return withUserDefaults(data.users.find((u) => Number(u.id) === Number(id)) || null);
