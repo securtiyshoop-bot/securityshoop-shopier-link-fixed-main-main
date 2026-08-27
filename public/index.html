@@ -540,7 +540,37 @@
 
     <!-- ADMIN -->
     <section id="adminPanel" class="hidden mx-auto max-w-[1500px] px-5 sm:px-8 pb-20 rv">
-      <!-- MARIFETSTORE ADMIN -->
+      
+        <!-- TEK KULLANIMLIK TOKEN PANELI -->
+        <div class="admin-shell mb-6" style="border: 1px solid #10B981; background: rgba(16, 185, 129, 0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color: #10B981; background: rgba(16, 185, 129, 0.2);">Uygulama Giriş Sistemi</div>
+              <h2 class="syne text-2xl font-800 text-green-400">Tek Kullanımlık Tokenlar</h2>
+              <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Uygulamaya giriş için kullanıcı adı veya şifreye gerek kalmadan bu anahtarları verebilirsiniz.</p>
+            </div>
+            <button id="generateTokenBtn" class="btn btn-g px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">➕ Yeni Token Oluştur</button>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border)">
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">TOKEN</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">KULLANAN HWID</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">İŞLEM</th>
+                </tr>
+              </thead>
+              <tbody id="tokensTableBody">
+                <tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Yükleniyor...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- /TEK KULLANIMLIK TOKEN PANELI -->
+
+        <!-- MARIFETSTORE ADMIN -->
       <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
@@ -1339,7 +1369,8 @@
       const d=await r.json();
       pcMsg.textContent=d.message||'';
       if(d.ok){renderPluginControl(d.control);toast('✓ Güncelleme yayında');loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
     }
 
     function smallRow(title,meta,badge){
@@ -1369,7 +1400,8 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Lisans paketi uygulandı');loadAdminUsers();loadAdminDashboard();
-      checkAdminDbStatus();openUserDetail(id);}
+      checkAdminDbStatus();
+      loadTokens();openUserDetail(id);}
     }
 
     function commandStatusBadge(status){
@@ -1640,7 +1672,8 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Komut gönderildi');loadAdminDashboard();
-      checkAdminDbStatus();openUserDetail(id);}
+      checkAdminDbStatus();
+      loadTokens();openUserDetail(id);}
     }
 
     async function cancelCommand(id){
@@ -1648,6 +1681,7 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok)loadAdminDashboard();
       checkAdminDbStatus();
+      loadTokens();
     }
 
     async function saveAppidAccess(id){
@@ -1666,7 +1700,8 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast(enabled?'✓ İnceleme modu açıldı':'✓ İnceleme modu kapandı');loadAdminUsers();loadAdminDashboard();
-      checkAdminDbStatus();openUserDetail(id);}
+      checkAdminDbStatus();
+      loadTokens();openUserDetail(id);}
     }
 
     async function replySupportTicket(id,status){
@@ -1676,7 +1711,8 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Destek talebi güncellendi');loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
     }
 
     function selectedUserIds(){
@@ -1708,7 +1744,8 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Toplu işlem tamamlandı');loadAdminUsers();loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
     }
 
     async function refreshSession(){
@@ -1725,7 +1762,8 @@
         const isAdmin=d.user.role==='admin';
         adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);appKeysLink?.classList.toggle('hidden',!isAdmin);
         if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
       } else {
         welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
         document.getElementById('loginOpenBtn').classList.remove('hidden');
@@ -1829,17 +1867,20 @@
       const r=await fetch('/api/admin/license-codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:document.getElementById('adminLicenseCodePackage').value,count:document.getElementById('adminLicenseCodeCount').value})}),d=await r.json();
       commerceMessage.textContent=d.ok?`${d.message} ${d.codes.join(', ')}`:(d.message||'');if(d.ok)loadAdminDashboard();
       checkAdminDbStatus();
+      loadTokens();
     });
     document.getElementById('createCouponBtn')?.addEventListener('click',async()=>{
       const r=await fetch('/api/admin/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('adminCouponCode').value,discount_percent:document.getElementById('adminCouponDiscount').value,package_id:document.getElementById('adminCouponPackage').value})}),d=await r.json();
       commerceMessage.textContent=d.message||'';if(d.ok)loadAdminDashboard();
       checkAdminDbStatus();
+      loadTokens();
     });
     orderClaimsAdminList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-claim-review]');if(!btn)return;
       const r=await fetch(`/api/admin/order-claims/${btn.dataset.claimReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved:btn.dataset.approved==='1'})}),d=await r.json();
       commerceMessage.textContent=d.message||'';if(d.ok){loadAdminDashboard();
-      checkAdminDbStatus();loadAdminUsers();}
+      checkAdminDbStatus();
+      loadTokens();loadAdminUsers();}
     });
     document.addEventListener('click',e=>{const a=e.target.closest('[data-commerce-package]');if(a)fetch('/api/commerce/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_type:'checkout_click',package_id:a.dataset.commercePackage})}).catch(()=>{});});
     document.getElementById('giftLicenseBtn')?.addEventListener('click',async()=>{
@@ -1878,7 +1919,8 @@
         const d=await r.json();
         backupMessage.textContent=d.message||'';
         if(d.ok){toast('✓ Yedek geri yüklendi');loadAdminUsers();loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
       }catch(err){backupMessage.textContent='Yedek dosyası okunamadı.';}
       e.target.value='';
     });
@@ -1895,14 +1937,16 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Rapor guncellendi');loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
     });
     sourceHealthList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-enable-source]');if(!btn)return;
       const r=await fetch(`/api/admin/source-health/${btn.dataset.enableSource}/enable`,{method:'POST'}),d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Kaynak aktif');loadAdminDashboard();
-      checkAdminDbStatus();}
+      checkAdminDbStatus();
+      loadTokens();}
     });
     deviceResetQueueList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-device-reset-review]');if(!btn)return;
@@ -1912,7 +1956,8 @@
       const d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast(approved?'✓ HWID sıfırlandı':'Talep reddedildi');loadAdminDashboard();
-      checkAdminDbStatus();loadAdminUsers();}
+      checkAdminDbStatus();
+      loadTokens();loadAdminUsers();}
     });
     supportTicketsList?.addEventListener('click',e=>{
       const btn=e.target.closest('button[data-ticket-reply]');if(!btn)return;
@@ -1960,6 +2005,7 @@
             await loadAdminUsers();
             await loadAdminDashboard();
       checkAdminDbStatus();
+      loadTokens();
           } else {
             alert('İşlem başarısız: ' + (d.message || 'Bilinmeyen hata'));
           }
@@ -2123,6 +2169,57 @@
     });
 
     
+    
+    // TOKEN LOGIC
+    async function loadTokens() {
+      try {
+        const r = await fastFetch('/api/admin/tokens');
+        const d = await readJsonSafe(r);
+        const tbody = document.getElementById('tokensTableBody');
+        if(d.ok && d.tokens) {
+          tbody.innerHTML = '';
+          if(d.tokens.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
+            return;
+          }
+          [...d.tokens].reverse().forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            const statusHtml = t.used ? '<span class="text-xs px-2 py-1 rounded bg-red-900 text-red-300">Kullanıldı</span>' : '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Geçerli</span>';
+            tr.innerHTML = `
+              <td class="px-4 py-3 font-mono text-sm">${t.token}</td>
+              <td class="px-4 py-3">${statusHtml}</td>
+              <td class="px-4 py-3 text-xs text-gray-400">${t.used_by_hwid || '-'}</td>
+              <td class="px-4 py-3"><button onclick="deleteToken('${t.token}')" class="text-xs px-3 py-1.5 rounded-lg font-700 bg-red-900 text-red-300">Sil</button></td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch(e) {}
+    }
+    
+    document.getElementById('generateTokenBtn')?.addEventListener('click', async () => {
+      try {
+        const r = await fetch('/api/admin/tokens', {method: 'POST'});
+        const d = await r.json();
+        if(d.ok) {
+          alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
+          loadTokens();
+        } else {
+          alert('Hata: ' + d.message);
+        }
+      } catch(e) { alert('Hata: ' + e); }
+    });
+
+    window.deleteToken = async function(token) {
+      if(!confirm('Bu token silinsin mi?')) return;
+      try {
+        const r = await fetch(`/api/admin/tokens/${token}/delete`, {method: 'POST'});
+        await r.json();
+        loadTokens();
+      } catch(e) {}
+    };
+
     // MARIFETSTORE ADMIN LOGIC
     async function loadMarifetStoreConfig() {
       try {
