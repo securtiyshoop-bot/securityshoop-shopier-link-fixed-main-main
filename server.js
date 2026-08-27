@@ -6040,6 +6040,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
+      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let t = 'MS-';
@@ -6049,8 +6050,10 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       const newToken = {
         token: t,
         created_at: new Date().toISOString(),
+        duration_type: duration,
+        expires_at: null, // Hesaplanacak (ilk giriste)
         used: false,
-        used_at: null,
+        first_used_at: null,
         used_by_hwid: null
       };
       if (!data.tokens) data.tokens = [];
@@ -6078,19 +6081,47 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       const userToken = String(req.body.token || '').trim();
       const hwid = String(req.body.hwid || '').trim();
       if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
+      if (!hwid) return res.status(400).json({ ok: false, message: 'HWID eksik.' });
 
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => t.token === userToken);
 
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Gecersiz token.' });
-      if (tokenObj.used) return res.status(403).json({ ok: false, message: 'Bu token daha once kullanilmis.' });
 
+      const now = new Date();
+
+      if (tokenObj.used) {
+        // Zaten kullanilmis, HWID kontrol et
+        if (tokenObj.used_by_hwid !== hwid) {
+          return res.status(403).json({ ok: false, message: 'Bu token baska bir cihaza kilitlenmis!' });
+        }
+        
+        // Suresi dolmus mu kontrol et
+        if (tokenObj.expires_at && new Date(tokenObj.expires_at) < now) {
+          return res.status(403).json({ ok: false, message: 'Token suresi dolmus!' });
+        }
+        
+        // Sorun yok, tekrar girise izin ver
+        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken });
+      }
+
+      // Ilk kullanim (Kilitlenme ve Sure Baslatma)
       tokenObj.used = true;
-      tokenObj.used_at = new Date().toISOString();
+      tokenObj.first_used_at = now.toISOString();
       tokenObj.used_by_hwid = hwid;
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      
+      if (tokenObj.duration_type === '1d') {
+        tokenObj.expires_at = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (tokenObj.duration_type === '7d') {
+        tokenObj.expires_at = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (tokenObj.duration_type === '30d') {
+        tokenObj.expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else {
+        tokenObj.expires_at = null; // lifetime
+      }
 
-      res.json({ ok: true, message: 'Giris basarili!', role: 'user', session_token: userToken });
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Cihaz kilitlendi ve giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at });
     } catch (err) {
       console.error('token-login error:', err);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi.' });
