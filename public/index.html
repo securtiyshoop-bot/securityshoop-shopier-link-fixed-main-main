@@ -2380,10 +2380,12 @@
   </script>
   <!--End of Tawk.to Script-->
 
-    // === OYUN KREDILERI (CREDITS) SCRIPT ===
-    async function loadCredits() {
+    
+<script>
+    // === OYUN KREDILERI (CREDITS) GUVENLI SCRIPT ===
+    window.loadCredits = async function() {
       try {
-        const res = await fetch('/api/admin/credits', { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        const res = await fastFetch('/api/admin/credits');
         const data = await res.json();
         const tbody = document.getElementById('creditsTableBody');
         if (!tbody) return;
@@ -2406,7 +2408,7 @@
             const durationName = durMap[c.duration_type] || '1 Hafta';
             
             tr.innerHTML = `
-              <td class="px-4 py-3 font-mono text-sm">${c.code}</td>
+              <td class="px-4 py-3 font-mono text-sm text-white">${c.code}</td>
               <td class="px-4 py-3 text-xs text-gray-300">${durationName}</td>
               <td class="px-4 py-3">${status}</td>
               <td class="px-4 py-3">
@@ -2419,23 +2421,23 @@
       } catch (err) {
         console.error(err);
       }
-    }
+    };
 
-    async function deleteCredit(code) {
-      if(!confirm(code + ' kodunu silmek istediginize emin misiniz?')) return;
+    window.deleteCredit = async function(code) {
+      if(!confirm(code + ' kodunu silmek istediğinize emin misiniz?')) return;
       try {
-        const res = await fetch('/api/admin/credits/delete', {
+        const res = await fastFetch('/api/admin/credits/delete', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + sessionToken, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code })
         });
         const data = await res.json();
-        if(data.ok) loadCredits();
+        if(data.ok) window.loadCredits();
         else alert('Hata: ' + data.message);
       } catch (err) {
         alert('Sunucu hatası.');
       }
-    }
+    };
     
     document.addEventListener('DOMContentLoaded', () => {
         const genBtn = document.getElementById('generateCreditBtn');
@@ -2444,25 +2446,25 @@
               try {
                 const dur = document.getElementById('credit-duration').value;
                 const count = document.getElementById('credit-count').value;
-                const res = await fetch('/api/admin/credits', { 
+                const res = await fastFetch('/api/admin/credits', { 
                   method: 'POST', 
-                  headers: { 'Authorization': 'Bearer ' + sessionToken, 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ duration: dur, count: count })
                 });
                 const data = await res.json();
                 if(data.ok) {
                   alert(data.message + '\nÖrnek Kod: ' + data.codes[0].code);
-                  loadCredits();
+                  window.loadCredits();
                 } else {
                   alert('Hata: ' + data.message);
                 }
               } catch (err) {
-                alert('Sunucu hatası.');
+                alert('Sunucu hatası. fastFetch kullanılamadı.');
               }
             });
         }
         
-        // Also bind nav-credits click
+        // Bind nav-credits click
         const navCredits = document.getElementById('nav-credits');
         if(navCredits) {
             navCredits.addEventListener('click', () => {
@@ -2472,10 +2474,14 @@
                 const cTab = document.getElementById('credits');
                 if(cTab) cTab.classList.remove('hidden');
                 navCredits.classList.add('bg-white/10');
-                loadCredits(); // Load when tab is clicked
+                window.loadCredits(); // Load when tab is clicked
             });
         }
+        
+        // Also load initially if credits is visible
+        window.loadCredits();
     });
+</script>
 
 </body>
 </html>
