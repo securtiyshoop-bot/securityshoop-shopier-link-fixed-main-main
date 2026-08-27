@@ -579,6 +579,49 @@
         </div>
         <!-- /TEK KULLANIMLIK TOKEN PANELI -->
 
+        
+        <!-- OYUN KREDILERI -->
+        <div id="credits" class="tab-pane hidden">
+          <div class="admin-shell mb-6" style="border: 1px solid #8B5CF6; background: rgba(139, 92, 246, 0.05);">
+            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+              <div>
+                <div class="slabel mb-3" style="color: #8B5CF6; background: rgba(139, 92, 246, 0.2);">Oyun İçi Mağaza Sistemi</div>
+                <h2 class="syne text-2xl font-800 text-purple-400">Oyun Kredileri (Lisans Kodları)</h2>
+                <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Müşterilere satacağınız oyun süresi kredileridir. Masaüstü uygulamasında istedikleri oyunda kullanabilirler.</p>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <select id="credit-duration" class="fi2 text-sm" style="padding: 8px; border-radius: 6px; background: rgba(139, 92, 246, 0.1); color: #8B5CF6; border: 1px solid rgba(139, 92, 246, 0.3);">
+                  <option value="1d">1 Günlük Kredi</option>
+                  <option value="7d">1 Haftalık Kredi</option>
+                  <option value="30d">1 Aylık Kredi</option>
+                  <option value="lifetime">Sınırsız Kredi</option>
+                </select>
+                <input id="credit-count" type="number" min="1" max="50" value="1" class="fi2 text-sm" style="padding: 8px; width: 60px; border-radius: 6px;" placeholder="Adet" />
+                <button id="generateCreditBtn" class="btn btn-g px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded">✨ Kredi Oluştur</button>
+              </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border)">
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">KREDİ KODU</th>
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SÜRE TÜRÜ</th>
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM / KULLANAN</th>
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">İŞLEM</th>
+                  </tr>
+                </thead>
+                <tbody id="creditsTableBody">
+                  <tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Yükleniyor...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- /OYUN KREDILERI -->
+
+
         <!-- MARIFETSTORE ADMIN -->
       <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
@@ -1379,7 +1422,8 @@
       pcMsg.textContent=d.message||'';
       if(d.ok){renderPluginControl(d.control);toast('✓ Güncelleme yayında');loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
     }
 
     function smallRow(title,meta,badge){
@@ -1410,7 +1454,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Lisans paketi uygulandı');loadAdminUsers();loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();openUserDetail(id);}
+      loadTokens();
+          loadCredits();openUserDetail(id);}
     }
 
     function commandStatusBadge(status){
@@ -1682,7 +1727,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Komut gönderildi');loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();openUserDetail(id);}
+      loadTokens();
+          loadCredits();openUserDetail(id);}
     }
 
     async function cancelCommand(id){
@@ -1691,6 +1737,7 @@
       if(d.ok)loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
+          loadCredits();
     }
 
     async function saveAppidAccess(id){
@@ -1710,7 +1757,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast(enabled?'✓ İnceleme modu açıldı':'✓ İnceleme modu kapandı');loadAdminUsers();loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();openUserDetail(id);}
+      loadTokens();
+          loadCredits();openUserDetail(id);}
     }
 
     async function replySupportTicket(id,status){
@@ -1721,7 +1769,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Destek talebi güncellendi');loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
     }
 
     function selectedUserIds(){
@@ -1754,7 +1803,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Toplu işlem tamamlandı');loadAdminUsers();loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
     }
 
     async function refreshSession(){
@@ -1772,7 +1822,8 @@
         adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);appKeysLink?.classList.toggle('hidden',!isAdmin);
         if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
       } else {
         welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
         document.getElementById('loginOpenBtn').classList.remove('hidden');
@@ -1877,19 +1928,22 @@
       commerceMessage.textContent=d.ok?`${d.message} ${d.codes.join(', ')}`:(d.message||'');if(d.ok)loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
+          loadCredits();
     });
     document.getElementById('createCouponBtn')?.addEventListener('click',async()=>{
       const r=await fetch('/api/admin/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('adminCouponCode').value,discount_percent:document.getElementById('adminCouponDiscount').value,package_id:document.getElementById('adminCouponPackage').value})}),d=await r.json();
       commerceMessage.textContent=d.message||'';if(d.ok)loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
+          loadCredits();
     });
     orderClaimsAdminList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-claim-review]');if(!btn)return;
       const r=await fetch(`/api/admin/order-claims/${btn.dataset.claimReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved:btn.dataset.approved==='1'})}),d=await r.json();
       commerceMessage.textContent=d.message||'';if(d.ok){loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();loadAdminUsers();}
+      loadTokens();
+          loadCredits();loadAdminUsers();}
     });
     document.addEventListener('click',e=>{const a=e.target.closest('[data-commerce-package]');if(a)fetch('/api/commerce/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_type:'checkout_click',package_id:a.dataset.commercePackage})}).catch(()=>{});});
     document.getElementById('giftLicenseBtn')?.addEventListener('click',async()=>{
@@ -1929,7 +1983,8 @@
         backupMessage.textContent=d.message||'';
         if(d.ok){toast('✓ Yedek geri yüklendi');loadAdminUsers();loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
       }catch(err){backupMessage.textContent='Yedek dosyası okunamadı.';}
       e.target.value='';
     });
@@ -1947,7 +2002,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Rapor guncellendi');loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
     });
     sourceHealthList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-enable-source]');if(!btn)return;
@@ -1955,7 +2011,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Kaynak aktif');loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();}
+      loadTokens();
+          loadCredits();}
     });
     deviceResetQueueList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-device-reset-review]');if(!btn)return;
@@ -1966,7 +2023,8 @@
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast(approved?'✓ HWID sıfırlandı':'Talep reddedildi');loadAdminDashboard();
       checkAdminDbStatus();
-      loadTokens();loadAdminUsers();}
+      loadTokens();
+          loadCredits();loadAdminUsers();}
     });
     supportTicketsList?.addEventListener('click',e=>{
       const btn=e.target.closest('button[data-ticket-reply]');if(!btn)return;
@@ -2015,6 +2073,7 @@
             await loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
+          loadCredits();
           } else {
             alert('İşlem başarısız: ' + (d.message || 'Bilinmeyen hata'));
           }
@@ -2214,6 +2273,7 @@
         if(d.ok) {
           alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
           loadTokens();
+          loadCredits();
         } else {
           alert('Hata: ' + d.message);
         }
@@ -2226,6 +2286,7 @@
         const r = await fetch(`/api/admin/tokens/${token}/delete`, {method: 'POST'});
         await r.json();
         loadTokens();
+          loadCredits();
       } catch(e) {}
     };
 

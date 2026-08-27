@@ -6157,7 +6157,150 @@ async function startServer(options = {}) {
   await app.locals.securityShoopBootPromise;
 
   if (options.listen !== false && !app.locals.securityShoopListening) {
-    app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
+    
+
+// ==========================================================
+// CREDIT CODES & PER-GAME LIBRARY SYSTEM
+// ==========================================================
+
+app.post('/api/admin/credits', requireAdmin, async (req, res) => {
+  try {
+    const duration = req.body.duration || '7d';
+    const count = Math.min(Math.max(Number(req.body.count) || 1, 1), 50);
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    if (!data.credits) data.credits = [];
+    
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const newCodes = [];
+    for(let c=0; c<count; c++) {
+      let t = 'CR-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      
+      const newCredit = {
+        code: t,
+        created_at: new Date().toISOString(),
+        duration_type: duration,
+        used: false,
+        used_at: null,
+        used_by_token: null,
+        used_for_appid: null
+      };
+      data.credits.push(newCredit);
+      newCodes.push(newCredit);
+    }
+    
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    res.json({ ok: true, message: `${count} adet kredi kodu olusturuldu.`, codes: newCodes });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.get('/api/admin/credits', requireAdmin, async (req, res) => {
+  try {
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    res.json({ ok: true, credits: data.credits || [] });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/credits/delete', requireAdmin, async (req, res) => {
+  try {
+    const code = req.body.code;
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    if (!data.credits) data.credits = [];
+    data.credits = data.credits.filter(c => c.code !== code);
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    res.json({ ok: true, message: 'Kredi silindi.' });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.get('/api/plugin/library', async (req, res) => {
+  try {
+    const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+    if (!userToken) return res.status(401).json({ ok: false, message: 'Yetkisiz' });
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+    if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token' });
+    
+    const now = new Date();
+    // Filter out expired games
+    const library = (tokenObj.library || []).filter(game => new Date(game.expires_at) > now);
+    
+    res.json({ ok: true, library });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/plugin/redeem-credit', async (req, res) => {
+  try {
+    const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+    const appid = String(req.body.appid || '').trim();
+    const appName = String(req.body.app_name || 'Bilinmeyen Oyun').trim();
+    const creditCode = String(req.body.credit_code || '').trim();
+    
+    if (!userToken || !appid || !creditCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    
+    const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+    if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
+    
+    const creditObj = (data.credits || []).find(c => c.code === creditCode);
+    if (!creditObj) return res.status(404).json({ ok: false, message: 'Gecersiz kredi kodu.' });
+    if (creditObj.used) return res.status(403).json({ ok: false, message: 'Bu kredi kodu zaten kullanilmis.' });
+    
+    // Check if game is already active
+    const now = new Date();
+    tokenObj.library = tokenObj.library || [];
+    const existingGame = tokenObj.library.find(g => g.appid === appid && new Date(g.expires_at) > now);
+    if (existingGame) return res.status(400).json({ ok: false, message: 'Bu oyun zaten kutuphanenizde aktif!' });
+    
+    // Redeem credit
+    creditObj.used = true;
+    creditObj.used_at = now.toISOString();
+    creditObj.used_by_token = userToken;
+    creditObj.used_for_appid = appid;
+    
+    // Calculate expiry
+    let expiresAt;
+    if (creditObj.duration_type === '1d') {
+      expiresAt = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+    } else if (creditObj.duration_type === '7d') {
+      expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    } else if (creditObj.duration_type === '30d') {
+      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      expiresAt = new Date(now.getTime() + 3650 * 24 * 60 * 60 * 1000); // 10 years for lifetime
+    }
+    
+    // Remove expired entries of this game if any, then add new one
+    tokenObj.library = tokenObj.library.filter(g => g.appid !== appid);
+    tokenObj.library.push({
+      appid,
+      name: appName,
+      unlocked_at: now.toISOString(),
+      expires_at: expiresAt.toISOString()
+    });
+    
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    
+    res.json({ ok: true, message: `${appName} oyunu kutuphanenize basariyla eklendi!`, library: tokenObj.library });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+
+app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
     app.locals.securityShoopListening = true;
   }
 
