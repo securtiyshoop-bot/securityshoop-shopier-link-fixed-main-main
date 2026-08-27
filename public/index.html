@@ -1393,7 +1393,7 @@
       if(!packageId){adminMsg.textContent='Önce lisans paketi seç.';return;}
       const r=await fetch(adminUserUrl(id,'/license-package'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:packageId})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Lisans paketi uygulandı');loadAdminUsers();loadAdminDashboard();openUserDetail(id);}
     }
 
@@ -1663,13 +1663,13 @@
       const reason=(command==='health_check'||command==='repair_health_shield')?'Plugin saglik kalkanı':(prompt('Komut notu',command)||'');
       const r=await fetch(`/api/admin/users/${encodeURIComponent(id)}/command`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command,reason,confirm_cleanup,payload})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Komut gönderildi');loadAdminDashboard();openUserDetail(id);}
     }
 
     async function cancelCommand(id){
       const r=await fetch(`/api/admin/plugin-commands/${id}/cancel`,{method:'POST'}),d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok)loadAdminDashboard();
     }
 
@@ -1678,7 +1678,7 @@
       const value=document.getElementById('allowedAppidsInput')?.value||'';
       const r=await fetch(adminUserUrl(id,'/appid-access'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowed_appids:value})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ AppID izinleri kaydedildi');loadAdminUsers();openUserDetail(id);}
     }
 
@@ -1687,7 +1687,7 @@
       const note=enabled?(document.getElementById('reviewModeNoteInput')?.value||prompt('İnceleme notu','Risk incelemesi')||'Risk incelemesi'):(document.getElementById('reviewModeNoteInput')?.value||'');
       const r=await fetch(adminUserUrl(id,'/review-mode'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled,note})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast(enabled?'✓ İnceleme modu açıldı':'✓ İnceleme modu kapandı');loadAdminUsers();loadAdminDashboard();openUserDetail(id);}
     }
 
@@ -1696,7 +1696,7 @@
       if(status!=='closed'&&!reply.trim()){adminMsg.textContent='Cevap boş olamaz.';return;}
       const r=await fetch(`/api/admin/support-tickets/${id}/reply`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,admin_reply:reply})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Destek talebi güncellendi');loadAdminDashboard();}
     }
 
@@ -1727,7 +1727,7 @@
       };
       const r=await fetch('/api/admin/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Toplu işlem tamamlandı');loadAdminUsers();loadAdminDashboard();}
     }
 
@@ -1907,13 +1907,13 @@
       const btn=e.target.closest('button[data-resolve-report]');if(!btn)return;
       const r=await fetch(`/api/admin/error-reports/${btn.dataset.resolveReport}/resolve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({open:btn.dataset.open==='1'})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Rapor guncellendi');loadAdminDashboard();}
     });
     sourceHealthList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-enable-source]');if(!btn)return;
       const r=await fetch(`/api/admin/source-health/${btn.dataset.enableSource}/enable`,{method:'POST'}),d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ Kaynak aktif');loadAdminDashboard();}
     });
     deviceResetQueueList?.addEventListener('click',async e=>{
@@ -1922,7 +1922,7 @@
       const note=approved?'Admin onayladı':'Admin reddetti';
       const r=await fetch(`/api/admin/device-reset-requests/${btn.dataset.deviceResetReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved,note})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast(approved?'✓ HWID sıfırlandı':'Talep reddedildi');loadAdminDashboard();loadAdminUsers();}
     });
     supportTicketsList?.addEventListener('click',e=>{
@@ -1963,7 +1963,7 @@
       if(action==='approve'||action==='reject'){
         const approved=action==='approve';
         const r=await fetch(adminUserUrl(id,'/approval'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved})}),d=await r.json();
-        adminMsg.textContent=d.message||'';if(d.ok){toast(approved?'Hesap onaylandi':'Hesap reddedildi');loadAdminUsers();loadAdminDashboard();}return;
+        adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok){toast(approved?'Hesap onaylandi':'Hesap reddedildi');loadAdminUsers();loadAdminDashboard();}return;
       }
       if(action==='reviewon'||action==='reviewoff'){
         await setReviewMode(id,action==='reviewon');
@@ -1985,11 +1985,11 @@
         const daily_limit=prompt('Günlük oyun ekleme limiti. 0 sınırsız demek.','0');
         if(daily_limit===null)return;
         const r=await fetch(adminUserUrl(id,'/license'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({license_until,daily_limit:Number(daily_limit||0)})}),d=await r.json();
-        adminMsg.textContent=d.message||'';if(d.ok)loadAdminUsers();return;
+        adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok)loadAdminUsers();return;
       }
       if(action==='delete'){if(!confirm('Bu kullanıcı silinsin mi?'))return;ep=adminUserUrl(id,'/delete');}
       const r=await fetch(ep,{method:'POST'}),d=await r.json();
-      adminMsg.textContent=d.message||'';if(d.ok)loadAdminUsers();
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok)loadAdminUsers();
     });
 
     logoutBtn.addEventListener('click',async()=>{
