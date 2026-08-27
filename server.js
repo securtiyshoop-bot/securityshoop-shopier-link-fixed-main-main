@@ -144,13 +144,40 @@ const LICENSE_PACKAGES = Object.freeze([
   }
 ]);
 
+function cleanHost(val) {
+  let s = String(val || '').trim();
+  s = s.replace(/^["']|["']$/g, '');
+  s = s.replace(/^https?:\/\//i, '');
+  s = s.replace(/\/.*$/, '');
+  if (s.includes(':')) {
+    s = s.split(':')[0];
+  }
+  return s;
+}
+
+function cleanPort(val, hostVal) {
+  let h = String(hostVal || '').trim().replace(/^https?:\/\//i, '');
+  if (h.includes(':')) {
+    const p = Number(h.split(':')[1]);
+    if (p) return p;
+  }
+  const p = Number(String(val || '').trim().replace(/^["']|["']$/g, ''));
+  return (Number.isFinite(p) && p > 0) ? p : 3306;
+}
+
+function cleanEnvStr(val, fallback = '') {
+  const s = String(val || '').trim().replace(/^["']|["']$/g, '');
+  return s || fallback;
+}
+
+const rawDbHost = cleanEnvStr(process.env.DB_HOST, 'localhost');
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'securityshoop',
-  ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || Boolean(process.env.VERCEL)) ? { rejectUnauthorized: false } : undefined
+  host: cleanHost(rawDbHost),
+  port: cleanPort(process.env.DB_PORT, rawDbHost),
+  user: cleanEnvStr(process.env.DB_USER, 'root'),
+  password: cleanEnvStr(process.env.DB_PASSWORD, ''),
+  database: cleanEnvStr(process.env.DB_NAME, 'securityshoop'),
+  ssl: (process.env.DB_SSL === 'false' || process.env.DB_SSL === '0') ? undefined : { rejectUnauthorized: false }
 };
 
 let pool = null;
@@ -1644,9 +1671,8 @@ function isValidEmail(email) {
 function normalizeApprovalStatus(value, role = 'user') {
   if (role === 'admin') return 'approved';
   const status = String(value || '').trim().toLowerCase();
-  if (status === 'rejected') return 'rejected';
-  // Default to approved so users are never stuck in pending
-  return 'approved';
+  if (['pending', 'approved', 'rejected'].includes(status)) return status;
+  return 'pending';
 }
 
 function withUserDefaults(user) {
@@ -1661,9 +1687,9 @@ function withUserDefaults(user) {
 
 function isUserApproved(user) {
   if (user?.role === 'admin') return true;
-  const status = String(user?.approval_status || '').trim().toLowerCase();
-  if (status === 'rejected' || user?.is_blocked) return false;
-  return true;
+  if (user?.is_blocked) return false;
+  const status = normalizeApprovalStatus(user?.approval_status, user?.role);
+  return status === 'approved';
 }
 
 function approvalBlockedBody(user) {
@@ -1958,7 +1984,7 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
   const cleanUsername = String(username).trim();
   const cleanHwid = String(hwid || '').trim() || null;
   const passwordHash = await bcrypt.hash(password, 10);
-  const approvalStatus = 'approved';
+  const approvalStatus = role === 'admin' ? 'approved' : 'pending';
 
   if (useDatabase) {
     const [result] = await pool.query(
