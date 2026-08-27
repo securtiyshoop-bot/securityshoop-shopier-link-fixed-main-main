@@ -149,7 +149,8 @@ const dbConfig = {
   port: Number(process.env.DB_PORT || 3306),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'securityshoop'
+  database: process.env.DB_NAME || 'securityshoop',
+  ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1' || Boolean(process.env.VERCEL)) ? { rejectUnauthorized: false } : undefined
 };
 
 let pool = null;
@@ -157,9 +158,9 @@ let useDatabase = false;
 let databaseRetryPromise = null;
 let lastDatabaseRetryAt = 0;
 let lastDatabaseError = null;
-const DATABASE_RETRY_INTERVAL_MS = Math.max(500, Math.min(5000, Number(process.env.DATABASE_RETRY_INTERVAL_MS || 1500)));
-const DATABASE_READY_WAIT_MS = Math.max(250, Math.min(2500, Number(process.env.DB_READY_WAIT_MS || 700)));
-const DB_CONNECT_TIMEOUT_MS = Math.max(250, Math.min(2500, Number(process.env.DB_CONNECT_TIMEOUT_MS || 700)));
+const DATABASE_RETRY_INTERVAL_MS = 1500;
+const DATABASE_READY_WAIT_MS = 8000;
+const DB_CONNECT_TIMEOUT_MS = 10000;
 const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL || 'openai/gpt-5.5';
 const AI_CHAT_RATE_LIMIT = Math.max(3, Math.min(60, Number(process.env.AI_CHAT_RATE_LIMIT || 12)));
 const aiChatBuckets = new Map();
@@ -999,16 +1000,20 @@ async function ensureAdminUser() {
 }
 
 async function initDatabase() {
-  const setupConnection = await mysql.createConnection({
-    host: dbConfig.host,
-    port: dbConfig.port,
-    user: dbConfig.user,
-    password: dbConfig.password,
-    connectTimeout: DB_CONNECT_TIMEOUT_MS
-  });
-
-  await setupConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-  await setupConnection.end();
+  try {
+    const setupConnection = await mysql.createConnection({
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.user,
+      password: dbConfig.password,
+      ssl: dbConfig.ssl,
+      connectTimeout: DB_CONNECT_TIMEOUT_MS
+    });
+    await setupConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`).catch(() => {});
+    await setupConnection.end().catch(() => {});
+  } catch (e) {
+    // Ignore setup connection error if user has no CREATE DB permissions
+  }
 
   pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 10, queueLimit: 0, connectTimeout: DB_CONNECT_TIMEOUT_MS });
 
