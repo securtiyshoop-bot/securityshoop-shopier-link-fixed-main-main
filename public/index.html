@@ -439,70 +439,6 @@
     <!-- ACCOUNT -->
     <section id="accountPanel" class="hidden mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
       
-        <!-- MARIFETSTORE ADMIN -->
-        <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
-          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
-            <div>
-              <div class="slabel mb-3" style="color: #F59E0B; background: rgba(245, 158, 11, 0.2);">MarifetStore Modülü</div>
-              <h2 class="syne text-2xl font-800 text-yellow-500">MarifetStore Kontrol Paneli</h2>
-              <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Masaüstü uygulamasının indirme adreslerini, anahtarlarını ve kanca ayarlarını doğrudan buradan yönetin.</p>
-            </div>
-          </div>
-          
-          <div class="grid lg:grid-cols-2 gap-4 mb-5">
-            <div>
-              <label class="block text-xs font-700 mb-1">API Key</label>
-              <input type="text" id="mfApiKey" class="rinput w-full" placeholder="436b0828-9799-4ce4-b1f2-ea5a3ce32f73" />
-            </div>
-            <div>
-              <label class="block text-xs font-700 mb-1">API URL (İndirme Adresi)</label>
-              <input type="text" id="mfApiUrl" class="rinput w-full" placeholder="https://depotbox.org/api/direct-lua" />
-            </div>
-            <div>
-              <label class="block text-xs font-700 mb-1">Kanca (Hook) URL'si</label>
-              <input type="text" id="mfHookUrl" class="rinput w-full" placeholder="https://github.com/..." />
-            </div>
-            <div>
-              <label class="block text-xs font-700 mb-1">Kullanıcılara Giden Mesaj</label>
-              <input type="text" id="mfMessage" class="rinput w-full" placeholder="MarifetStore'a Hoşgeldiniz!" />
-            </div>
-          </div>
-          <button id="saveMarifetBtn" class="rbtn px-6 py-2">💾 MarifetStore Ayarlarını Kaydet</button>
-          <div id="mfMsg" class="mt-2 text-sm text-green-400 font-bold"></div>
-        </div>
-        
-        <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                let res = await fetch('/api/plugin/marifetstore');
-                let data = await res.json();
-                if(data.ok && data.config) {
-                    document.getElementById('mfApiKey').value = data.config.api_key || '';
-                    document.getElementById('mfApiUrl').value = data.config.api_url || '';
-                    document.getElementById('mfHookUrl').value = data.config.hook_url || '';
-                    document.getElementById('mfMessage').value = data.config.message || '';
-                }
-            } catch(e) {}
-            
-            document.getElementById('saveMarifetBtn').addEventListener('click', async () => {
-                let payload = {
-                    api_key: document.getElementById('mfApiKey').value,
-                    api_url: document.getElementById('mfApiUrl').value,
-                    hook_url: document.getElementById('mfHookUrl').value,
-                    message: document.getElementById('mfMessage').value
-                };
-                let res = await fetch('/api/admin/marifetstore', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                let data = await res.json();
-                document.getElementById('mfMsg').textContent = data.message || '';
-                setTimeout(() => { document.getElementById('mfMsg').textContent = ''; }, 3000);
-            });
-        });
-        </script>
-
         <div class="admin-shell mb-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
@@ -604,7 +540,39 @@
 
     <!-- ADMIN -->
     <section id="adminPanel" class="hidden mx-auto max-w-[1500px] px-5 sm:px-8 pb-20 rv">
-      <div class="admin-shell admin-hero">
+      <!-- MARIFETSTORE ADMIN -->
+      <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+          <div>
+            <div class="slabel mb-3" style="color: #F59E0B; background: rgba(245, 158, 11, 0.2);">MarifetStore Modülü</div>
+            <h2 class="syne text-2xl font-800 text-yellow-500">MarifetStore Kontrol Paneli</h2>
+            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Masaüstü uygulamasının indirme adreslerini, anahtarlarını ve kanca ayarlarını doğrudan buradan yönetin.</p>
+          </div>
+        </div>
+        
+        <div class="grid lg:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-xs font-700 mb-1">API Key</label>
+            <input type="text" id="mfApiKey" class="fi2 w-full" placeholder="436b0828-9799-4ce4-b1f2-ea5a3ce32f73" />
+          </div>
+          <div>
+            <label class="block text-xs font-700 mb-1">API URL (İndirme Adresi)</label>
+            <input type="text" id="mfApiUrl" class="fi2 w-full" placeholder="https://depotbox.org/api/direct-lua" />
+          </div>
+          <div>
+            <label class="block text-xs font-700 mb-1">Kanca (Hook) URL'si</label>
+            <input type="text" id="mfHookUrl" class="fi2 w-full" placeholder="https://github.com/..." />
+          </div>
+          <div>
+            <label class="block text-xs font-700 mb-1">Kullanıcılara Giden Mesaj</label>
+            <input type="text" id="mfMessage" class="fi2 w-full" placeholder="MarifetStore'a Hoşgeldiniz!" />
+          </div>
+        </div>
+        <button id="saveMarifetBtn" class="btn btn-g px-6 py-2">💾 MarifetStore Ayarlarını Kaydet</button>
+        <div id="mfMsg" class="mt-2 text-sm text-green-400 font-bold"></div>
+      </div>
+      <!-- /MARIFETSTORE ADMIN -->
+<div class="admin-shell admin-hero">
         <div>
           <div class="admin-kicker mb-3">Admin Operasyon Merkezi</div>
           <h2 class="syne text-3xl font-800">SecurityShoop Komuta Paneli</h2>
@@ -1090,7 +1058,7 @@
     function fastFetch(input,init){
       init=init||{};
       if(init.signal)return nativeFetch(input,init);
-      const timeout=Number(init.timeout||0)||2500;
+      const timeout=Number(init.timeout||0)||12000;
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),timeout);
       const next={...init,signal:controller.signal};
@@ -1104,7 +1072,7 @@
     const referralFromUrl=new URLSearchParams(location.search).get('ref');if(referralFromUrl&&document.getElementById('registerReferral'))document.getElementById('registerReferral').value=referralFromUrl;
     async function loadPublicStatus(){
       try{
-        const r=await fastFetch('/api/public/status',{timeout:1800}),d=await readJsonSafe(r),s=d.status||{};
+        const r=await fastFetch('/api/public/status',{timeout:12000}),d=await readJsonSafe(r),s=d.status||{};
         const items=[['Site',s.site],['Veritabanı',s.database],['Plugin API',s.plugin_api],['Aktif kaynak',`${s.sources?.active||0}/${s.sources?.total||0}`]];
         document.getElementById('publicStatusGrid').innerHTML=items.map(([name,state])=>`<div class="stat glass"><div class="text-xs font-800" style="color:var(--muted)">${esc(name)}</div><div class="font-800 mt-2" style="color:${String(state).includes('operational')?'#7dffc0':'#fde68a'}">${esc(state||'bilinmiyor')}</div></div>`).join('');
         document.getElementById('statusCheckedAt').textContent=s.checked_at?new Date(s.checked_at).toLocaleString('tr-TR'):'Hazır';
@@ -1290,7 +1258,7 @@
     async function loadAdminUsers(){
       try{
         adminMsg.textContent='Kullanıcılar yükleniyor...';
-        const r=await fastFetch('/api/admin/users',{cache:'no-store',timeout:2200}),d=await readJsonSafe(r);
+        const r=await fastFetch('/api/admin/users',{cache:'no-store',timeout:12000}),d=await readJsonSafe(r);
         if(!d.ok){adminMsg.textContent=d.message||'Alınamadı.';return;}
         allAdminUsers=d.users||[];
         applyUserFilters();
@@ -1324,7 +1292,7 @@
 
     async function loadPluginControl(){
       try{
-        const r=await fastFetch('/api/admin/plugin-control',{timeout:2200}),d=await readJsonSafe(r);
+        const r=await fastFetch('/api/admin/plugin-control',{timeout:12000}),d=await readJsonSafe(r);
         if(!d.ok){pcMsg.textContent=d.message||'Kontrol alınamadı.';return;}
         renderPluginControl(d.control);
       }catch(err){pcMsg.textContent='Kontrol alınamadı.';}
@@ -1463,7 +1431,7 @@
 
     async function loadAccountSummary(){
       try{
-        const r=await fastFetch('/api/account/summary',{timeout:2200}),d=await readJsonSafe(r);
+        const r=await fastFetch('/api/account/summary',{timeout:12000}),d=await readJsonSafe(r);
         if(!d.ok){deviceResetMessage.textContent=d.message||'Hesap bilgileri alınamadı.';return;}
         renderAccountSummary(d.summary||{});
       }catch(err){deviceResetMessage.textContent='Hesap bilgileri alınamadı.';}
@@ -1579,13 +1547,13 @@
     }
 
     async function loadAdminDashboard(){
-      const r=await fastFetch('/api/admin/dashboard',{timeout:2500}),d=await readJsonSafe(r);
+      const r=await fastFetch('/api/admin/dashboard',{timeout:12000}),d=await readJsonSafe(r);
       if(!d.ok){adminMsg.textContent=d.message||'Dashboard alınamadı.';return;}
       renderAdminDashboard(d.dashboard||{});
     }
 
     async function openUserDetail(id){
-      const r=await fastFetch(`/api/admin/users/${encodeURIComponent(id)}/detail`,{timeout:2200}),d=await readJsonSafe(r);
+      const r=await fastFetch(`/api/admin/users/${encodeURIComponent(id)}/detail`,{timeout:12000}),d=await readJsonSafe(r);
       if(!d.ok){adminMsg.textContent=d.message||'Detay alınamadı.';return;}
       const u=d.user||{};
       const targetId=esc(String(u.virtual_id||u.id||id));
@@ -1732,7 +1700,7 @@
     }
 
     async function refreshSession(){
-      const r=await fastFetch('/api/session',{timeout:1500}),d=await readJsonSafe(r);
+      const r=await fastFetch('/api/session',{timeout:12000}),d=await readJsonSafe(r);
       if(d.authenticated){
         welcomeUser.textContent='Merhaba, '+(d.user.username||d.user.email);
         welcomeUser.classList.remove('hidden');logoutBtn.classList.remove('hidden');
@@ -1762,11 +1730,12 @@
         const p={email:document.getElementById('email').value.trim(),password:document.getElementById('password').value};
         let ep='/api/login';
         if(authMode==='register'){p.username=document.getElementById('registerName').value.trim();p.confirmPassword=document.getElementById('confirmPassword').value;p.referral_code=document.getElementById('registerReferral').value.trim();ep='/api/register';}
-        const r=await fastFetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),timeout:2200});
+        const r=await fastFetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),timeout:12000});
         const d=await readJsonSafe(r);
         if(!d.ok){authMsg.textContent=d.message||'Hata oluştu.';return;}
         if(d.pending_approval){authMsg.textContent=d.message||'Hesap admin onayı bekliyor.';toast('Admin onayı bekliyor');return;}
-        closeModal();refreshSession();toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap oluşturuldu');
+        closeModal();loadMarifetStoreConfig();
+    refreshSession();toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap oluşturuldu');
       }catch(_err){
         authMsg.textContent='Sunucu geç cevap verdi. Birazdan tekrar dene.';
       }finally{
@@ -1962,8 +1931,21 @@
       if(action==='detail'){openUserDetail(id);return;}
       if(action==='approve'||action==='reject'){
         const approved=action==='approve';
-        const r=await fetch(adminUserUrl(id,'/approval'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved})}),d=await r.json();
-        adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok){toast(approved?'Hesap onaylandi':'Hesap reddedildi');loadAdminUsers();loadAdminDashboard();}return;
+        try {
+          const r=await fetch(adminUserUrl(id,'/approval'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved})});
+          const d=await readJsonSafe(r);
+          adminMsg.textContent=d.message||'';
+          if(d.ok){
+            toast(approved?'✓ Hesap onaylandı':'✓ Hesap reddedildi');
+            await loadAdminUsers();
+            await loadAdminDashboard();
+          } else {
+            alert('İşlem başarısız: ' + (d.message || 'Bilinmeyen hata'));
+          }
+        } catch(err) {
+          alert('Bağlantı hatası: ' + err.message);
+        }
+        return;
       }
       if(action==='reviewon'||action==='reviewoff'){
         await setReviewMode(id,action==='reviewon');
@@ -2117,6 +2099,49 @@
     document.getElementById('ssSupportLauncher')?.addEventListener('click',()=>{
       if(window.Tawk_API&&typeof window.Tawk_API.maximize==='function'){try{window.Tawk_API.showWidget?.();}catch(_err){} window.Tawk_API.maximize();}
       else window.open('https://www.instagram.com/securityshoop/?hl=tr','_blank','noopener');
+    });
+
+    
+    // MARIFETSTORE ADMIN LOGIC
+    async function loadMarifetStoreConfig() {
+      try {
+        const r = await fastFetch('/api/plugin/marifetstore');
+        const d = await readJsonSafe(r);
+        if(d.ok && d.config) {
+          const k = document.getElementById('mfApiKey'); if(k) k.value = d.config.api_key || '';
+          const u = document.getElementById('mfApiUrl'); if(u) u.value = d.config.api_url || '';
+          const h = document.getElementById('mfHookUrl'); if(h) h.value = d.config.hook_url || '';
+          const m = document.getElementById('mfMessage'); if(m) m.value = d.config.message || '';
+        }
+      } catch(e) {}
+    }
+    document.getElementById('saveMarifetBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('saveMarifetBtn');
+      btn.disabled = true; btn.textContent = 'Kaydediliyor...';
+      const payload = {
+        api_key: document.getElementById('mfApiKey')?.value || '',
+        api_url: document.getElementById('mfApiUrl')?.value || '',
+        hook_url: document.getElementById('mfHookUrl')?.value || '',
+        message: document.getElementById('mfMessage')?.value || ''
+      };
+      try {
+        const r = await fetch('/api/admin/marifetstore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        const msgEl = document.getElementById('mfMsg');
+        if(msgEl) {
+          msgEl.textContent = d.message || 'Kaydedildi';
+          setTimeout(() => { msgEl.textContent = ''; }, 3500);
+        }
+        toast('✓ MarifetStore ayarları güncellendi');
+      } catch(err) {
+        alert('Ayarlar kaydedilemedi: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 MarifetStore Ayarlarını Kaydet';
+      }
     });
 
     // INIT
