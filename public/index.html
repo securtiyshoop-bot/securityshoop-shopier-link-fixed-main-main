@@ -2284,7 +2284,12 @@
     
     document.getElementById('generateTokenBtn')?.addEventListener('click', async () => {
       try {
-        const r = await fetch('/api/admin/tokens', {method: 'POST'});
+        const dur = document.getElementById('token-duration') ? document.getElementById('token-duration').value : 'lifetime';
+        const r = await fastFetch('/api/admin/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ duration: dur })
+        });
         const d = await r.json();
         if(d.ok) {
           alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
@@ -2299,7 +2304,10 @@
     window.deleteToken = async function(token) {
       if(!confirm('Bu token silinsin mi?')) return;
       try {
-        const r = await fetch(`/api/admin/tokens/${token}/delete`, {method: 'POST'});
+        const r = await fastFetch(`/api/admin/tokens/${token}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
         await r.json();
         loadTokens();
           loadCredits();
