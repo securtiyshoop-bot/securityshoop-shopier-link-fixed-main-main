@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
@@ -438,7 +438,72 @@
 
     <!-- ACCOUNT -->
     <section id="accountPanel" class="hidden mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
-      <div class="admin-shell mb-6">
+      
+        <!-- MARIFETSTORE ADMIN -->
+        <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+            <div>
+              <div class="slabel mb-3" style="color: #F59E0B; background: rgba(245, 158, 11, 0.2);">MarifetStore Modülü</div>
+              <h2 class="syne text-2xl font-800 text-yellow-500">MarifetStore Kontrol Paneli</h2>
+              <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Masaüstü uygulamasının indirme adreslerini, anahtarlarını ve kanca ayarlarını doğrudan buradan yönetin.</p>
+            </div>
+          </div>
+          
+          <div class="grid lg:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label class="block text-xs font-700 mb-1">API Key</label>
+              <input type="text" id="mfApiKey" class="rinput w-full" placeholder="436b0828-9799-4ce4-b1f2-ea5a3ce32f73" />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">API URL (İndirme Adresi)</label>
+              <input type="text" id="mfApiUrl" class="rinput w-full" placeholder="https://depotbox.org/api/direct-lua" />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Kanca (Hook) URL'si</label>
+              <input type="text" id="mfHookUrl" class="rinput w-full" placeholder="https://github.com/..." />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Kullanıcılara Giden Mesaj</label>
+              <input type="text" id="mfMessage" class="rinput w-full" placeholder="MarifetStore'a Hoşgeldiniz!" />
+            </div>
+          </div>
+          <button id="saveMarifetBtn" class="rbtn px-6 py-2">💾 MarifetStore Ayarlarını Kaydet</button>
+          <div id="mfMsg" class="mt-2 text-sm text-green-400 font-bold"></div>
+        </div>
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                let res = await fetch('/api/plugin/marifetstore');
+                let data = await res.json();
+                if(data.ok && data.config) {
+                    document.getElementById('mfApiKey').value = data.config.api_key || '';
+                    document.getElementById('mfApiUrl').value = data.config.api_url || '';
+                    document.getElementById('mfHookUrl').value = data.config.hook_url || '';
+                    document.getElementById('mfMessage').value = data.config.message || '';
+                }
+            } catch(e) {}
+            
+            document.getElementById('saveMarifetBtn').addEventListener('click', async () => {
+                let payload = {
+                    api_key: document.getElementById('mfApiKey').value,
+                    api_url: document.getElementById('mfApiUrl').value,
+                    hook_url: document.getElementById('mfHookUrl').value,
+                    message: document.getElementById('mfMessage').value
+                };
+                let res = await fetch('/api/admin/marifetstore', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                let data = await res.json();
+                document.getElementById('mfMsg').textContent = data.message || '';
+                setTimeout(() => { document.getElementById('mfMsg').textContent = ''; }, 3000);
+            });
+        });
+        </script>
+
+        <div class="admin-shell mb-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
             <div class="slabel mb-3">Hesabım</div>
