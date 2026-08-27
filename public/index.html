@@ -2247,17 +2247,33 @@
         if(d.ok && d.tokens) {
           tbody.innerHTML = '';
           if(d.tokens.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
             return;
           }
           [...d.tokens].reverse().forEach(t => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
-            const statusHtml = t.used ? '<span class="text-xs px-2 py-1 rounded bg-red-900 text-red-300">Kullanıldı</span>' : '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Geçerli</span>';
+            
+            let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Boşta</span>';
+            if(t.used_by_hwid) {
+                statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + t.used_by_hwid + '</span>';
+            }
+            
+            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
+            const durationName = durMap[t.duration_type] || '1 Hafta';
+            
+            let expiryStr = '-';
+            if (t.expires_at) {
+                const exDt = new Date(t.expires_at);
+                if (exDt < new Date()) expiryStr = '<span class="text-red-500">Süresi Bitti</span>';
+                else expiryStr = exDt.toLocaleString('tr-TR');
+            }
+
             tr.innerHTML = `
               <td class="px-4 py-3 font-mono text-sm">${t.token}</td>
+              <td class="px-4 py-3 text-xs text-gray-300">${durationName}</td>
+              <td class="px-4 py-3 text-xs text-gray-400">${expiryStr}</td>
               <td class="px-4 py-3">${statusHtml}</td>
-              <td class="px-4 py-3 text-xs text-gray-400">${t.used_by_hwid || '-'}</td>
               <td class="px-4 py-3"><button onclick="deleteToken('${t.token}')" class="text-xs px-3 py-1.5 rounded-lg font-700 bg-red-900 text-red-300">Sil</button></td>
             `;
             tbody.appendChild(tr);
