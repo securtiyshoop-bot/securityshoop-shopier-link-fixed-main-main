@@ -2379,5 +2379,103 @@
     })();
   </script>
   <!--End of Tawk.to Script-->
+
+    // === OYUN KREDILERI (CREDITS) SCRIPT ===
+    async function loadCredits() {
+      try {
+        const res = await fetch('/api/admin/credits', { headers: { 'Authorization': 'Bearer ' + sessionToken } });
+        const data = await res.json();
+        const tbody = document.getElementById('creditsTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if(data.ok && data.credits) {
+          if(data.credits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Henüz kredi kodu oluşturulmamış.</td></tr>';
+            return;
+          }
+          data.credits.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-gray-800/30 hover:bg-white/5 transition-colors';
+            
+            let status = `<span class="px-2 py-1 rounded text-xs bg-yellow-500/20 text-yellow-400">Bekliyor</span>`;
+            if (c.used) {
+               status = `<span class="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">Kullanıldı (AppID: ${c.used_for_appid})</span><br><span class="text-xs text-gray-500">${c.used_by_token}</span>`;
+            }
+              
+            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
+            const durationName = durMap[c.duration_type] || '1 Hafta';
+            
+            tr.innerHTML = `
+              <td class="px-4 py-3 font-mono text-sm">${c.code}</td>
+              <td class="px-4 py-3 text-xs text-gray-300">${durationName}</td>
+              <td class="px-4 py-3">${status}</td>
+              <td class="px-4 py-3">
+                <button onclick="deleteCredit('${c.code}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-400/10 rounded">Sil</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function deleteCredit(code) {
+      if(!confirm(code + ' kodunu silmek istediginize emin misiniz?')) return;
+      try {
+        const res = await fetch('/api/admin/credits/delete', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + sessionToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        if(data.ok) loadCredits();
+        else alert('Hata: ' + data.message);
+      } catch (err) {
+        alert('Sunucu hatası.');
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        const genBtn = document.getElementById('generateCreditBtn');
+        if(genBtn) {
+            genBtn.addEventListener('click', async () => {
+              try {
+                const dur = document.getElementById('credit-duration').value;
+                const count = document.getElementById('credit-count').value;
+                const res = await fetch('/api/admin/credits', { 
+                  method: 'POST', 
+                  headers: { 'Authorization': 'Bearer ' + sessionToken, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ duration: dur, count: count })
+                });
+                const data = await res.json();
+                if(data.ok) {
+                  alert(data.message + '\nÖrnek Kod: ' + data.codes[0].code);
+                  loadCredits();
+                } else {
+                  alert('Hata: ' + data.message);
+                }
+              } catch (err) {
+                alert('Sunucu hatası.');
+              }
+            });
+        }
+        
+        // Also bind nav-credits click
+        const navCredits = document.getElementById('nav-credits');
+        if(navCredits) {
+            navCredits.addEventListener('click', () => {
+                document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('bg-white/10'));
+                
+                const cTab = document.getElementById('credits');
+                if(cTab) cTab.classList.remove('hidden');
+                navCredits.classList.add('bg-white/10');
+                loadCredits(); // Load when tab is clicked
+            });
+        }
+    });
+
 </body>
 </html>
