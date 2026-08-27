@@ -5104,7 +5104,27 @@ async function bootSecurityShoopServer(options = {}) {
     }
   });
 
-  app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
+  
+// --- MARIFETSTORE API ---
+let marifetStoreConfig = {
+    api_key: "436b0828-9799-4ce4-b1f2-ea5a3ce32f73",
+    api_url: "https://depotbox.org/api/direct-lua",
+    hook_url: "https://github.com/OpenSteam001/OpenSteamTool/releases/download/1.4.8/OpenSteamTool-1.4.8-Debug.zip",
+    version: "4.0",
+    message: "MarifetStore'a Hosgeldiniz!"
+};
+
+app.get('/api/plugin/marifetstore', (req, res) => {
+    res.json({ ok: true, config: marifetStoreConfig });
+});
+
+app.post('/api/admin/marifetstore', requireAdmin, (req, res) => {
+    marifetStoreConfig = { ...marifetStoreConfig, ...req.body };
+    res.json({ ok: true, message: 'MarifetStore ayarlari basariyla guncellendi!', config: marifetStoreConfig });
+});
+// ------------------------
+
+app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     try {
       res.json({ ok: true, dashboard: await buildAdminDashboard() });
     } catch (error) {
