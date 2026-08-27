@@ -1644,7 +1644,8 @@ function isValidEmail(email) {
 function normalizeApprovalStatus(value, role = 'user') {
   if (role === 'admin') return 'approved';
   const status = String(value || '').trim().toLowerCase();
-  if (['pending', 'approved', 'rejected'].includes(status)) return status;
+  if (status === 'rejected') return 'rejected';
+  // Default to approved so users are never stuck in pending
   return 'approved';
 }
 
@@ -1659,7 +1660,10 @@ function withUserDefaults(user) {
 }
 
 function isUserApproved(user) {
-  return normalizeApprovalStatus(user?.approval_status, user?.role) === 'approved';
+  if (user?.role === 'admin') return true;
+  const status = String(user?.approval_status || '').trim().toLowerCase();
+  if (status === 'rejected' || user?.is_blocked) return false;
+  return true;
 }
 
 function approvalBlockedBody(user) {
@@ -1713,11 +1717,11 @@ function publicUserPayload(user, token = '') {
   };
 }
 
-function pendingRegistrationBody(user, message = 'Hesap olusturuldu. Admin onayindan sonra kullanabilirsin.') {
+function pendingRegistrationBody(user, message = 'Hesap basariyla olusturuldu. Giris yapabilirsiniz.') {
   return {
     ok: true,
-    pending_approval: true,
-    approval_status: 'pending',
+    pending_approval: false,
+    approval_status: 'approved',
     message,
     user: publicUserPayload(user, '')
   };
@@ -1954,7 +1958,7 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
   const cleanUsername = String(username).trim();
   const cleanHwid = String(hwid || '').trim() || null;
   const passwordHash = await bcrypt.hash(password, 10);
-  const approvalStatus = role === 'admin' ? 'approved' : 'pending';
+  const approvalStatus = 'approved';
 
   if (useDatabase) {
     const [result] = await pool.query(
@@ -4551,7 +4555,7 @@ async function bootSecurityShoopServer(options = {}) {
       clearAdminCookie(res);
       await recordActivityLog({ user, action: 'REGISTER', details: hwid ? `HWID: ${hwid}` : '' });
       await notifyAdminRegistration(user, { source: 'site', hwid, req });
-      res.json(pendingRegistrationBody(user, 'Hesap olusturuldu. Admin onayindan sonra giris yapabilirsin.'));
+      res.json({ ok: true, message: 'Hesap basariyla olusturuldu. Simdi giris yapabilirsiniz!', user: publicUserPayload(user, '') });
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Sunucu hatası oluştu.' });
@@ -4609,7 +4613,7 @@ async function bootSecurityShoopServer(options = {}) {
       const user = await createUser({ username, email, password, role: 'user', hwid });
       await recordActivityLog({ user, action: 'PLUGIN_REGISTER', details: hwid ? `HWID: ${hwid}` : '' });
       await notifyAdminRegistration(user, { source: 'plugin', hwid, req });
-      res.json(pendingRegistrationBody(user, 'Plugin hesabi olusturuldu. Admin onayindan sonra giris yapabilirsin.'));
+      res.json({ ok: true, message: 'Plugin hesabi basariyla olusturuldu. Giris yapabilirsiniz!', user: publicUserPayload(user, '') });
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi olustu.' });
