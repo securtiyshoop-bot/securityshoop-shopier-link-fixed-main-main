@@ -72,6 +72,7 @@ async function saveCloudJson(id, name, data) {
   }
 }
 
+async function bootSecurityShoopServer(options = {}) {
 
   app.get('/api/admin/backup', requireAdmin, async (_req, res) => {
     try {
