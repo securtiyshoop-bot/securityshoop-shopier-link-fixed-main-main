@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
@@ -549,7 +549,15 @@
               <h2 class="syne text-2xl font-800 text-green-400">Tek Kullanımlık Tokenlar</h2>
               <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Uygulamaya giriş için kullanıcı adı veya şifreye gerek kalmadan bu anahtarları verebilirsiniz.</p>
             </div>
-            <button id="generateTokenBtn" class="btn btn-g px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">➕ Yeni Token Oluştur</button>
+            <div class="flex items-center gap-2">
+              <select id="token-duration" class="fi2 text-sm" style="padding: 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <option value="lifetime">Sınırsız (Ömür Boyu)</option>
+                <option value="1d">1 Gün</option>
+                <option value="7d">1 Hafta</option>
+                <option value="30d">1 Ay</option>
+              </select>
+              <button id="generateTokenBtn" class="btn btn-g px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">✨ Yeni Token Oluştur</button>
+            </div>
           </div>
           
           <div class="overflow-x-auto">
@@ -557,8 +565,9 @@
               <thead>
                 <tr style="border-bottom: 2px solid var(--border)">
                   <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">TOKEN</th>
-                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM</th>
-                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">KULLANAN HWID</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SÜRE TÜRÜ</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">BİTİŞ TARİHİ</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM / HWID</th>
                   <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">İŞLEM</th>
                 </tr>
               </thead>
