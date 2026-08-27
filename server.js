@@ -6102,7 +6102,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         }
         
         // Sorun yok, tekrar girise izin ver
-        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken });
+        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at || null });
       }
 
       // Ilk kullanim (Kilitlenme ve Sure Baslatma)
