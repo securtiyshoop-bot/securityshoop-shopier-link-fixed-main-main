@@ -22,7 +22,8 @@ const CLOUD_STORAGE_IDS = {
   plugin_control: 'ff8081819ff5b11001a0435075fb360d',
   marifetstore: 'ff8081819ff5b11001a043507d05360e',
   hwid_bans: 'ff8081819ff5b11001a043508572360f',
-  orders: 'ff8081819ff5b11001a0435091743610'
+  orders: 'ff8081819ff5b11001a0435091743610',
+  tokens: 'ff8081819ff5b11001a0435d7b2f3674'
 };
 
 const cloudCache = new Map();
@@ -5692,6 +5693,79 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'AppID izinleri guncellenemedi.' });
+    }
+  });
+
+  
+  // ==========================================
+  // SINGLE-USE TOKEN SYSTEM
+  // ==========================================
+  app.get('/api/admin/tokens', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      res.json({ ok: true, tokens: data.tokens || [] });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Tokenlar alinamadi.' });
+    }
+  });
+
+  app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      // Generate something like MS-ABCD-1234
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let t = 'MS-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      
+      const newToken = {
+        token: t,
+        created_at: new Date().toISOString(),
+        used: false,
+        used_at: null,
+        used_by_hwid: null
+      };
+      data.tokens.push(newToken);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, token: newToken });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
+    }
+  });
+
+  app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      data.tokens = data.tokens.filter(t => t.token !== req.params.token);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token silindi.' });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Token silinemedi.' });
+    }
+  });
+
+  app.post('/api/plugin/token-login', async (req, res) => {
+    try {
+      const userToken = String(req.body.token || '').trim();
+      const hwid = String(req.body.hwid || '').trim();
+      if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
+
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = data.tokens.find(t => t.token === userToken);
+
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Geçersiz token.' });
+      if (tokenObj.used) return res.status(403).json({ ok: false, message: 'Bu token daha önce kullanılmış.' });
+
+      // Mark as used
+      tokenObj.used = true;
+      tokenObj.used_at = new Date().toISOString();
+      tokenObj.used_by_hwid = hwid;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+
+      res.json({ ok: true, message: 'Giriş başarılı!', role: 'user', session_token: userToken });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Sunucu hatasi.' });
     }
   });
 
