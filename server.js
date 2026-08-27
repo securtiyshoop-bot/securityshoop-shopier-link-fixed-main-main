@@ -6168,40 +6168,7 @@ app.post('/api/admin/credits', requireAdmin, async (req, res) => {
   }
 });
 
-  app.all('/api/plugin/*', (req, res) => {
-    res.status(404).json({
-      ok: false,
-      plugin_api: true,
-      message: `Plugin API bulunamadi: ${req.method} ${req.path}`
-    });
-  });
-
-  app.all('/api/*', (req, res) => {
-    res.status(404).json({ ok: false, message: `API bulunamadi: ${req.method} ${req.path}` });
-  });
-
-  if (options.listen !== false) {
-    app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
-    app.locals.securityShoopListening = true;
-  }
-  return app;
-}
-
-async function startServer(options = {}) {
-  if (!app.locals.securityShoopBootPromise) {
-    app.locals.securityShoopBootPromise = bootSecurityShoopServer(options).finally(() => {
-      app.locals.securityShoopBootPromise = null;
-    });
-  }
-
-  await app.locals.securityShoopBootPromise;
-
-  if (options.listen !== false && !app.locals.securityShoopListening) {
-    
-
-
-
-app.get('/api/admin/credits', requireAdmin, async (req, res) => {
+  app.get('/api/admin/credits', requireAdmin, async (req, res) => {
   try {
     const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
     res.json({ ok: true, credits: data.credits || [] });
@@ -6300,6 +6267,41 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     res.status(500).json({ ok: false, message: err.message });
   }
 });
+
+  app.all('/api/plugin/*', (req, res) => {
+    res.status(404).json({
+      ok: false,
+      plugin_api: true,
+      message: `Plugin API bulunamadi: ${req.method} ${req.path}`
+    });
+  });
+
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ ok: false, message: `API bulunamadi: ${req.method} ${req.path}` });
+  });
+
+  if (options.listen !== false) {
+    app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
+    app.locals.securityShoopListening = true;
+  }
+  return app;
+}
+
+async function startServer(options = {}) {
+  if (!app.locals.securityShoopBootPromise) {
+    app.locals.securityShoopBootPromise = bootSecurityShoopServer(options).finally(() => {
+      app.locals.securityShoopBootPromise = null;
+    });
+  }
+
+  await app.locals.securityShoopBootPromise;
+
+  if (options.listen !== false && !app.locals.securityShoopListening) {
+    
+
+
+
+
 
 
 app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
