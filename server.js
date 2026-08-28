@@ -28,49 +28,76 @@ const CLOUD_STORAGE_IDS = {
 
 const cloudCache = new Map();
 
-function fetchCloudJson(id, fallback) {
+function cloudRequest(method, id, payload, timeout = 7000) {
   return new Promise((resolve) => {
-    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
+    const body = payload == null ? null : JSON.stringify(payload);
+    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
+      method,
+      headers: body ? {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      } : {},
+      timeout
+    }, (res) => {
+      let responseBody = '';
+      res.on('data', chunk => responseBody += chunk);
       res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed && parsed.data) {
-            cloudCache.set(id, parsed.data);
-            resolve(parsed.data);
-          } else {
-            resolve(cloudCache.get(id) || fallback);
-          }
-        } catch {
-          resolve(cloudCache.get(id) || fallback);
-        }
+        let parsed = null;
+        try { parsed = responseBody ? JSON.parse(responseBody) : null; } catch {}
+        resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode || 0, body: parsed, raw: responseBody.slice(0, 1000) });
       });
     });
-    req.on('error', () => resolve(cloudCache.get(id) || fallback));
-    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
+    req.on('error', error => resolve({ ok: false, status: 0, error: error.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 0, error: 'timeout' }); });
+    if (body) req.write(body);
+    req.end();
   });
 }
 
-function saveCloudJson(id, name, data) {
+async function fetchCloudJson(id, fallback) {
+  const result = await cloudRequest('GET', id, null, 7000);
+  if (result.ok && result.body && result.body.data) {
+    cloudCache.set(id, result.body.data);
+    return result.body.data;
+  }
+
+  // Token storage has a recovery mirror inside the users object.
+  // This keeps license-token persistence alive when the dedicated demo object is unavailable.
+  if (id === CLOUD_STORAGE_IDS.tokens && id !== CLOUD_STORAGE_IDS.users) {
+    const mirror = await cloudRequest('GET', CLOUD_STORAGE_IDS.users, null, 7000);
+    const mirrorData = mirror.ok && mirror.body && mirror.body.data;
+    if (mirrorData && mirrorData.__securityshoop_token_store) {
+      cloudCache.set(id, mirrorData.__securityshoop_token_store);
+      return mirrorData.__securityshoop_token_store;
+    }
+  }
+
+  return cloudCache.get(id) || fallback;
+}
+
+async function saveCloudJson(id, name, data) {
   cloudCache.set(id, data);
-  return new Promise((resolve) => {
-    const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
-    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      },
-      timeout: 4000
-    }, (res) => {
-      resolve(res.statusCode === 200);
-    });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
-    req.write(payload);
-    req.end();
-  });
+  const payload = { name: `securityshoop_${name}`, data };
+  let result = await cloudRequest('PUT', id, payload, 7000);
+  if (result.ok) return true;
+
+  // Some REST demo objects can become unavailable. Token data gets a durable mirror.
+  if (id === CLOUD_STORAGE_IDS.tokens && id !== CLOUD_STORAGE_IDS.users) {
+    const usersResult = await cloudRequest('GET', CLOUD_STORAGE_IDS.users, null, 7000);
+    const usersData = usersResult.ok && usersResult.body && usersResult.body.data
+      ? usersResult.body.data
+      : {};
+    usersData.__securityshoop_token_store = data;
+    const mirrorPayload = { name: 'securityshoop_users', data: usersData };
+    const mirrorSave = await cloudRequest('PUT', CLOUD_STORAGE_IDS.users, mirrorPayload, 7000);
+    if (mirrorSave.ok) {
+      cloudCache.set(id, data);
+      return true;
+    }
+  }
+
+  console.error('CLOUD_SAVE_FAILED', JSON.stringify({ id, name, status: result.status, error: result.error, response: result.raw }));
+  return false;
 }
 
 
@@ -6073,7 +6100,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       const newToken = buildLicenseToken(req.body?.duration, data.tokens);
       data.tokens.push(newToken);
       const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      if (!saved) return res.status(503).json({ ok: false, message: 'Token olusturuldu ancak kalici depolamaya yazilamadi. Tekrar deneyin.' });
+      if (!saved) return res.status(503).json({ ok: false, message: 'Token olusturuldu ancak kalici depolamaya yazilamadi.', storage: 'cloud', hint: 'REST storage ve recovery mirror yazimi basarisiz.' });
       res.json({ ok: true, token: newToken });
     } catch (err) {
       console.error('TOKEN_CREATE_ERROR', err);
@@ -6096,7 +6123,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       }
       data.tokens.push(...created);
       const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_bulk', data);
-      if (!saved) return res.status(503).json({ ok: false, message: 'Toplu tokenlar hazirlandi ancak kalici depolamaya yazilamadi. Hicbir token basarili kabul edilmedi.' });
+      if (!saved) return res.status(503).json({ ok: false, message: 'Toplu tokenlar hazirlandi ancak kalici depolamaya yazilamadi.', storage: 'cloud', hint: 'REST storage ve recovery mirror yazimi basarisiz.' });
       res.json({ ok: true, count: created.length, tokens: created, message: `${created.length} token olusturuldu.` });
     } catch (err) {
       console.error('TOKEN_BULK_CREATE_ERROR', err);

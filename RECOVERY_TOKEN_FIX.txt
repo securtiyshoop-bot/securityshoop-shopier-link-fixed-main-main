@@ -1,9 +1,5 @@
-Recovery Token Fix - 2026-08-28
+RECOVERY TOKEN FIX V2
 
-1. /api/admin/tokens now verifies persistent cloud storage writes before reporting success.
-2. /api/admin/tokens/bulk generates the requested batch server-side in one read/write cycle and returns only persisted tokens.
-3. Token generation uses crypto.randomInt and collision checks.
-4. Desktop SSAPP keys now authenticate through /api/desktop/activate in the Python client.
-5. Desktop admin keys receive an admin session cookie so the desktop Admin Panel can call admin APIs.
-6. Desktop admin-key creation reports persistence failures instead of false success.
-7. Bulk generation in the web UI uses the server-side bulk endpoint instead of firing one request per token.
+Token persistence now uses a resilient cloud writer.
+The writer accepts every successful 2xx response, logs storage failures, retries through a recovery mirror stored inside the existing users cloud object, and reads that mirror when the dedicated token object is unavailable.
+Bulk creation is still one atomic logical write: no token is reported successful until persistence succeeds.
