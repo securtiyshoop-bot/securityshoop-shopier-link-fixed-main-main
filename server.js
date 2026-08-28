@@ -6646,61 +6646,533 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // ==========================================
   // YAPAY ZEKA (AI) ENTEGRASYONU
   // ==========================================
-  app.post('/api/plugin/ai-chat', async (req, res) => {
+    // ==========================================
+  // AI GAME ASSISTANT & SETTINGS
+  // ==========================================
+  app.get('/api/admin/ai-settings', requireAdmin, async (req, res) => {
     try {
-      const prompt = String(req.body.prompt || '').trim();
-      const apiKey = process.env.GEMINI_API_KEY;
-      
-      if (!prompt) return res.status(400).json({ ok: false, message: 'Soru bos.' });
-      
-      if (!apiKey) {
-        return res.json({ 
-          ok: true, 
-          reply: "🤖 Merhaba! Ben MarifetStore Yapay Zeka Asistanıyım. Ancak şu an uykudayım çünkü sistem yöneticisi (Admin) Vercel paneline 'GEMINI_API_KEY' anahtarımı eklememiş. Lütfen admin ile iletişime geçin!"
-        });
-      }
-
-      // Call Google Gemini API
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const systemInstruction = "Sen MarifetStore adli bir oyun magazasinin oyun tavsiye asistanisin. Kisaca oyun oner, eglenceli ve samimi bir dil kullan. Kullanicinin sistem ozelliklerini sorabilir veya verdigi turde en iyi 3 oyunu kisaca aciklayabilirsin. Kisa, oz ve turkce cevap ver.";
-      
-      const payload = {
-        contents: [{ role: "user", parts: [{ text: systemInstruction + "\n\nKullanici Sorusu: " + prompt }] }]
-      };
-
-      const response = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        return res.json({ ok: false, message: 'Yapay zeka servisinde hata: ' + data.error.message });
-      }
-
-      let replyText = "Bir hata oluştu.";
-      if (data.candidates && data.candidates[0].content.parts[0].text) {
-        replyText = data.candidates[0].content.parts[0].text;
-      }
-
-      res.json({ ok: true, reply: replyText });
-    } catch(e) { 
-      res.status(500).json({ ok: false, message: String(e) }); 
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
+      const key = data.settings?.gemini_api_key || process.env.GEMINI_API_KEY || '';
+      res.json({ ok: true, gemini_api_key: key ? '••••••••' + key.slice(-4) : '', has_key: !!key });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: 'Ayarlar alinamadi.' });
     }
   });
 
-
-  app.all('/api/plugin/*', (req, res) => {
-    res.status(404).json({
-      ok: false,
-      plugin_api: true,
-      message: `Plugin API bulunamadi: ${req.method} ${req.path}`
-    });
+  app.post('/api/admin/ai-settings', requireAdmin, async (req, res) => {
+    try {
+      const { gemini_api_key } = req.body;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
+      if (!data.settings) data.settings = {};
+      if (gemini_api_key !== undefined) {
+        data.settings.gemini_api_key = String(gemini_api_key).trim();
+      }
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Yapay Zeka API Anahtarı başarıyla kaydedildi!' });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: 'Kaydedilemedi.' });
+    }
   });
 
-  app.all('/api/*', (req, res) => {
-    res.status(404).json({ ok: false, message: `API bulunamadi: ${req.method} ${req.path}` });
+  app.post('/api/plugin/ai-chat', async (req, res) => {
+    try {
+      const prompt = String(req.body.prompt || '').trim();
+      if (!prompt) return res.status(400).json({ ok: false, message: 'Soru bos.' });
+
+      // Fetch cloud settings for saved API Key
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
+      const apiKey = cloudData.settings?.gemini_api_key || process.env.GEMINI_API_KEY;
+      
+      if (apiKey) {
+        try {
+          const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
+          const systemInstruction = 'Sen MarifetStore oyun magazasinin uzman yapay zeka oyun danismanisin. Kullaniciya en uygun oyunlari tavsiye et, Steam AppIDlerini belirt ve samimi Turkce konus.';
+          
+          const payload = {
+            contents: [{ role: 'user', parts: [{ text: systemInstruction + '\n\nKullanıcı: ' + prompt }] }]
+          };
+
+          const response = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (reply) {
+              return res.json({ ok: true, reply });
+            }
+          }
+        } catch(e) {
+          console.error('Gemini API call failed:', e.message);
+        }
+      }
+
+      // Smart Fallback Gaming Knowledge Engine (Works instantly even without API Key!)
+      const lower = prompt.toLowerCase();
+      let smartReply = '';
+
+      if (lower.includes('düşük sistem') || lower.includes('kasmayan') || lower.includes('patates pc') || lower.includes('ram az') || lower.includes('dusuk')) {
+        smartReply = '🎮 Düşük Sistemler İçin Şaheser Oyun Önerilerim:\n\n1. **Euro Truck Simulator 2** (AppID: 227300) - Rahatlatıcı ve her PCde akıcı çalışır.\n2. **Terraria** (AppID: 105600) - Yüzlerce saatlik harika bir açık dünya macerası.\n3. **Mount & Blade: Warband** (AppID: 48700) - Düşük sistemlerin kralı!\n\nBu oyunları Oyun Ekle bölümünden tek tıkla kütüphanene ekleyebilirsin!';
+      } else if (lower.includes('hikaye') || lower.includes('hikayeli') || lower.includes('story')) {
+        smartReply = '📖 Sinema Tadında Hikayeli Oyun Önerilerim:\n\n1. **Red Dead Redemption 2** (AppID: 1174180) - Dünyanın en detaylı vahşi batı hikayesi.\n2. **The Witcher 3: Wild Hunt** (AppID: 292030) - Unutulmaz RPG dünyası.\n3. **God of War** (AppID: 1593500) - Kratosun destansı yolculuğu!\n\nHepsini MarifetStore ile anında indirebilirsin!';
+      } else if (lower.includes('fps') || lower.includes('silah') || lower.includes('vurma') || lower.includes('shooter')) {
+        smartReply = '🎯 Aksiyon & FPS Tutkunları İçin Önerilerim:\n\n1. **Counter-Strike 2** (AppID: 730) - Rekabetçi efsane.\n2. **Rust** (AppID: 252490) - Hayatta kalma ve acımasız PvP silah çatışmaları.\n3. **Cyberpunk 2077** (AppID: 1091500) - Gelecekte geçen harika bir FPS RPG deneyimi!';
+      } else if (lower.includes('araba') || lower.includes('yarış') || lower.includes('yaris') || lower.includes('drift')) {
+        smartReply = '🏎️ Hız ve Yarış Severler İçin Önerilerim:\n\n1. **Forza Horizon 5** (AppID: 1551360) - Açık dünya Meksika haritası ve yüzlerce araç.\n2. **Assetto Corsa** (AppID: 80550) - Gerçekçi sürüş simülasyonu ve mod desteği.\n3. **Need for Speed Heat** (AppID: 1222680) - Gece ve gündüz sokak yarışları!';
+      } else if (lower.includes('arkadaş') || lower.includes('arkadas') || lower.includes('coop') || lower.includes('beraber') || lower.includes('multiplayer')) {
+        smartReply = '👥 Arkadaşlarla Oynamalık En İyi Oyunlar:\n\n1. **Grand Theft Auto V** (AppID: 271590) - GTA Online görevleri ve soygunlar.\n2. **Lethal Company** (AppID: 1966720) - Aşırı eğlenceli ve gerilimli co-op.\n3. **Raft** (AppID: 648800) - Okyanusun ortasında arkadaşlarınla hayatta kalma!';
+      } else {
+        smartReply = '🤖 Harika bir soru! Senin için MarifetStore arşivinden öne çıkan en popüler oyunları derledim:\n\n• **Grand Theft Auto V** (AppID: 271590)\n• **Red Dead Redemption 2** (AppID: 1174180)\n• **Euro Truck Simulator 2** (AppID: 227300)\n• **Cyberpunk 2077** (AppID: 1091500)\n\nBana tam olarak nasıl bir tür (Örn: düşük sistemli, korku, hayatta kalma, hikayeli) aradığını söylersen sana özel nokta atışı öneri yapabilirim!';
+      }
+
+      res.json({ ok: true, reply: smartReply });
+    } catch (err) {
+      console.error('ai-chat error:', err);
+      res.status(500).json({ ok: false, message: 'AI servisi hatasi olustu.' });
+    }
+  });
+  // ==========================================================
+// CREDIT CODES & PER-GAME LIBRARY SYSTEM
+// ==========================================================
+
+app.post('/api/admin/credits', requireAdmin, async (req, res) => {
+  try {
+    const duration = req.body.duration || '7d';
+    const count = Math.min(Math.max(Number(req.body.count) || 1, 1), 50);
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    if (!data.credits) data.credits = [];
+    
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const newCodes = [];
+    for(let c=0; c<count; c++) {
+      let t = 'CR-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      
+      const newCredit = {
+        code: t,
+        created_at: new Date().toISOString(),
+        duration_type: duration,
+        used: false,
+        used_at: null,
+        used_by_token: null,
+        used_for_appid: null
+      };
+      data.credits.push(newCredit);
+      newCodes.push(newCredit);
+    }
+    
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    res.json({ ok: true, message: `${count} adet kredi kodu olusturuldu.`, codes: newCodes });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+  app.get('/api/admin/credits', requireAdmin, async (req, res) => {
+  try {
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    res.json({ ok: true, credits: data.credits || [] });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/credits/delete', requireAdmin, async (req, res) => {
+  try {
+    const code = req.body.code;
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    if (!data.credits) data.credits = [];
+    data.credits = data.credits.filter(c => c.code !== code);
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    res.json({ ok: true, message: 'Kredi silindi.' });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.get('/api/plugin/library', async (req, res) => {
+  try {
+    const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+    if (!userToken) return res.status(401).json({ ok: false, message: 'Yetkisiz' });
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
+    if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token' });
+    
+    const now = new Date();
+    // Filter out expired games
+    const library = (tokenObj.library || []).filter(game => new Date(game.expires_at) > now);
+    
+    res.json({ ok: true, library });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/plugin/redeem-credit', async (req, res) => {
+  try {
+    const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+    const appid = String(req.body.appid || '').trim();
+    const appName = String(req.body.app_name || 'Bilinmeyen Oyun').trim();
+    const creditCode = String(req.body.credit_code || '').trim();
+    
+    if (!userToken || !appid || !creditCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    
+    const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
+    if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
+    
+    const creditObj = (data.credits || []).find(c => c.code === creditCode);
+    if (!creditObj) return res.status(404).json({ ok: false, message: 'Gecersiz kredi kodu.' });
+    if (creditObj.used) return res.status(403).json({ ok: false, message: 'Bu kredi kodu zaten kullanilmis.' });
+    
+    // Check if game is already active
+    const now = new Date();
+    tokenObj.library = tokenObj.library || [];
+    const existingGame = tokenObj.library.find(g => g.appid === appid && new Date(g.expires_at) > now);
+    if (existingGame) return res.status(400).json({ ok: false, message: 'Bu oyun zaten kutuphanenizde aktif!' });
+    
+    // Redeem credit
+    creditObj.used = true;
+    creditObj.used_at = now.toISOString();
+    creditObj.used_by_token = userToken;
+    creditObj.used_for_appid = appid;
+    
+    // Calculate expiry
+    let expiresAt;
+    if (creditObj.duration_type === '1d') {
+      expiresAt = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+    } else if (creditObj.duration_type === '7d') {
+      expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    } else if (creditObj.duration_type === '30d') {
+      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      expiresAt = new Date(now.getTime() + 3650 * 24 * 60 * 60 * 1000); // 10 years for lifetime
+    }
+    
+    // Remove expired entries of this game if any, then add new one
+    tokenObj.library = tokenObj.library.filter(g => g.appid !== appid);
+    tokenObj.library.push({
+      appid,
+      name: appName,
+      unlocked_at: now.toISOString(),
+      expires_at: expiresAt.toISOString()
+    });
+    
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    
+    res.json({ ok: true, message: `${appName} oyunu kutuphanenize basariyla eklendi!`, library: tokenObj.library });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+
+  // ======================================================
+  // TOKEN FREEZE / UNFREEZE
+  // ======================================================
+  app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      tokenObj.frozen = true;
+      tokenObj.frozen_at = new Date().toISOString();
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token donduruldu.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      tokenObj.frozen = false;
+      tokenObj.frozen_at = null;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token cozuldu.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // REFERRAL SYSTEM
+  // ======================================================
+  app.post('/api/plugin/use-ref', async (req, res) => {
+    try {
+      const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+      const refCode = String(req.body.ref_code || '').trim();
+      if (!userToken || !refCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
+
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const myToken = (data.tokens || []).find(t => t.token === userToken);
+      if (!myToken) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
+      if (myToken.ref_code === refCode) return res.status(400).json({ ok: false, message: 'Kendi referans kodunu kullanamazsin.' });
+      if (myToken.used_ref_code) return res.status(400).json({ ok: false, message: 'Daha once bir referans kodu kullandiniz.' });
+
+      const refToken = (data.tokens || []).find(t => t.ref_code === refCode);
+      if (!refToken) return res.status(404).json({ ok: false, message: 'Gecersiz referans kodu.' });
+
+      const bonusMs = 3 * 24 * 60 * 60 * 1000; // 3 days
+      const now = new Date();
+
+      // Add 3 days to both
+      [myToken, refToken].forEach(t => {
+        if (t.expires_at) {
+          const exp = new Date(t.expires_at);
+          t.expires_at = new Date(Math.max(exp.getTime(), now.getTime()) + bonusMs).toISOString();
+        }
+      });
+
+      myToken.used_ref_code = refCode;
+      myToken.ref_bonus_received_at = now.toISOString();
+      refToken.ref_bonus_count = (refToken.ref_bonus_count || 0) + 1;
+
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Referans kodu kullanildi! Her ikinize de +3 gun eklendi.', expires_at: myToken.expires_at });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // STORE & PRICE PLANS (from marifetstore config)
+  // ======================================================
+  app.post('/api/admin/marifetstore/store', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      if (!data.marifetstore) data.marifetstore = {};
+      const { store_items, price_plans, announcement, discord_webhook, app_version, app_download_url } = req.body;
+      if (store_items !== undefined) data.marifetstore.store_items = store_items;
+      if (price_plans !== undefined) data.marifetstore.price_plans = price_plans;
+      if (announcement !== undefined) data.marifetstore.announcement = announcement;
+      if (discord_webhook !== undefined) {
+        if (!data.settings) data.settings = {};
+        data.settings.discord_webhook = discord_webhook;
+        data.marifetstore.discord_webhook = discord_webhook;
+      }
+      if (app_version !== undefined) data.marifetstore.app_version = app_version;
+      if (app_download_url !== undefined) data.marifetstore.app_download_url = app_download_url;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+      res.json({ ok: true, message: 'Ayarlar kaydedildi.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  app.get('/api/plugin/store-config', async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      const ms = data.marifetstore || {};
+      res.json({
+        ok: true,
+        store_items: ms.store_items || [],
+        price_plans: ms.price_plans || [],
+        announcement: ms.announcement || null,
+        app_version: ms.app_version || '1.0.0',
+        app_download_url: ms.app_download_url || null,
+      });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // TOKEN STATS (for admin dashboard)
+  // ======================================================
+  app.get('/api/admin/token-stats', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokens = data.tokens || [];
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const total = tokens.length;
+      const active = tokens.filter(t => !t.frozen && (!t.expires_at || new Date(t.expires_at) > now)).length;
+      const expired = tokens.filter(t => t.expires_at && new Date(t.expires_at) <= now).length;
+      const frozen = tokens.filter(t => t.frozen).length;
+      const today_created = tokens.filter(t => (t.created_at || '').startsWith(today)).length;
+      const today_used = tokens.filter(t => (t.first_used_at || '').startsWith(today)).length;
+      res.json({ ok: true, total, active, expired, frozen, today_created, today_used });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+
+  // ==========================================
+  // MARIFETSTORE V5 - PROMO, BLACKLIST, TICKETS
+  // ==========================================
+
+  // --- PLUGIN ENDPOINTS ---
+
+  app.post('/api/plugin/use-promo', async (req, res) => {
+    try {
+      const code = String(req.body.code || '').trim().toUpperCase();
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      if (!code) return res.status(400).json({ ok: false, message: 'Promosyon kodu bos.' });
+      
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], promo_codes: [] });
+      const myToken = (data.tokens || []).find(t => t.token === tokenStr);
+      if (!myToken) return res.status(401).json({ ok: false, message: 'Oturum gecersiz.' });
+      
+      if (!data.promo_codes) data.promo_codes = [];
+      const promo = data.promo_codes.find(p => p.code === code);
+      
+      if (!promo) return res.status(404).json({ ok: false, message: 'Gecersiz promosyon kodu.' });
+      if (!promo.used_by) promo.used_by = [];
+      if (promo.used_by.includes(tokenStr)) return res.status(400).json({ ok: false, message: 'Bu kodu zaten kullandiniz.' });
+      if (promo.max_uses > 0 && promo.used_by.length >= promo.max_uses) return res.status(400).json({ ok: false, message: 'Kodun kullanim limiti dolmus.' });
+      
+      // Sure ekleme
+      let extDays = promo.days || 0;
+      if (myToken.duration_type !== 'lifetime' && myToken.expires_at) {
+        let exDt = new Date(myToken.expires_at);
+        let now = new Date();
+        if (exDt < now) exDt = now; // Eger bitmisse su andan itibaren ekle
+        exDt.setDate(exDt.getDate() + extDays);
+        myToken.expires_at = exDt.toISOString();
+      }
+      
+      promo.used_by.push(tokenStr);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      
+      res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.get('/api/plugin/tickets', async (req, res) => {
+    try {
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      const userTickets = (data.tickets || []).filter(t => t.token === tokenStr);
+      res.json({ ok: true, tickets: userTickets });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/plugin/tickets', async (req, res) => {
+    try {
+      const msg = String(req.body.message || '').trim();
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      if (!msg) return res.status(400).json({ ok: false, message: 'Mesaj bos.' });
+      
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      if (!data.tickets) data.tickets = [];
+      
+      const newTicket = {
+        id: 'TCK-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+        token: tokenStr,
+        message: msg,
+        reply: '',
+        status: 'open',
+        date: new Date().toISOString()
+      };
+      
+      data.tickets.push(newTicket);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      res.json({ ok: true, ticket: newTicket });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  // --- ADMIN ENDPOINTS ---
+
+  app.get('/api/admin/v5-data', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [], blacklist: {hwids:[], ips:[]}, tickets: [] });
+      res.json({
+        ok: true,
+        promo_codes: data.promo_codes || [],
+        blacklist: data.blacklist || {hwids:[], ips:[]},
+        tickets: data.tickets || []
+      });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/promo-codes', requireAdmin, async (req, res) => {
+    try {
+      const { code, days, max_uses, action } = req.body;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [] });
+      if (!data.promo_codes) data.promo_codes = [];
+      
+      if (action === 'delete') {
+        data.promo_codes = data.promo_codes.filter(p => p.code !== code);
+      } else {
+        const c = String(code).toUpperCase().trim();
+        if (data.promo_codes.find(p => p.code === c)) return res.status(400).json({ok:false, message:'Bu kod zaten var'});
+        data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
+      }
+      
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/blacklist', requireAdmin, async (req, res) => {
+    try {
+      const { type, value, action } = req.body; // type: 'hwid' or 'ip', action: 'add' or 'remove'
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { blacklist: {hwids:[], ips:[]} });
+      if (!data.blacklist) data.blacklist = {hwids:[], ips:[]};
+      
+      const arr = type === 'hwid' ? data.blacklist.hwids : data.blacklist.ips;
+      const v = String(value).trim();
+      
+      if (action === 'add' && !arr.includes(v)) arr.push(v);
+      if (action === 'remove') {
+        const idx = arr.indexOf(v);
+        if (idx > -1) arr.splice(idx, 1);
+      }
+      
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      res.json({ ok: true, blacklist: data.blacklist });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/tickets/:id/reply', requireAdmin, async (req, res) => {
+    try {
+      const { reply } = req.body;
+      const tid = req.params.id;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      
+      const ticket = (data.tickets || []).find(t => t.id === tid);
+      if (!ticket) return res.status(404).json({ ok: false, message: 'Ticket bulunamadi.' });
+      
+      ticket.reply = String(reply).trim();
+      ticket.status = 'answered';
+      
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+
+
+  // ==========================================
+  // YAPAY ZEKA (AI) ENTEGRASYONU
+  // ==========================================
+    // ==========================================
+  // AI GAME ASSISTANT & SETTINGS
+  // ==========================================
+  app.get('/api/admin/ai-settings', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
+      const key = data.settings?.gemini_api_key || process.env.GEMINI_API_KEY || '';
+      res.json({ ok: true, gemini_api_key: key ? '••••••••' + key.slice(-4) : '', has_key: !!key });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: 'Ayarlar alinamadi.' });
+    }
+  });
+
+  app.post('/api/admin/ai-settings', requireAdmin, async (req, res) => {
+    try {
+      const { gemini_api_key } = req.body;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
+      if (!data.settings) data.settings = {};
+      if (gemini_api_key !== undefined) {
+        data.settings.gemini_api_key = String(gemini_api_key).trim();
+      }
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Yapay Zeka API Anahtarı başarıyla kaydedildi!' });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: 'Kaydedilemedi.' });
+    }
   });
 
   if (options.listen !== false) {
