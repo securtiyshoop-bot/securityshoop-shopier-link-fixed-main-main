@@ -6513,7 +6513,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       }
       
       promo.used_by.push(tokenStr);
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       
       res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
@@ -6547,7 +6547,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       };
       
       data.tickets.push(newTicket);
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true, ticket: newTicket });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6580,7 +6580,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
       }
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6600,7 +6600,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         if (idx > -1) arr.splice(idx, 1);
       }
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true, blacklist: data.blacklist });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6617,7 +6617,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       ticket.reply = String(reply).trim();
       ticket.status = 'answered';
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });

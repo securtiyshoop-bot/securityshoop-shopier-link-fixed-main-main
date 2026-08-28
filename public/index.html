@@ -556,7 +556,8 @@
                 <option value="7d">1 Hafta</option>
                 <option value="30d">1 Ay</option>
               </select>
-              <button id="generateTokenBtn" class="btn btn-g px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">✨ Yeni Token Oluştur</button>
+              <button id="generateTokenBtn" class="btn btn-g px-5 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">✨ Yeni Token Oluştur</button>
+              <button id="refreshTokensBtn" onclick="loadTokens()" class="btn btn-o px-4 py-2 text-sm border border-green-500/40 text-green-400 hover:bg-green-500/10 rounded">🔄 Yenile</button>
             </div>
           </div>
           
@@ -2410,73 +2411,101 @@
     
     // TOKEN LOGIC
     async function loadTokens() {
+      const tbody = document.getElementById('tokensTableBody');
+      if (!tbody) return;
       try {
-        const r = await fastFetch('/api/admin/tokens');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-400">Tokenlar yükleniyor...</td></tr>';
+        const r = await fastFetch('/api/admin/tokens', { timeout: 8000 });
         const d = await readJsonSafe(r);
-        const tbody = document.getElementById('tokensTableBody');
-        if(d.ok && d.tokens) {
+        
+        if (d.ok && Array.isArray(d.tokens)) {
           tbody.innerHTML = '';
-          if(d.tokens.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
+          if (d.tokens.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-sm text-gray-500">Henüz hiç token oluşturulmamış.<br><span class="text-xs text-gray-600">Yukarıdaki "✨ Yeni Token Oluştur" butonuna basarak ilk anahtarınızı üretebilirsiniz.</span></td></tr>';
             return;
           }
           [...d.tokens].reverse().forEach(t => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
-            if(t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
+            if (t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
             
-            let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Boşta</span>';
-            if(t.frozen) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900 text-blue-300">❄️ Dondurulmuş</span>';
-            else if(t.used_by_hwid) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + t.used_by_hwid.substring(0,12) + '...</span>';
+            let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900/60 text-green-300 border border-green-500/30">🟢 Boşta</span>';
+            if (t.frozen) {
+              statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900/60 text-blue-300 border border-blue-500/30">❄️ Dondurulmuş</span>';
+            } else if (t.used_by_hwid) {
+              statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900/60 text-yellow-300 border border-yellow-500/30">🔒 ' + esc(t.used_by_hwid.substring(0,10)) + '...</span>';
+            }
             
-            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
-            const durationName = durMap[t.duration_type] || '1 Hafta';
+            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız (Ömür Boyu)'};
+            const durationName = durMap[t.duration_type] || esc(t.duration_type || '1 Hafta');
             
             let expiryStr = 'Sınırsız';
             if (t.expires_at) {
-                const exDt = new Date(t.expires_at);
-                if (exDt < new Date()) expiryStr = '<span class="text-red-400 font-700">Süresi Bitti</span>';
-                else expiryStr = exDt.toLocaleString('tr-TR');
+              const exDt = new Date(t.expires_at);
+              if (exDt < new Date()) expiryStr = '<span class="text-red-400 font-700">Süresi Bitti</span>';
+              else expiryStr = exDt.toLocaleString('tr-TR');
             }
 
-            const lastIp = t.last_ip || '-';
-            const refCode = t.ref_code || '-';
+            const lastIp = t.last_ip ? esc(t.last_ip) : '-';
+            const refCode = t.ref_code ? esc(t.ref_code) : '-';
             const freezeBtn = t.frozen
-              ? `<button onclick="unfreezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Çöz</button>`
-              : `<button onclick="freezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Dondur</button>`;
+              ? `<button onclick="unfreezeToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-blue-900/70 hover:bg-blue-800 text-blue-300 transition-colors">Çöz</button>`
+              : `<button onclick="freezeToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-blue-900/70 hover:bg-blue-800 text-blue-300 transition-colors">Dondur</button>`;
 
             tr.innerHTML = `
-              <td class="px-3 py-3 font-mono text-xs">${t.token}</td>
-              <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500">${expiryStr}</span></td>
-              <td class="px-3 py-3 text-xs text-gray-400">${lastIp}</td>
+              <td class="px-3 py-3 font-mono text-xs font-bold text-green-400 select-all">${esc(t.token)}</td>
+              <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500 text-[11px]">${expiryStr}</span></td>
+              <td class="px-3 py-3 text-xs text-gray-400 font-mono">${lastIp}</td>
               <td class="px-3 py-3 text-xs font-mono text-cyan-400">${refCode}</td>
               <td class="px-3 py-3">${statusHtml}</td>
-              <td class="px-3 py-3 flex gap-1 flex-wrap">
-                ${freezeBtn}
-                <button onclick="deleteToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-red-900 text-red-300">Sil</button>
+              <td class="px-3 py-3">
+                <div class="flex gap-1.5 flex-wrap items-center">
+                  <button onclick="copyTokenText('${esc(t.token)}')" class="text-xs px-2 py-1 rounded font-700 bg-gray-800 hover:bg-gray-700 text-gray-200" title="Kopyala">📋 Kopyala</button>
+                  ${freezeBtn}
+                  <button onclick="deleteToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-red-900/70 hover:bg-red-800 text-red-300 transition-colors">Sil</button>
+                </div>
               </td>
             `;
             tbody.appendChild(tr);
           });
+        } else {
+          tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">Tokenlar yüklenemedi: ${esc(d.message || 'Yetki hatası')}</td></tr>`;
         }
-      } catch(e) {}
+      } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">Bağlantı hatası: ${esc(String(e))}</td></tr>`;
+      }
     }
+    window.loadTokens = loadTokens;
+
+    window.copyTokenText = async function(token) {
+      try {
+        await navigator.clipboard.writeText(token);
+        if (typeof toast === 'function') toast('✓ Token kopyalandı: ' + token);
+        else alert('Token kopyalandı: ' + token);
+      } catch (err) {
+        prompt('Token Kodunu Kopyalayın:', token);
+      }
+    };
 
     window.freezeToken = async function(token) {
       if(!confirm('Bu token dondurulsun mu? Kullanıcı giriş yapamaz.')) return;
       try {
-        const r = await fastFetch('/api/admin/tokens/' + token + '/freeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
-        await r.json();
-        loadTokens(); loadTokenStats(); loadV5Data();
-      } catch(e) {}
+        const r = await fastFetch('/api/admin/tokens/' + encodeURIComponent(token) + '/freeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        const d = await readJsonSafe(r);
+        if (typeof toast === 'function') toast(d.ok ? '✓ Token donduruldu' : '❌ ' + (d.message||'Hata'));
+        await loadTokens(); 
+        if (typeof loadTokenStats === 'function') loadTokenStats();
+      } catch(e) { alert('Hata: ' + e); }
     };
 
     window.unfreezeToken = async function(token) {
       try {
-        const r = await fastFetch('/api/admin/tokens/' + token + '/unfreeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
-        await r.json();
-        loadTokens(); loadTokenStats(); loadV5Data();
-      } catch(e) {}
+        const r = await fastFetch('/api/admin/tokens/' + encodeURIComponent(token) + '/unfreeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        const d = await readJsonSafe(r);
+        if (typeof toast === 'function') toast(d.ok ? '✓ Token çözüldü' : '❌ ' + (d.message||'Hata'));
+        await loadTokens(); 
+        if (typeof loadTokenStats === 'function') loadTokenStats();
+      } catch(e) { alert('Hata: ' + e); }
     };
 
     async function loadTokenStats() {
@@ -2494,39 +2523,55 @@
         }
       } catch(e) {}
     }
+    window.loadTokenStats = loadTokenStats;
     
     document.getElementById('generateTokenBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('generateTokenBtn');
       try {
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Oluşturuluyor...'; }
         const dur = document.getElementById('token-duration') ? document.getElementById('token-duration').value : 'lifetime';
         const r = await fastFetch('/api/admin/tokens', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ duration: dur })
         });
-        const d = await r.json();
-        if(d.ok) {
-          alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
-          loadTokens();
-          loadCredits();
+        const d = await readJsonSafe(r);
+        if(d.ok && d.token) {
+          alert('✨ YENİ TOKEN OLUŞTURULDU ✨\n\nKod: ' + d.token.token + '\n\nBu anahtarı kopyalayıp müşterinize verebilirsiniz.');
+          await loadTokens();
+          if (typeof loadTokenStats === 'function') loadTokenStats();
+          if (typeof window.loadCredits === 'function') window.loadCredits();
         } else {
-          alert('Hata: ' + d.message);
+          alert('Hata: ' + (d.message || 'Token oluşturulamadı.'));
         }
-      } catch(e) { alert('Hata: ' + e); }
+      } catch(e) { 
+        alert('İşlem Hatası: ' + e); 
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '✨ Yeni Token Oluştur'; }
+      }
     });
 
     window.deleteToken = async function(token) {
-      if(!confirm('Bu token silinsin mi?')) return;
+      if(!confirm(`"${token}" tokenini kalıcı olarak silmek istediğinize emin misiniz?`)) return;
       try {
-        const r = await fastFetch(`/api/admin/tokens/${token}/delete`, {
+        const r = await fastFetch(`/api/admin/tokens/${encodeURIComponent(token)}/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
-        await r.json();
-        loadTokens();
-          loadCredits();
-      } catch(e) {}
+        const d = await readJsonSafe(r);
+        if (typeof toast === 'function') toast(d.ok ? '✓ Token silindi' : '❌ ' + (d.message||'Silinemedi'));
+        await loadTokens();
+        if (typeof loadTokenStats === 'function') loadTokenStats();
+      } catch(e) { alert('Hata: ' + e); }
     };
 
+    // Safe loadCredits stub to prevent ReferenceError
+    function loadCredits() {
+      if (typeof window.loadCredits === 'function') {
+        window.loadCredits();
+      }
+    }
+    window.loadCredits = window.loadCredits || function(){};
 
     // ======================================================
     // DUYURU SİSTEMİ
