@@ -6084,6 +6084,33 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
+  app.post('/api/admin/tokens/reset-hwid', async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ ok: false, message: 'Token belirtilmedi.' });
+      
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      let tokens = cloudData.tokens || [];
+      
+      let found = false;
+      tokens = tokens.map(t => {
+        if (t.token && t.token.toLowerCase() === String(token).toLowerCase()) {
+          t.used_by_hwid = null;
+          t.used = false;
+          found = true;
+        }
+        return t;
+      });
+      
+      if (!found) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, { ...cloudData, tokens });
+      res.json({ ok: true, message: `Token (${token}) HWID kilidi basariyla sifirlandi.` });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: err.message });
+    }
+  });
+
   app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
     try {
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
