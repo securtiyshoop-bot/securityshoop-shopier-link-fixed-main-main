@@ -29,6 +29,41 @@ const CLOUD_STORAGE_IDS = {
 const cloudCache = new Map();
 
 function fetchCloudJson(id, fallback) {
+  // Token verileri için Vercel üzerinde kalıcı MySQL kullan.
+  // restful-api.dev yalnızca eski kurulumlar için yedek olarak bırakılır.
+  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+    return pool.query('SELECT data FROM securityshoop_token_store WHERE id = 1 LIMIT 1')
+      .then(([rows]) => {
+        if (rows.length && rows[0].data) {
+          const parsed = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+          cloudCache.set(CLOUD_STORAGE_IDS.tokens, parsed);
+          return parsed;
+        }
+        return new Promise((resolve) => {
+          const requestObject = (objectId) => {
+            const req = https.get(`https://api.restful-api.dev/objects/${objectId}`, { timeout: 6000 }, (res) => {
+              let body = '';
+              res.on('data', chunk => body += chunk);
+              res.on('end', async () => {
+                try {
+                  const parsed = JSON.parse(body);
+                  if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.data) {
+                    await pool.query('INSERT INTO securityshoop_token_store (id, data, updated_at) VALUES (1, ?, NOW()) ON DUPLICATE KEY UPDATE data=VALUES(data), updated_at=NOW()', [JSON.stringify(parsed.data)]);
+                    cloudCache.set(CLOUD_STORAGE_IDS.tokens, parsed.data);
+                    return resolve(parsed.data);
+                  }
+                } catch {}
+                resolve(fallback);
+              });
+            });
+            req.on('error', () => resolve(fallback));
+            req.on('timeout', () => { req.destroy(); resolve(fallback); });
+          };
+          requestObject(CLOUD_STORAGE_IDS.tokens);
+        });
+      })
+      .catch(() => fallback);
+  }
   return new Promise((resolve) => {
     const requestObject = (objectId) => {
       const req = https.get(`https://api.restful-api.dev/objects/${objectId}`, { timeout: 6000 }, (res) => {
@@ -82,6 +117,19 @@ function findTokenObject(resolve, fallback) {
 }
 
 function saveCloudJson(id, name, data) {
+  // Tokenların gerçek kalıcı kaynağı MySQL olsun; API'ye bağımlı kalmasın.
+  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+    return pool.query(
+      'INSERT INTO securityshoop_token_store (id, data, updated_at) VALUES (1, ?, NOW()) ON DUPLICATE KEY UPDATE data=VALUES(data), updated_at=NOW()',
+      [JSON.stringify(data)]
+    ).then(() => {
+      cloudCache.set(CLOUD_STORAGE_IDS.tokens, data);
+      return true;
+    }).catch((err) => {
+      console.error('[token-storage] MySQL save failed:', err?.message || err);
+      return false;
+    });
+  }
   return new Promise((resolve) => {
     const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
 
@@ -1184,6 +1232,14 @@ async function initDatabase() {
   }
 
   pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 10, queueLimit: 0, connectTimeout: DB_CONNECT_TIMEOUT_MS });
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS securityshoop_token_store (
+      id TINYINT UNSIGNED PRIMARY KEY,
+      data LONGTEXT NOT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (

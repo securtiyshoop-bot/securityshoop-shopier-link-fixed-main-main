@@ -81,3 +81,10 @@ CREATE TABLE IF NOT EXISTS app_sessions (
   INDEX idx_app_sessions_last_seen (last_seen_at),
   INDEX idx_app_sessions_hwid (hwid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS securityshoop_token_store (
+  id TINYINT UNSIGNED PRIMARY KEY,
+  data LONGTEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
