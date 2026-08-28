@@ -6179,7 +6179,7 @@ app.get('/api/plugin/get-lua', async (req, res) => {
 
   // Validate session token against cloud database
   const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-  const validToken = (cloudData.tokens || []).find(t => t.code === token && !t.is_blocked);
+  const validToken = (cloudData.tokens || []).find(t => (t.token === token || t.code === token) && !t.is_blocked);
   if (!validToken) {
     return res.status(401).json({ ok: false, message: 'Yetkisiz erisim / Gecersiz lisans.' });
   }
