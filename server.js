@@ -6678,6 +6678,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   app.post('/api/plugin/ai-chat', async (req, res) => {
     try {
       const prompt = String(req.body.prompt || '').trim();
+      const history = Array.isArray(req.body.history) ? req.body.history : [];
       if (!prompt) return res.status(400).json({ ok: false, message: 'Soru bos.' });
 
       // Fast cached API Key check
@@ -6689,14 +6690,31 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       
       if (apiKey) {
         try {
-          // Ultra-fast Gemini 3.1 Flash Lite model
+          // Ultra-fast Gemini 3.1 Flash Lite model with conversation history memory
           const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=' + encodeURIComponent(apiKey);
-          const systemInstruction = 'Sen MarifetStore oyun magazasinin uzman ve samimi yapay zeka oyun danismanisin. Kullaniciya en uygun oyunlari tavsiye et, Steam AppIDlerini belirt ve kisa, akici, samimi Turkce konus.';
+          const systemInstruction = 'Sen MarifetStore oyun mağazasının uzman, samimi ve arkadaş canlısı yapay zeka oyun danışmanısın. Kullanıcıya en uygun PC oyunlarını tavsiye et, Steam AppIDlerini belirt ve kısa, akıcı, samimi Türkçe konuş. Önceki konuşmaları hatırla.';
           
+          const contents = [
+            { role: 'user', parts: [{ text: systemInstruction }] },
+            { role: 'model', parts: [{ text: 'Anlaşıldı! Ben MarifetStore oyun danışmanıyım. Size en iyi oyunları önermek için hazırım!' }] }
+          ];
+
+          // Append history turns (last 6 messages)
+          for (const item of history.slice(-6)) {
+            if (item && item.role && item.text) {
+              contents.push({
+                role: item.role === 'ai' || item.role === 'model' ? 'model' : 'user',
+                parts: [{ text: String(item.text) }]
+              });
+            }
+          }
+
+          contents.push({ role: 'user', parts: [{ text: prompt }] });
+
           const payload = {
-            contents: [{ role: 'user', parts: [{ text: systemInstruction + '\n\nKullanıcı: ' + prompt }] }],
+            contents: contents,
             generationConfig: {
-              maxOutputTokens: 300,
+              maxOutputTokens: 350,
               temperature: 0.7
             }
           };
