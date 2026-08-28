@@ -88,6 +88,166 @@ async function cloudCollectionRequest(method, payload = null, timeout = 9000) {
 const TOKEN_COLLECTION_NAME = 'securityshoop_tokens_v1';
 let tokenCollectionId = null;
 
+const TOKEN_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS securityshoop_license_tokens (
+    token VARCHAR(32) PRIMARY KEY,
+    created_at DATETIME NOT NULL,
+    duration_type VARCHAR(16) NOT NULL,
+    expires_at DATETIME NULL,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    first_used_at DATETIME NULL,
+    used_by_hwid VARCHAR(255) NULL,
+    frozen TINYINT(1) NOT NULL DEFAULT 0,
+    ref_code VARCHAR(40) NULL,
+    last_ip VARCHAR(80) NULL,
+    UNIQUE KEY idx_license_tokens_ref_code (ref_code)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+let tokenDbPool = null;
+let tokenDbInitPromise = null;
+
+async function ensureTokenDatabaseReady() {
+  if (useDatabase && pool) {
+    try {
+      await pool.query(TOKEN_TABLE_SQL);
+      return pool;
+    } catch (error) {
+      console.warn('TOKEN_PRIMARY_DB_TABLE_FAILED', error?.message || error);
+    }
+  }
+
+  if (!hasConfiguredDatabase()) return null;
+  if (tokenDbInitPromise) return tokenDbInitPromise;
+
+  tokenDbInitPromise = (async () => {
+    const cfg = { ...dbConfig };
+    const standalone = mysql.createPool({
+      ...cfg,
+      waitForConnections: true,
+      connectionLimit: 4,
+      queueLimit: 0,
+      connectTimeout: DB_CONNECT_TIMEOUT_MS
+    });
+    try {
+      await standalone.query(TOKEN_TABLE_SQL);
+      tokenDbPool = standalone;
+      return standalone;
+    } catch (error) {
+      await standalone.end().catch(() => {});
+      lastDatabaseError = sanitizeDatabaseError(error);
+      console.error('TOKEN_DB_STANDALONE_FAILED', error?.code || error?.message || error);
+      return null;
+    } finally {
+      tokenDbInitPromise = null;
+    }
+  })();
+  return tokenDbInitPromise;
+}
+
+function tokenDbToObject(row) {
+  if (!row) return null;
+  return {
+    token: row.token,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at || ''),
+    duration_type: row.duration_type,
+    expires_at: row.expires_at ? (row.expires_at instanceof Date ? row.expires_at.toISOString() : String(row.expires_at)) : null,
+    used: Boolean(row.used),
+    first_used_at: row.first_used_at ? (row.first_used_at instanceof Date ? row.first_used_at.toISOString() : String(row.first_used_at)) : null,
+    used_by_hwid: row.used_by_hwid || null,
+    frozen: Boolean(row.frozen),
+    ref_code: row.ref_code || null,
+    last_ip: row.last_ip || null
+  };
+}
+
+async function readTokensFromDatabase() {
+  const db = await ensureTokenDatabaseReady();
+  if (!db) return null;
+  const [rows] = await db.query('SELECT token, created_at, duration_type, expires_at, used, first_used_at, used_by_hwid, frozen, ref_code, last_ip FROM securityshoop_license_tokens ORDER BY created_at ASC');
+  return rows.map(tokenDbToObject);
+}
+
+async function insertTokenRows(tokens) {
+  const db = await ensureTokenDatabaseReady();
+  if (!db) return false;
+  if (!Array.isArray(tokens) || !tokens.length) return true;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    for (const t of tokens) {
+      await conn.execute(
+        `INSERT INTO securityshoop_license_tokens
+         (token, created_at, duration_type, expires_at, used, first_used_at, used_by_hwid, frozen, ref_code, last_ip)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           duration_type=VALUES(duration_type), expires_at=VALUES(expires_at), used=VALUES(used),
+           first_used_at=VALUES(first_used_at), used_by_hwid=VALUES(used_by_hwid), frozen=VALUES(frozen),
+           ref_code=VALUES(ref_code), last_ip=VALUES(last_ip)`,
+        [
+          t.token,
+          new Date(t.created_at || Date.now()),
+          t.duration_type || 'lifetime',
+          t.expires_at ? new Date(t.expires_at) : null,
+          t.used ? 1 : 0,
+          t.first_used_at ? new Date(t.first_used_at) : null,
+          t.used_by_hwid || null,
+          t.frozen ? 1 : 0,
+          t.ref_code || null,
+          t.last_ip || null
+        ]
+      );
+    }
+    await conn.commit();
+    return true;
+  } catch (error) {
+    await conn.rollback().catch(() => {});
+    console.error('TOKEN_DB_INSERT_FAILED', error?.code || error?.message || error);
+    return false;
+  } finally {
+    conn.release();
+  }
+}
+
+async function replaceTokenRows(tokens) {
+  const db = await ensureTokenDatabaseReady();
+  if (!db) return false;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM securityshoop_license_tokens');
+    if (Array.isArray(tokens) && tokens.length) {
+      for (const t of tokens) {
+        await conn.execute(
+          `INSERT INTO securityshoop_license_tokens
+           (token, created_at, duration_type, expires_at, used, first_used_at, used_by_hwid, frozen, ref_code, last_ip)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            t.token,
+            new Date(t.created_at || Date.now()),
+            t.duration_type || 'lifetime',
+            t.expires_at ? new Date(t.expires_at) : null,
+            t.used ? 1 : 0,
+            t.first_used_at ? new Date(t.first_used_at) : null,
+            t.used_by_hwid || null,
+            t.frozen ? 1 : 0,
+            t.ref_code || null,
+            t.last_ip || null
+          ]
+        );
+      }
+    }
+    await conn.commit();
+    return true;
+  } catch (error) {
+    await conn.rollback().catch(() => {});
+    console.error('TOKEN_DB_REPLACE_FAILED', error?.code || error?.message || error);
+    return false;
+  } finally {
+    conn.release();
+  }
+}
+
 async function getTokenCollectionId() {
   if (tokenCollectionId) return tokenCollectionId;
   const result = await cloudCollectionRequest('GET', null, 9000);
@@ -131,16 +291,16 @@ async function writeTokenCollection(data) {
 }
 
 async function fetchCloudJson(id, fallback) {
-  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+  if (id === CLOUD_STORAGE_IDS.tokens) {
     try {
-      const [rows] = await pool.query('SELECT data FROM securityshoop_token_store WHERE id = 1 LIMIT 1');
-      if (rows.length && rows[0].data) {
-        const parsed = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+      const rows = await readTokensFromDatabase();
+      if (Array.isArray(rows)) {
+        const parsed = { tokens: rows };
         cloudCache.set(id, parsed);
         return parsed;
       }
     } catch (error) {
-      console.error('TOKEN_DB_READ_FAILED', error.message);
+      console.error('TOKEN_DB_READ_FAILED', error?.code || error?.message || error);
     }
   }
 
@@ -173,16 +333,13 @@ async function fetchCloudJson(id, fallback) {
 async function saveCloudJson(id, name, data) {
   cloudCache.set(id, data);
 
-  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+  if (id === CLOUD_STORAGE_IDS.tokens) {
     try {
-      await pool.query(
-        `INSERT INTO securityshoop_token_store (id, data) VALUES (1, ?)
-         ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP`,
-        [JSON.stringify(data)]
-      );
-      return true;
+      if (await replaceTokenRows(Array.isArray(data?.tokens) ? data.tokens : [])) {
+        return true;
+      }
     } catch (error) {
-      console.error('TOKEN_DB_WRITE_FAILED', error.message);
+      console.error('TOKEN_DB_WRITE_FAILED', error?.code || error?.message || error);
     }
   }
 
@@ -6216,8 +6373,13 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       if (!Array.isArray(data.tokens)) data.tokens = [];
       const newToken = buildLicenseToken(req.body?.duration, data.tokens);
       data.tokens.push(newToken);
-      const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      if (!saved) return res.status(503).json({ ok: false, message: 'Token olusturuldu ancak kalici depolamaya yazilamadi.', storage: 'cloud', hint: 'REST storage ve recovery mirror yazimi basarisiz.' });
+      let saved = false;
+      try { saved = await replaceTokenRows(data.tokens); } catch (e) { console.error('TOKEN_CREATE_DB_ERROR', e); }
+      if (!saved) saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (!saved) return res.status(503).json({ ok: false, message: 'Token kalici depolama baglantisi kurulamadı. Vercel Environment Variables icindeki DB ayarlarini kontrol edin.', storage: 'unavailable', diagnostics: getDatabaseDebugInfo() });
+      const verify = await readTokensFromDatabase();
+      const persisted = Array.isArray(verify) && verify.some(t => t.token === newToken.token);
+      if (!persisted) return res.status(503).json({ ok: false, message: 'Token kaydedildi dogrulanamadi. Tekrar deneyin.', storage: 'verification_failed' });
       res.json({ ok: true, token: newToken });
     } catch (err) {
       console.error('TOKEN_CREATE_ERROR', err);
@@ -6239,8 +6401,14 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         created.push(token);
       }
       data.tokens.push(...created);
-      const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_bulk', data);
-      if (!saved) return res.status(503).json({ ok: false, message: 'Toplu tokenlar hazirlandi ancak kalici depolamaya yazilamadi.', storage: 'cloud', hint: 'REST storage ve recovery mirror yazimi basarisiz.' });
+      let saved = false;
+      try { saved = await replaceTokenRows(data.tokens); } catch (e) { console.error('TOKEN_BULK_DB_ERROR', e); }
+      if (!saved) saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_bulk', data);
+      if (!saved) return res.status(503).json({ ok: false, message: 'Kalici token depolama baglantisi kurulamadı. Vercel DB ayarlarini kontrol edin.', storage: 'unavailable', diagnostics: getDatabaseDebugInfo() });
+      const verify = await readTokensFromDatabase();
+      const persistedSet = new Set((verify || []).map(t => t.token));
+      const verifiedCreated = created.filter(t => persistedSet.has(t.token));
+      if (verifiedCreated.length !== created.length) return res.status(503).json({ ok: false, message: 'Toplu tokenlarin bir kismi kayit dogrulamasindan gecemedi.', stored: verifiedCreated.length, requested: created.length });
       res.json({ ok: true, count: created.length, tokens: created, message: `${created.length} token olusturuldu.` });
     } catch (err) {
       console.error('TOKEN_BULK_CREATE_ERROR', err);
