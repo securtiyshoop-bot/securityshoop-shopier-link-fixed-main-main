@@ -6623,6 +6623,55 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   });
 
 
+
+  // ==========================================
+  // YAPAY ZEKA (AI) ENTEGRASYONU
+  // ==========================================
+  app.post('/api/plugin/ai-chat', async (req, res) => {
+    try {
+      const prompt = String(req.body.prompt || '').trim();
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!prompt) return res.status(400).json({ ok: false, message: 'Soru bos.' });
+      
+      if (!apiKey) {
+        return res.json({ 
+          ok: true, 
+          reply: "🤖 Merhaba! Ben MarifetStore Yapay Zeka Asistanıyım. Ancak şu an uykudayım çünkü sistem yöneticisi (Admin) Vercel paneline 'GEMINI_API_KEY' anahtarımı eklememiş. Lütfen admin ile iletişime geçin!"
+        });
+      }
+
+      // Call Google Gemini API
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const systemInstruction = "Sen MarifetStore adli bir oyun magazasinin oyun tavsiye asistanisin. Kisaca oyun oner, eglenceli ve samimi bir dil kullan. Kullanicinin sistem ozelliklerini sorabilir veya verdigi turde en iyi 3 oyunu kisaca aciklayabilirsin. Kisa, oz ve turkce cevap ver.";
+      
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: systemInstruction + "\n\nKullanici Sorusu: " + prompt }] }]
+      };
+
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        return res.json({ ok: false, message: 'Yapay zeka servisinde hata: ' + data.error.message });
+      }
+
+      let replyText = "Bir hata oluştu.";
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        replyText = data.candidates[0].content.parts[0].text;
+      }
+
+      res.json({ ok: true, reply: replyText });
+    } catch(e) { 
+      res.status(500).json({ ok: false, message: String(e) }); 
+    }
+  });
+
+
   app.all('/api/plugin/*', (req, res) => {
     res.status(404).json({
       ok: false,
