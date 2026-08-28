@@ -55,6 +55,21 @@ function cloudRequest(method, id, payload, timeout = 7000) {
 }
 
 async function fetchCloudJson(id, fallback) {
+  // License tokens use the application's configured MySQL database when available.
+  // The previous demo REST object is not a reliable persistence layer on Vercel.
+  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+    try {
+      const [rows] = await pool.query('SELECT data FROM securityshoop_token_store WHERE id = 1 LIMIT 1');
+      if (rows.length && rows[0].data) {
+        const parsed = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+        cloudCache.set(id, parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('TOKEN_DB_READ_FAILED', error.message);
+    }
+  }
+
   const result = await cloudRequest('GET', id, null, 7000);
   if (result.ok && result.body && result.body.data) {
     cloudCache.set(id, result.body.data);
@@ -76,6 +91,23 @@ async function fetchCloudJson(id, fallback) {
 }
 
 async function saveCloudJson(id, name, data) {
+  // License-token persistence is handled by MySQL when configured.
+  // This avoids losing generated tokens when the Vercel function is recycled.
+  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+    try {
+      await pool.query(
+        `INSERT INTO securityshoop_token_store (id, data) VALUES (1, ?)
+         ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify(data)]
+      );
+      cloudCache.set(id, data);
+      return true;
+    } catch (error) {
+      console.error('TOKEN_DB_WRITE_FAILED', error.message);
+      // Fall through to the legacy mirror only if DB persistence failed.
+    }
+  }
+
   cloudCache.set(id, data);
   const payload = { name: `securityshoop_${name}`, data };
   let result = await cloudRequest('PUT', id, payload, 7000);
@@ -1174,6 +1206,14 @@ async function initDatabase() {
   try { await pool.query("ALTER TABLE users ADD COLUMN referral_code VARCHAR(40) NULL UNIQUE"); } catch (e) {}
   try { await pool.query("ALTER TABLE users ADD COLUMN referred_by VARCHAR(40) NULL"); } catch (e) {}
   try { await pool.query("UPDATE users SET approval_status = 'approved' WHERE role = 'admin' OR approval_status IS NULL OR approval_status = ''"); } catch (e) {}
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS securityshoop_token_store (
+      id TINYINT UNSIGNED PRIMARY KEY,
+      data LONGTEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS activity_logs (
