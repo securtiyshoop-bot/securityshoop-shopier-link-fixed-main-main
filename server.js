@@ -6088,6 +6088,15 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => t.token === userToken);
 
+      // Blacklist Check
+      const blacklist = data.blacklist || { hwids: [], ips: [] };
+      if (blacklist.hwids && blacklist.hwids.includes(hwid)) {
+        return res.status(403).json({ ok: false, message: 'Cihaziniz (HWID) kalici olarak yasaklanmistir.' });
+      }
+      if (blacklist.ips && blacklist.ips.includes(clientIp)) {
+        return res.status(403).json({ ok: false, message: 'IP Adresiniz kalici olarak yasaklanmistir.' });
+      }
+
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Gecersiz token.' });
 
       // Frozen (dondurulmus) kontrol
@@ -6467,6 +6476,152 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       res.json({ ok: true, total, active, expired, frozen, today_created, today_used });
     } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
   });
+
+
+  // ==========================================
+  // MARIFETSTORE V5 - PROMO, BLACKLIST, TICKETS
+  // ==========================================
+
+  // --- PLUGIN ENDPOINTS ---
+
+  app.post('/api/plugin/use-promo', async (req, res) => {
+    try {
+      const code = String(req.body.code || '').trim().toUpperCase();
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      if (!code) return res.status(400).json({ ok: false, message: 'Promosyon kodu bos.' });
+      
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], promo_codes: [] });
+      const myToken = (data.tokens || []).find(t => t.token === tokenStr);
+      if (!myToken) return res.status(401).json({ ok: false, message: 'Oturum gecersiz.' });
+      
+      if (!data.promo_codes) data.promo_codes = [];
+      const promo = data.promo_codes.find(p => p.code === code);
+      
+      if (!promo) return res.status(404).json({ ok: false, message: 'Gecersiz promosyon kodu.' });
+      if (!promo.used_by) promo.used_by = [];
+      if (promo.used_by.includes(tokenStr)) return res.status(400).json({ ok: false, message: 'Bu kodu zaten kullandiniz.' });
+      if (promo.max_uses > 0 && promo.used_by.length >= promo.max_uses) return res.status(400).json({ ok: false, message: 'Kodun kullanim limiti dolmus.' });
+      
+      // Sure ekleme
+      let extDays = promo.days || 0;
+      if (myToken.duration_type !== 'lifetime' && myToken.expires_at) {
+        let exDt = new Date(myToken.expires_at);
+        let now = new Date();
+        if (exDt < now) exDt = now; // Eger bitmisse su andan itibaren ekle
+        exDt.setDate(exDt.getDate() + extDays);
+        myToken.expires_at = exDt.toISOString();
+      }
+      
+      promo.used_by.push(tokenStr);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      
+      res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.get('/api/plugin/tickets', async (req, res) => {
+    try {
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      const userTickets = (data.tickets || []).filter(t => t.token === tokenStr);
+      res.json({ ok: true, tickets: userTickets });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/plugin/tickets', async (req, res) => {
+    try {
+      const msg = String(req.body.message || '').trim();
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      if (!msg) return res.status(400).json({ ok: false, message: 'Mesaj bos.' });
+      
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      if (!data.tickets) data.tickets = [];
+      
+      const newTicket = {
+        id: 'TCK-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+        token: tokenStr,
+        message: msg,
+        reply: '',
+        status: 'open',
+        date: new Date().toISOString()
+      };
+      
+      data.tickets.push(newTicket);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true, ticket: newTicket });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  // --- ADMIN ENDPOINTS ---
+
+  app.get('/api/admin/v5-data', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [], blacklist: {hwids:[], ips:[]}, tickets: [] });
+      res.json({
+        ok: true,
+        promo_codes: data.promo_codes || [],
+        blacklist: data.blacklist || {hwids:[], ips:[]},
+        tickets: data.tickets || []
+      });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/promo-codes', requireAdmin, async (req, res) => {
+    try {
+      const { code, days, max_uses, action } = req.body;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [] });
+      if (!data.promo_codes) data.promo_codes = [];
+      
+      if (action === 'delete') {
+        data.promo_codes = data.promo_codes.filter(p => p.code !== code);
+      } else {
+        const c = String(code).toUpperCase().trim();
+        if (data.promo_codes.find(p => p.code === c)) return res.status(400).json({ok:false, message:'Bu kod zaten var'});
+        data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
+      }
+      
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/blacklist', requireAdmin, async (req, res) => {
+    try {
+      const { type, value, action } = req.body; // type: 'hwid' or 'ip', action: 'add' or 'remove'
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { blacklist: {hwids:[], ips:[]} });
+      if (!data.blacklist) data.blacklist = {hwids:[], ips:[]};
+      
+      const arr = type === 'hwid' ? data.blacklist.hwids : data.blacklist.ips;
+      const v = String(value).trim();
+      
+      if (action === 'add' && !arr.includes(v)) arr.push(v);
+      if (action === 'remove') {
+        const idx = arr.indexOf(v);
+        if (idx > -1) arr.splice(idx, 1);
+      }
+      
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true, blacklist: data.blacklist });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/tickets/:id/reply', requireAdmin, async (req, res) => {
+    try {
+      const { reply } = req.body;
+      const tid = req.params.id;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      
+      const ticket = (data.tickets || []).find(t => t.id === tid);
+      if (!ticket) return res.status(404).json({ ok: false, message: 'Ticket bulunamadi.' });
+      
+      ticket.reply = String(reply).trim();
+      ticket.status = 'answered';
+      
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
 
   app.all('/api/plugin/*', (req, res) => {
     res.status(404).json({

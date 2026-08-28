@@ -644,6 +644,62 @@
         </div>
         <!-- /TOKEN İSTATİSTİKLERİ -->
 
+
+        <!-- PROMO & BLACKLIST & TICKETS -->
+        <div class="grid lg:grid-cols-2 gap-6 mb-6">
+          <!-- PROMOSYON KODLARI -->
+          <div class="admin-shell" style="border: 1px solid #d946ef; background: rgba(217,70,239,0.05);">
+            <div class="slabel mb-3" style="color:#d946ef;background:rgba(217,70,239,0.2);">Pazarlama</div>
+            <h2 class="syne text-xl font-800 text-fuchsia-400 mb-4">Promosyon Kodları</h2>
+            
+            <div class="flex gap-2 mb-4">
+              <input type="text" id="promoCodeInput" class="fi2 w-full" placeholder="KOD (Örn: YAZ24)" />
+              <input type="number" id="promoDaysInput" class="fi2 w-24" placeholder="Gün" />
+              <input type="number" id="promoMaxUsesInput" class="fi2 w-24" placeholder="Limit" />
+              <button onclick="addPromoCode()" class="btn btn-g px-4">Ekle</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left" style="min-width:400px">
+                <thead><tr style="border-bottom:1px solid var(--border)"><th class="py-2 text-xs text-gray-400">KOD</th><th class="py-2 text-xs text-gray-400">GÜN</th><th class="py-2 text-xs text-gray-400">KULLANIM</th><th class="py-2 text-xs text-gray-400 text-right">İŞLEM</th></tr></thead>
+                <tbody id="promoTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- KARA LİSTE -->
+          <div class="admin-shell" style="border: 1px solid #ef4444; background: rgba(239,68,68,0.05);">
+            <div class="slabel mb-3" style="color:#ef4444;background:rgba(239,68,68,0.2);">Güvenlik</div>
+            <h2 class="syne text-xl font-800 text-red-400 mb-4">Kara Liste (Ban)</h2>
+            
+            <div class="flex gap-2 mb-4">
+              <select id="blacklistType" class="fi2"><option value="hwid">HWID</option><option value="ip">IP</option></select>
+              <input type="text" id="blacklistValue" class="fi2 w-full" placeholder="Banlanacak değer..." />
+              <button onclick="addBlacklist()" class="btn px-4" style="background:#ef4444;color:white">Banla</button>
+            </div>
+            
+            <div class="overflow-x-auto h-48">
+              <table class="w-full text-left" style="min-width:300px">
+                <tbody id="blacklistTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- DESTEK TALEPLERİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #3b82f6; background: rgba(59,130,246,0.05);">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <div class="slabel mb-3" style="color:#3b82f6;background:rgba(59,130,246,0.2);">Müşteri Hizmetleri</div>
+                <h2 class="syne text-xl font-800 text-blue-400">Destek Talepleri (Tickets)</h2>
+              </div>
+              <button onclick="loadV5Data()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="ticketsGrid">
+            </div>
+        </div>
+        <!-- /PROMO & BLACKLIST & TICKETS -->
+
         <!-- DUYURU SİSTEMİ -->
         <div class="admin-shell mb-6" style="border: 1px solid #f59e0b; background: rgba(245,158,11,0.05);">
           <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
@@ -2411,7 +2467,7 @@
       try {
         const r = await fastFetch('/api/admin/tokens/' + token + '/freeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
         await r.json();
-        loadTokens(); loadTokenStats();
+        loadTokens(); loadTokenStats(); loadV5Data();
       } catch(e) {}
     };
 
@@ -2419,7 +2475,7 @@
       try {
         const r = await fastFetch('/api/admin/tokens/' + token + '/unfreeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
         await r.json();
-        loadTokens(); loadTokenStats();
+        loadTokens(); loadTokenStats(); loadV5Data();
       } catch(e) {}
     };
 
@@ -2577,9 +2633,109 @@
         a.click();
         URL.revokeObjectURL(url);
         if(msg) msg.textContent = '✅ ' + tokens.length + ' token oluşturuldu ve indirildi!';
-        loadTokens(); loadTokenStats();
+        loadTokens(); loadTokenStats(); loadV5Data();
       } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
     });
+
+
+    // ======================================================
+    // V5: PROMO, BLACKLIST, TICKETS
+    // ======================================================
+    
+    async function loadV5Data() {
+      try {
+        const r = await fastFetch('/api/admin/v5-data');
+        const d = await readJsonSafe(r);
+        if(!d.ok) return;
+        
+        // Render Promos
+        const pt = document.getElementById('promoTableBody');
+        if(pt) {
+            pt.innerHTML = '';
+            (d.promo_codes||[]).forEach(p => {
+                pt.innerHTML += `<tr style="border-bottom:1px solid var(--border)">
+                    <td class="py-2 font-mono text-cyan-400">${p.code}</td>
+                    <td class="py-2 text-sm text-green-400">+${p.days}</td>
+                    <td class="py-2 text-xs text-gray-400">${p.used_by.length} / ${p.max_uses==0 ? 'Sınırsız' : p.max_uses}</td>
+                    <td class="py-2 text-right"><button onclick="deletePromo('${p.code}')" class="text-xs px-2 py-1 bg-red-900 text-red-300 rounded">Sil</button></td>
+                </tr>`;
+            });
+        }
+        
+        // Render Blacklist
+        const bt = document.getElementById('blacklistTableBody');
+        if(bt) {
+            bt.innerHTML = '';
+            const all_bans = [];
+            (d.blacklist.hwids||[]).forEach(x => all_bans.push({t:'hwid', v:x}));
+            (d.blacklist.ips||[]).forEach(x => all_bans.push({t:'ip', v:x}));
+            all_bans.forEach(b => {
+                bt.innerHTML += `<tr style="border-bottom:1px solid var(--border)">
+                    <td class="py-2 text-xs font-bold text-red-400">[${b.t.toUpperCase()}]</td>
+                    <td class="py-2 font-mono text-xs">${b.v}</td>
+                    <td class="py-2 text-right"><button onclick="removeBlacklist('${b.t}', '${b.v}')" class="text-xs px-2 py-1 bg-gray-700 text-white rounded">Kaldır</button></td>
+                </tr>`;
+            });
+        }
+        
+        // Render Tickets
+        const tGrid = document.getElementById('ticketsGrid');
+        if(tGrid) {
+            tGrid.innerHTML = '';
+            [...d.tickets||[]].reverse().forEach(t => {
+                const isOp = t.status === 'open';
+                tGrid.innerHTML += `<div style="border:1px solid ${isOp ? '#ef4444' : '#334155'}; background:rgba(0,0,0,0.2); padding:15px; border-radius:8px;">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-mono text-cyan-400">${t.token.substring(0,8)}...</span>
+                        <span class="text-xs px-2 py-1 rounded ${isOp ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}">${isOp ? 'Bekliyor' : 'Cevaplandı'}</span>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-3">${t.message}</p>
+                    ${isOp ? 
+                        `<div class="flex gap-2"><input type="text" id="reply_${t.id}" class="fi2 w-full text-xs" placeholder="Cevap..."/><button onclick="replyTicket('${t.id}')" class="btn btn-g px-3 py-1 text-xs">Gönder</button></div>` :
+                        `<div class="text-xs text-green-400 bg-green-900 bg-opacity-20 p-2 rounded"><b>Sen:</b> ${t.reply}</div>`
+                    }
+                </div>`;
+            });
+        }
+      } catch(e){}
+    }
+
+    window.addPromoCode = async function() {
+        const code = document.getElementById('promoCodeInput').value;
+        const days = document.getElementById('promoDaysInput').value;
+        const max_uses = document.getElementById('promoMaxUsesInput').value;
+        if(!code || !days) return alert("Kod ve gün zorunlu!");
+        await fastFetch('/api/admin/promo-codes', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, days, max_uses}) });
+        document.getElementById('promoCodeInput').value = '';
+        loadV5Data();
+    };
+    
+    window.deletePromo = async function(code) {
+        if(!confirm('Silinsin mi?')) return;
+        await fastFetch('/api/admin/promo-codes', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, action:'delete'}) });
+        loadV5Data();
+    };
+    
+    window.addBlacklist = async function() {
+        const type = document.getElementById('blacklistType').value;
+        const value = document.getElementById('blacklistValue').value;
+        if(!value) return;
+        await fastFetch('/api/admin/blacklist', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type, value, action:'add'}) });
+        document.getElementById('blacklistValue').value = '';
+        loadV5Data();
+    };
+    
+    window.removeBlacklist = async function(type, value) {
+        await fastFetch('/api/admin/blacklist', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type, value, action:'remove'}) });
+        loadV5Data();
+    };
+    
+    window.replyTicket = async function(id) {
+        const reply = document.getElementById('reply_'+id).value;
+        if(!reply) return;
+        await fastFetch('/api/admin/tickets/' + id + '/reply', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reply}) });
+        loadV5Data();
+    };
 
     // MARIFETSTORE ADMIN LOGIC
     async function loadMarifetStoreConfig() {
