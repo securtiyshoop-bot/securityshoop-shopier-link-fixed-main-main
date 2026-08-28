@@ -6674,22 +6674,31 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     }
   });
 
+  let _cachedAiKey = null;
   app.post('/api/plugin/ai-chat', async (req, res) => {
     try {
       const prompt = String(req.body.prompt || '').trim();
       if (!prompt) return res.status(400).json({ ok: false, message: 'Soru bos.' });
 
-      // Fetch cloud settings for saved API Key
-      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
-      const apiKey = cloudData.settings?.gemini_api_key || process.env.GEMINI_API_KEY;
+      // Fast cached API Key check
+      if (!_cachedAiKey) {
+        const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { settings: {} });
+        _cachedAiKey = cloudData.settings?.gemini_api_key || process.env.GEMINI_API_KEY || '';
+      }
+      const apiKey = _cachedAiKey;
       
       if (apiKey) {
         try {
-          const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
-          const systemInstruction = 'Sen MarifetStore oyun magazasinin uzman yapay zeka oyun danismanisin. Kullaniciya en uygun oyunlari tavsiye et, Steam AppIDlerini belirt ve samimi Turkce konus.';
+          // Ultra-fast Gemini 3.1 Flash Lite model
+          const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=' + encodeURIComponent(apiKey);
+          const systemInstruction = 'Sen MarifetStore oyun magazasinin uzman ve samimi yapay zeka oyun danismanisin. Kullaniciya en uygun oyunlari tavsiye et, Steam AppIDlerini belirt ve kisa, akici, samimi Turkce konus.';
           
           const payload = {
-            contents: [{ role: 'user', parts: [{ text: systemInstruction + '\n\nKullanıcı: ' + prompt }] }]
+            contents: [{ role: 'user', parts: [{ text: systemInstruction + '\n\nKullanıcı: ' + prompt }] }],
+            generationConfig: {
+              maxOutputTokens: 300,
+              temperature: 0.7
+            }
           };
 
           const response = await fetch(geminiUrl, {
@@ -6702,7 +6711,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
             const data = await response.json();
             const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
             if (reply) {
-              return res.json({ ok: true, reply });
+              return res.json({ ok: true, reply: reply.trim() });
             }
           }
         } catch(e) {
