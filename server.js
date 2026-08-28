@@ -5939,6 +5939,19 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
   });
 
   app.post('/api/shopier/callback', async (req, res) => {
+    try {
+      const orderId = String(req.body.platform_order_id || req.body.order_id || req.body.payment_id || '').trim();
+      if (orderId) {
+        const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { processed_orders: [] });
+        cloudData.processed_orders = cloudData.processed_orders || [];
+        if (cloudData.processed_orders.includes(orderId)) {
+          return res.status(200).send('OK (Already Processed)');
+        }
+        cloudData.processed_orders.push(orderId);
+        if (cloudData.processed_orders.length > 500) cloudData.processed_orders.shift();
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, cloudData);
+      }
+    } catch(e) {}
     const apiSecret = String(process.env.SHOPIER_API_SECRET || '').trim();
     if (!apiSecret) return res.redirect('/odeme-basarisiz.html');
 
@@ -6253,7 +6266,19 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         }
       } catch(e) {}
 
-      res.json({ ok: true, message: 'Cihaz kilitlendi ve giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at, ref_code: tokenObj.ref_code });
+            const crypto = require('crypto');
+      const payloadStr = `${tokenObj.token}:${tokenObj.role || 'user'}:${tokenObj.expires_at || 'lifetime'}`;
+      const sign = crypto.createHmac('sha256', 'MarifetStoreSecureSecretKey2026').update(payloadStr).digest('hex');
+      res.setHeader('X-Marifet-Sign', sign);
+      res.json({
+        ok: true,
+        message: 'Cihaz kilitlendi ve giris basarili!',
+        role: tokenObj.role || 'user',
+        session_token: tokenObj.token,
+        expires_at: tokenObj.expires_at || null,
+        ref_code: tokenObj.ref_code || '',
+        _sign: sign
+      });
     } catch (err) {
       console.error('token-login error:', err);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi.' });
