@@ -81,13 +81,3 @@ CREATE TABLE IF NOT EXISTS app_sessions (
   INDEX idx_app_sessions_last_seen (last_seen_at),
   INDEX idx_app_sessions_hwid (hwid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE IF NOT EXISTS single_use_tokens (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  token VARCHAR(64) NOT NULL UNIQUE,
-  token_json LONGTEXT NOT NULL,
-  created_at DATETIME NOT NULL,
-  updated_at DATETIME NOT NULL,
-  INDEX idx_single_use_tokens_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
