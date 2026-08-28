@@ -64,7 +64,7 @@ function saveCloudJson(id, name, data) {
   return new Promise((resolve) => {
     const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
     const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
@@ -6685,7 +6685,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       
       if (apiKey) {
         try {
-          const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
+          const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
           const systemInstruction = 'Sen MarifetStore oyun magazasinin uzman yapay zeka oyun danismanisin. Kullaniciya en uygun oyunlari tavsiye et, Steam AppIDlerini belirt ve samimi Turkce konus.';
           
           const payload = {
