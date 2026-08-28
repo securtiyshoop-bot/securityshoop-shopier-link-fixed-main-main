@@ -97,6 +97,7 @@ function publicKeyPayload(key, sessions = []) {
     created_by: key.created_by || '',
     created_at: key.created_at || '',
     note: key.note || '',
+    role: key.role || 'user',
     online: keyIsOnline(key, related),
     session_count: related.length
   };
@@ -132,6 +133,7 @@ async function ensureDatabase(pool) {
       expires_at DATETIME NULL,
       created_by VARCHAR(190) NULL,
       note TEXT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'user',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_app_keys_status (status),
       INDEX idx_app_keys_hwid (assigned_hwid),
@@ -158,20 +160,20 @@ async function ensureDatabase(pool) {
   `);
 }
 
-async function createKeysDb(pool, { count, label, expiresAt, createdBy, note }) {
+async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, role }) {
   const codes = [];
   for (let i = 0; i < count; i += 1) {
     const code = createAppKeyCode();
     await pool.query(
-      'INSERT INTO app_keys (code, label, expires_at, created_by, note) VALUES (?, ?, ?, ?, ?)',
-      [code, label || null, toSqlDate(expiresAt), createdBy || null, note || null]
+      'INSERT INTO app_keys (code, label, expires_at, created_by, note, role) VALUES (?, ?, ?, ?, ?, ?)',
+      [code, label || null, toSqlDate(expiresAt), createdBy || null, note || null, role || 'user']
     );
     codes.push(code);
   }
   return codes;
 }
 
-function createKeysJson(file, { count, label, expiresAt, createdBy, note }) {
+function createKeysJson(file, { count, label, expiresAt, createdBy, note, role }) {
   const data = readJsonStore(file);
   const maxId = data.keys.reduce((max, key) => Math.max(max, Number(key.id) || 0), 0);
   const codes = [];
@@ -190,6 +192,7 @@ function createKeysJson(file, { count, label, expiresAt, createdBy, note }) {
       expires_at: expiresAt || '',
       created_by: createdBy || '',
       note: note || '',
+      role: role || 'user',
       created_at: nowIso()
     });
     codes.push(code);
@@ -289,7 +292,7 @@ function activateJson(file, { code, hwid, deviceName, appVersion, ip }) {
     last_seen_at: now
   });
   writeJsonStore(file, data);
-  return { status: 200, body: { ok: true, token, message: 'Giris basarili.', key: publicKeyPayload(key, data.sessions) } };
+  return { status: 200, body: { ok: true, token, role: key.role || 'user', message: 'Giris basarili.', key: publicKeyPayload(key, data.sessions) } };
 }
 
 async function heartbeatDb(pool, { token, hwid, appVersion, ip }) {
@@ -459,7 +462,8 @@ function registerRoutes(app, deps) {
         label: cleanText(req.body?.label, 190),
         expiresAt: cleanText(req.body?.expires_at || req.body?.expiresAt, 40),
         createdBy: cleanText(deps.getAdminUser(req)?.email || 'admin', 190),
-        note: cleanText(req.body?.note, 1000)
+        note: cleanText(req.body?.note, 1000),
+        role: req.body?.role === 'admin' ? 'admin' : 'user'
       };
       const codes = deps.useDatabase()
         ? await createKeysDb(deps.pool(), payload)
@@ -471,6 +475,34 @@ function registerRoutes(app, deps) {
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Uygulama keyi olusturulamadi.' });
+    }
+  });
+
+  app.post('/api/admin/admin-app-key', deps.requireAdmin, async (req, res) => {
+    try {
+      if (!(await deps.requirePersistentStorage(req, res))) return;
+      const payload = {
+        count: 1,
+        label: cleanText(req.body?.label || 'MarifetStore Desktop Admin', 190),
+        expiresAt: cleanText(req.body?.expires_at || req.body?.expiresAt, 40),
+        createdBy: cleanText(deps.getAdminUser(req)?.email || 'admin', 190),
+        note: cleanText(req.body?.note || 'Desktop administrator key', 1000),
+        role: 'admin'
+      };
+      const codes = deps.useDatabase()
+        ? await createKeysDb(deps.pool(), payload)
+        : createKeysJson(deps.dataFile, payload);
+      if (deps.recordActivityLog) {
+        await deps.recordActivityLog({
+          user: deps.getAdminUser(req),
+          action: 'DESKTOP_ADMIN_KEY_CREATE',
+          details: 'Desktop admin key olusturuldu.'
+        }).catch(() => {});
+      }
+      res.json({ ok: true, message: 'Desktop admin key olusturuldu.', code: codes[0] || '' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ ok: false, message: 'Desktop admin key olusturulamadi.' });
     }
   });
 

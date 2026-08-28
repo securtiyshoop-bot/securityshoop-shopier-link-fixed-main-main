@@ -66,6 +66,15 @@
     </header>
 
     <section class="panel">
+  <h2 style="margin:0 0 6px">Desktop Admin Key</h2>
+  <div class="muted" style="margin-bottom:12px">MarifetStore masaüstü uygulamasında Admin Paneli için tek cihazlık yönetici key'i üretir.</div>
+  <div class="actions">
+    <button id="adminKeyBtn">Admin Key Oluştur</button>
+    <button id="copyAdminKeyBtn" class="plain">Key'i Kopyala</button>
+  </div>
+  <div id="adminKeyBox" class="codes" hidden></div>
+</section>
+<section class="panel">
       <div class="grid">
         <label>Ad / not
           <input id="labelInput" placeholder="Orn: musteri adi veya siparis no">
@@ -217,7 +226,31 @@
       if (data.ok) loadKeys();
     }
 
-    $('createBtn').addEventListener('click', createKeys);
+    
+    $('adminKeyBtn').addEventListener('click', async () => {
+      setMessage('Admin key uretiliyor...');
+      const response = await fetch('/api/admin/admin-app-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: 'MarifetStore Desktop Admin' })
+      });
+      const data = await readJson(response);
+      if (data.ok) {
+        $('adminKeyBox').hidden = false;
+        $('adminKeyBox').textContent = data.code || '';
+        setMessage('Desktop admin key hazir.');
+      } else {
+        setMessage(data.message || 'Admin key olusturulamadi.');
+      }
+    });
+    $('copyAdminKeyBtn').addEventListener('click', async () => {
+      const code = $('adminKeyBox').textContent.trim();
+      if (!code) return setMessage('Once bir admin key olustur.');
+      await navigator.clipboard.writeText(code).catch(() => {});
+      setMessage('Admin key panoya kopyalandi.');
+    });
+
+$('createBtn').addEventListener('click', createKeys);
     $('refreshBtn').addEventListener('click', loadKeys);
     $('searchInput').addEventListener('input', render);
     $('clearSearchBtn').addEventListener('click', () => { $('searchInput').value = ''; render(); });

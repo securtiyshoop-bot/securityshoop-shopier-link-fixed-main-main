@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
@@ -276,7 +276,7 @@
         <a href="#iletisim" class="nl">İletişim</a>
         <a href="#accountPanel" id="accountMenuLink" class="nl hidden" style="color:rgba(125,255,192,.85)">Hesabım</a>
         <a href="#adminPanel" id="adminMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">Admin</a>
-        <a href="/app-keys-admin.html" id="appKeysMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">App Key</a>
+        <a href="/app-keys-admin.html" id="appKeysMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">App Key / Admin Key</a>
       </nav>
 
       <div class="flex items-center gap-2">
@@ -438,7 +438,8 @@
 
     <!-- ACCOUNT -->
     <section id="accountPanel" class="hidden mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
-      <div class="admin-shell mb-6">
+      
+        <div class="admin-shell mb-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
             <div class="slabel mb-3">Hesabım</div>
@@ -539,7 +540,296 @@
 
     <!-- ADMIN -->
     <section id="adminPanel" class="hidden mx-auto max-w-[1500px] px-5 sm:px-8 pb-20 rv">
-      <div class="admin-shell admin-hero">
+      
+        <!-- TEK KULLANIMLIK TOKEN PANELI -->
+        <div class="admin-shell mb-6" style="border: 1px solid #10B981; background: rgba(16, 185, 129, 0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color: #10B981; background: rgba(16, 185, 129, 0.2);">Uygulama Giriş Sistemi</div>
+              <h2 class="syne text-2xl font-800 text-green-400">Tek Kullanımlık Tokenlar</h2>
+              <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Uygulamaya giriş için kullanıcı adı veya şifreye gerek kalmadan bu anahtarları verebilirsiniz.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="token-duration" class="fi2 text-sm" style="padding: 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <option value="lifetime">Sınırsız (Ömür Boyu)</option>
+                <option value="1d">1 Gün</option>
+                <option value="7d">1 Hafta</option>
+                <option value="30d">1 Ay</option>
+              </select>
+              <button id="generateTokenBtn" class="btn btn-g px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">✨ Yeni Token Oluştur</button>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border)">
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">TOKEN</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SÜRE / BİTİŞ</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SON IP</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">REF KODU</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM / HWID</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">İŞLEM</th>
+                </tr>
+              </thead>
+              <tbody id="tokensTableBody">
+                <tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Yükleniyor...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- /TEK KULLANIMLIK TOKEN PANELI -->
+
+        
+        <!-- OYUN KREDILERI -->
+        <div id="credits" class="tab-pane hidden">
+          <div class="admin-shell mb-6" style="border: 1px solid #8B5CF6; background: rgba(139, 92, 246, 0.05);">
+            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+              <div>
+                <div class="slabel mb-3" style="color: #8B5CF6; background: rgba(139, 92, 246, 0.2);">Oyun İçi Mağaza Sistemi</div>
+                <h2 class="syne text-2xl font-800 text-purple-400">Oyun Kredileri (Lisans Kodları)</h2>
+                <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Müşterilere satacağınız oyun süresi kredileridir. Masaüstü uygulamasında istedikleri oyunda kullanabilirler.</p>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <select id="credit-duration" class="fi2 text-sm" style="padding: 8px; border-radius: 6px; background: rgba(139, 92, 246, 0.1); color: #8B5CF6; border: 1px solid rgba(139, 92, 246, 0.3);">
+                  <option value="1d">1 Günlük Kredi</option>
+                  <option value="7d">1 Haftalık Kredi</option>
+                  <option value="30d">1 Aylık Kredi</option>
+                  <option value="lifetime">Sınırsız Kredi</option>
+                </select>
+                <input id="credit-count" type="number" min="1" max="50" value="1" class="fi2 text-sm" style="padding: 8px; width: 60px; border-radius: 6px;" placeholder="Adet" />
+                <button id="generateCreditBtn" class="btn btn-g px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded">✨ Kredi Oluştur</button>
+              </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border)">
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">KREDİ KODU</th>
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SÜRE TÜRÜ</th>
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM / KULLANAN</th>
+                    <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">İŞLEM</th>
+                  </tr>
+                </thead>
+                <tbody id="creditsTableBody">
+                  <tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Yükleniyor...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- /OYUN KREDILERI -->
+
+
+
+        <!-- TOKEN İSTATİSTİKLERİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #06b6d4; background: rgba(6,182,212,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color: #06b6d4; background: rgba(6,182,212,0.2);">Canlı Veriler</div>
+              <h2 class="syne text-2xl font-800 text-cyan-400">Token İstatistikleri</h2>
+            </div>
+            <button onclick="loadTokenStats()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
+          </div>
+          <div id="tokenStatsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne" id="stat-total">-</div><div class="text-xs mt-1" style="color:var(--muted)">Toplam Token</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-green-400" id="stat-active">-</div><div class="text-xs mt-1" style="color:var(--muted)">Aktif</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-red-400" id="stat-expired">-</div><div class="text-xs mt-1" style="color:var(--muted)">Süresi Dolan</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-blue-400" id="stat-frozen">-</div><div class="text-xs mt-1" style="color:var(--muted)">Dondurulmuş</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-yellow-400" id="stat-today-created">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Oluşturulan</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-purple-400" id="stat-today-used">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Kullanılan</div></div>
+          </div>
+        </div>
+        <!-- /TOKEN İSTATİSTİKLERİ -->
+
+
+        <!-- PROMO & BLACKLIST & TICKETS -->
+        <div class="grid lg:grid-cols-2 gap-6 mb-6">
+          <!-- PROMOSYON KODLARI -->
+          <div class="admin-shell" style="border: 1px solid #d946ef; background: rgba(217,70,239,0.05);">
+            <div class="slabel mb-3" style="color:#d946ef;background:rgba(217,70,239,0.2);">Pazarlama</div>
+            <h2 class="syne text-xl font-800 text-fuchsia-400 mb-4">Promosyon Kodları</h2>
+            
+            <div class="flex gap-2 mb-4">
+              <input type="text" id="promoCodeInput" class="fi2 w-full" placeholder="KOD (Örn: YAZ24)" />
+              <input type="number" id="promoDaysInput" class="fi2 w-24" placeholder="Gün" />
+              <input type="number" id="promoMaxUsesInput" class="fi2 w-24" placeholder="Limit" />
+              <button onclick="addPromoCode()" class="btn btn-g px-4">Ekle</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left" style="min-width:400px">
+                <thead><tr style="border-bottom:1px solid var(--border)"><th class="py-2 text-xs text-gray-400">KOD</th><th class="py-2 text-xs text-gray-400">GÜN</th><th class="py-2 text-xs text-gray-400">KULLANIM</th><th class="py-2 text-xs text-gray-400 text-right">İŞLEM</th></tr></thead>
+                <tbody id="promoTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- KARA LİSTE -->
+          <div class="admin-shell" style="border: 1px solid #ef4444; background: rgba(239,68,68,0.05);">
+            <div class="slabel mb-3" style="color:#ef4444;background:rgba(239,68,68,0.2);">Güvenlik</div>
+            <h2 class="syne text-xl font-800 text-red-400 mb-4">Kara Liste (Ban)</h2>
+            
+            <div class="flex gap-2 mb-4">
+              <select id="blacklistType" class="fi2"><option value="hwid">HWID</option><option value="ip">IP</option></select>
+              <input type="text" id="blacklistValue" class="fi2 w-full" placeholder="Banlanacak değer..." />
+              <button onclick="addBlacklist()" class="btn px-4" style="background:#ef4444;color:white">Banla</button>
+            </div>
+            
+            <div class="overflow-x-auto h-48">
+              <table class="w-full text-left" style="min-width:300px">
+                <tbody id="blacklistTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- DESTEK TALEPLERİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #3b82f6; background: rgba(59,130,246,0.05);">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <div class="slabel mb-3" style="color:#3b82f6;background:rgba(59,130,246,0.2);">Müşteri Hizmetleri</div>
+                <h2 class="syne text-xl font-800 text-blue-400">Destek Talepleri (Tickets)</h2>
+              </div>
+              <button onclick="loadV5Data()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="ticketsGrid">
+            </div>
+        </div>
+        <!-- /PROMO & BLACKLIST & TICKETS -->
+
+        <!-- DUYURU SİSTEMİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #f59e0b; background: rgba(245,158,11,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#f59e0b;background:rgba(245,158,11,0.2);">Bildirim Sistemi</div>
+              <h2 class="syne text-2xl font-800 text-yellow-400">Duyuru Yönetimi</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">Tüm müşteriler uygulamayı açtığında bu mesajı görür.</p>
+            </div>
+          </div>
+          <div class="grid lg:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-xs font-700 mb-1">Duyuru Başlığı</label>
+              <input type="text" id="annTitle" class="fi2 w-full" placeholder="Örn: Hafta sonu kampanyası!" />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Duyuru Mesajı</label>
+              <input type="text" id="annMessage" class="fi2 w-full" placeholder="Örn: Tüm tokenlerde %50 indirim!" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="saveAnnouncementBtn" class="btn btn-g px-5 py-2">📢 Duyuru Yayınla</button>
+            <button id="clearAnnouncementBtn" class="btn btn-o px-5 py-2">🗑️ Duyuruyu Kaldır</button>
+          </div>
+          <div id="annMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /DUYURU SİSTEMİ -->
+
+        <!-- MAĞAZA YÖNETİMİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #8b5cf6; background: rgba(139,92,246,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#8b5cf6;background:rgba(139,92,246,0.2);">Mağaza Yönetimi</div>
+              <h2 class="syne text-2xl font-800 text-purple-400">Fiyat Planları & Mağaza Ürünleri</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">Masaüstü uygulamasındaki Fiyatlar ve Mağaza sekmelerine buradan içerik ekleyin.</p>
+            </div>
+            <button id="loadStoreConfigBtn" class="btn btn-o px-4 py-2 text-sm">Mevcut Verileri Yükle</button>
+          </div>
+
+          <div class="mb-5">
+            <div class="font-700 mb-2 text-sm text-purple-300">💲 Fiyat Planları (JSON)</div>
+            <p class="text-xs mb-2" style="color:var(--muted)">Örnek: [{"name":"1 Haftalık","price":"₺99","duration":"7d","link":"https://shopier.com/..."}]</p>
+            <textarea id="pricePlansJson" rows="4" class="fi2 w-full font-mono text-xs resize-y" placeholder='[{"name":"1 Haftalık","price":"₺99","duration":"7d","link":"https://shopier.com/xxx"}]'></textarea>
+          </div>
+
+          <div class="mb-5">
+            <div class="font-700 mb-2 text-sm text-purple-300">🎮 Öne Çıkan Mağaza Ürünleri (JSON)</div>
+            <p class="text-xs mb-2" style="color:var(--muted)">Örnek: [{"name":"CS2","appid":"730","img":"https://...","link":"https://shopier.com/..."}]</p>
+            <textarea id="storeItemsJson" rows="4" class="fi2 w-full font-mono text-xs resize-y" placeholder='[{"name":"CS2","appid":"730","img":"https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg","link":"https://shopier.com/xxx"}]'></textarea>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-xs font-700 mb-1">Discord Webhook URL</label>
+              <input type="text" id="discordWebhook" class="fi2 w-full" placeholder="https://discord.com/api/webhooks/..." />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Uygulama Versiyonu</label>
+              <input type="text" id="appVersionInput" class="fi2 w-full" placeholder="1.0.0" />
+            </div>
+            <div class="lg:col-span-2">
+              <label class="block text-xs font-700 mb-1">Güncelleme İndirme Linki (.py veya .exe)</label>
+              <input type="text" id="appDownloadUrl" class="fi2 w-full" placeholder="https://github.com/.../marifet.py" />
+            </div>
+          </div>
+          <button id="saveStoreConfigBtn" class="btn btn-g px-5 py-2">💾 Mağaza & Ayarları Kaydet</button>
+          <div id="storeConfigMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /MAĞAZA YÖNETİMİ -->
+
+        <!-- TOPLU TOKEN OLUŞTURMA -->
+        <div class="admin-shell mb-6" style="border: 1px solid #10b981; background: rgba(16,185,129,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#10b981;background:rgba(16,185,129,0.2);">Toplu Oluşturma</div>
+              <h2 class="syne text-2xl font-800 text-green-400">Toplu Token Oluştur & İndir</h2>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="bulk-token-duration" class="fi2 text-sm">
+              <option value="lifetime">Sınırsız</option>
+              <option value="1d">1 Gün</option>
+              <option value="7d">1 Hafta</option>
+              <option value="30d">1 Ay</option>
+            </select>
+            <input type="number" id="bulk-token-count" min="1" max="100" value="10" class="fi2 text-sm" style="width:80px" />
+            <span class="text-xs" style="color:var(--muted)">adet</span>
+            <button id="bulkGenerateBtn" class="btn btn-g px-5 py-2">⚡ Oluştur ve TXT İndir</button>
+          </div>
+          <div id="bulkMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /TOPLU TOKEN OLUŞTURMA -->
+
+        <!-- MARIFETSTORE ADMIN -->
+      <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+          <div>
+            <div class="slabel mb-3" style="color: #F59E0B; background: rgba(245, 158, 11, 0.2);">MarifetStore Modülü</div>
+            <h2 class="syne text-2xl font-800 text-yellow-500">MarifetStore Kontrol Paneli</h2>
+            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Masaüstü uygulamasının indirme adreslerini, anahtarlarını ve kanca ayarlarını doğrudan buradan yönetin.</p>
+          </div>
+        </div>
+        
+        <div class="grid lg:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label class="block text-xs font-700 mb-1">API Key</label>
+            <input type="text" id="mfApiKey" class="fi2 w-full" placeholder="436b0828-9799-4ce4-b1f2-ea5a3ce32f73" />
+          </div>
+          <div>
+            <label class="block text-xs font-700 mb-1">API URL (İndirme Adresi)</label>
+            <input type="text" id="mfApiUrl" class="fi2 w-full" placeholder="https://depotbox.org/api/direct-lua" />
+          </div>
+          <div>
+            <label class="block text-xs font-700 mb-1">Kanca (Hook) URL'si</label>
+            <input type="text" id="mfHookUrl" class="fi2 w-full" placeholder="https://github.com/..." />
+          </div>
+          <div>
+            <label class="block text-xs font-700 mb-1">Kullanıcılara Giden Mesaj</label>
+            <input type="text" id="mfMessage" class="fi2 w-full" placeholder="MarifetStore'a Hoşgeldiniz!" />
+          </div>
+        </div>
+        <button id="saveMarifetBtn" class="btn btn-g px-6 py-2">💾 MarifetStore Ayarlarını Kaydet</button>
+        <div id="mfMsg" class="mt-2 text-sm text-green-400 font-bold"></div>
+      </div>
+      <!-- /MARIFETSTORE ADMIN -->
+<div class="admin-shell admin-hero">
+
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+          <div id="adminDbStatusBadge" class="text-xs px-3 py-1.5 rounded-xl font-700" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)">Veritabanı Durumu Kontrol Ediliyor...</div>
+        </div>
+
         <div>
           <div class="admin-kicker mb-3">Admin Operasyon Merkezi</div>
           <h2 class="syne text-3xl font-800">SecurityShoop Komuta Paneli</h2>
@@ -1025,7 +1315,7 @@
     function fastFetch(input,init){
       init=init||{};
       if(init.signal)return nativeFetch(input,init);
-      const timeout=Number(init.timeout||0)||2500;
+      const timeout=Number(init.timeout||0)||12000;
       const controller=new AbortController();
       const timer=setTimeout(()=>controller.abort(),timeout);
       const next={...init,signal:controller.signal};
@@ -1039,7 +1329,7 @@
     const referralFromUrl=new URLSearchParams(location.search).get('ref');if(referralFromUrl&&document.getElementById('registerReferral'))document.getElementById('registerReferral').value=referralFromUrl;
     async function loadPublicStatus(){
       try{
-        const r=await fastFetch('/api/public/status',{timeout:1800}),d=await readJsonSafe(r),s=d.status||{};
+        const r=await fastFetch('/api/public/status',{timeout:12000}),d=await readJsonSafe(r),s=d.status||{};
         const items=[['Site',s.site],['Veritabanı',s.database],['Plugin API',s.plugin_api],['Aktif kaynak',`${s.sources?.active||0}/${s.sources?.total||0}`]];
         document.getElementById('publicStatusGrid').innerHTML=items.map(([name,state])=>`<div class="stat glass"><div class="text-xs font-800" style="color:var(--muted)">${esc(name)}</div><div class="font-800 mt-2" style="color:${String(state).includes('operational')?'#7dffc0':'#fde68a'}">${esc(state||'bilinmiyor')}</div></div>`).join('');
         document.getElementById('statusCheckedAt').textContent=s.checked_at?new Date(s.checked_at).toLocaleString('tr-TR'):'Hazır';
@@ -1225,7 +1515,7 @@
     async function loadAdminUsers(){
       try{
         adminMsg.textContent='Kullanıcılar yükleniyor...';
-        const r=await fastFetch('/api/admin/users',{cache:'no-store',timeout:2200}),d=await readJsonSafe(r);
+        const r=await fastFetch('/api/admin/users',{cache:'no-store',timeout:12000}),d=await readJsonSafe(r);
         if(!d.ok){adminMsg.textContent=d.message||'Alınamadı.';return;}
         allAdminUsers=d.users||[];
         applyUserFilters();
@@ -1259,7 +1549,7 @@
 
     async function loadPluginControl(){
       try{
-        const r=await fastFetch('/api/admin/plugin-control',{timeout:2200}),d=await readJsonSafe(r);
+        const r=await fastFetch('/api/admin/plugin-control',{timeout:12000}),d=await readJsonSafe(r);
         if(!d.ok){pcMsg.textContent=d.message||'Kontrol alınamadı.';return;}
         renderPluginControl(d.control);
       }catch(err){pcMsg.textContent='Kontrol alınamadı.';}
@@ -1300,7 +1590,10 @@
       const r=await fetch('/api/admin/release',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const d=await r.json();
       pcMsg.textContent=d.message||'';
-      if(d.ok){renderPluginControl(d.control);toast('✓ Güncelleme yayında');loadAdminDashboard();}
+      if(d.ok){renderPluginControl(d.control);toast('✓ Güncelleme yayında');loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
     }
 
     function smallRow(title,meta,badge){
@@ -1328,8 +1621,11 @@
       if(!packageId){adminMsg.textContent='Önce lisans paketi seç.';return;}
       const r=await fetch(adminUserUrl(id,'/license-package'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:packageId})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast('✓ Lisans paketi uygulandı');loadAdminUsers();loadAdminDashboard();openUserDetail(id);}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast('✓ Lisans paketi uygulandı');loadAdminUsers();loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();openUserDetail(id);}
     }
 
     function commandStatusBadge(status){
@@ -1398,7 +1694,7 @@
 
     async function loadAccountSummary(){
       try{
-        const r=await fastFetch('/api/account/summary',{timeout:2200}),d=await readJsonSafe(r);
+        const r=await fastFetch('/api/account/summary',{timeout:12000}),d=await readJsonSafe(r);
         if(!d.ok){deviceResetMessage.textContent=d.message||'Hesap bilgileri alınamadı.';return;}
         renderAccountSummary(d.summary||{});
       }catch(err){deviceResetMessage.textContent='Hesap bilgileri alınamadı.';}
@@ -1514,13 +1810,13 @@
     }
 
     async function loadAdminDashboard(){
-      const r=await fastFetch('/api/admin/dashboard',{timeout:2500}),d=await readJsonSafe(r);
+      const r=await fastFetch('/api/admin/dashboard',{timeout:12000}),d=await readJsonSafe(r);
       if(!d.ok){adminMsg.textContent=d.message||'Dashboard alınamadı.';return;}
       renderAdminDashboard(d.dashboard||{});
     }
 
     async function openUserDetail(id){
-      const r=await fastFetch(`/api/admin/users/${encodeURIComponent(id)}/detail`,{timeout:2200}),d=await readJsonSafe(r);
+      const r=await fastFetch(`/api/admin/users/${encodeURIComponent(id)}/detail`,{timeout:12000}),d=await readJsonSafe(r);
       if(!d.ok){adminMsg.textContent=d.message||'Detay alınamadı.';return;}
       const u=d.user||{};
       const targetId=esc(String(u.virtual_id||u.id||id));
@@ -1598,14 +1894,20 @@
       const reason=(command==='health_check'||command==='repair_health_shield')?'Plugin saglik kalkanı':(prompt('Komut notu',command)||'');
       const r=await fetch(`/api/admin/users/${encodeURIComponent(id)}/command`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command,reason,confirm_cleanup,payload})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast('✓ Komut gönderildi');loadAdminDashboard();openUserDetail(id);}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast('✓ Komut gönderildi');loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();openUserDetail(id);}
     }
 
     async function cancelCommand(id){
       const r=await fetch(`/api/admin/plugin-commands/${id}/cancel`,{method:'POST'}),d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok)loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();
     }
 
     async function saveAppidAccess(id){
@@ -1613,7 +1915,7 @@
       const value=document.getElementById('allowedAppidsInput')?.value||'';
       const r=await fetch(adminUserUrl(id,'/appid-access'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowed_appids:value})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
       if(d.ok){toast('✓ AppID izinleri kaydedildi');loadAdminUsers();openUserDetail(id);}
     }
 
@@ -1622,8 +1924,11 @@
       const note=enabled?(document.getElementById('reviewModeNoteInput')?.value||prompt('İnceleme notu','Risk incelemesi')||'Risk incelemesi'):(document.getElementById('reviewModeNoteInput')?.value||'');
       const r=await fetch(adminUserUrl(id,'/review-mode'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled,note})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast(enabled?'✓ İnceleme modu açıldı':'✓ İnceleme modu kapandı');loadAdminUsers();loadAdminDashboard();openUserDetail(id);}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast(enabled?'✓ İnceleme modu açıldı':'✓ İnceleme modu kapandı');loadAdminUsers();loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();openUserDetail(id);}
     }
 
     async function replySupportTicket(id,status){
@@ -1631,8 +1936,11 @@
       if(status!=='closed'&&!reply.trim()){adminMsg.textContent='Cevap boş olamaz.';return;}
       const r=await fetch(`/api/admin/support-tickets/${id}/reply`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,admin_reply:reply})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast('✓ Destek talebi güncellendi');loadAdminDashboard();}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast('✓ Destek talebi güncellendi');loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
     }
 
     function selectedUserIds(){
@@ -1662,12 +1970,15 @@
       };
       const r=await fetch('/api/admin/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast('✓ Toplu işlem tamamlandı');loadAdminUsers();loadAdminDashboard();}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast('✓ Toplu işlem tamamlandı');loadAdminUsers();loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
     }
 
     async function refreshSession(){
-      const r=await fastFetch('/api/session',{timeout:1500}),d=await readJsonSafe(r);
+      const r=await fastFetch('/api/session',{timeout:12000}),d=await readJsonSafe(r);
       if(d.authenticated){
         welcomeUser.textContent='Merhaba, '+(d.user.username||d.user.email);
         welcomeUser.classList.remove('hidden');logoutBtn.classList.remove('hidden');
@@ -1679,7 +1990,10 @@
         loadAccountSummary();
         const isAdmin=d.user.role==='admin';
         adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);appKeysLink?.classList.toggle('hidden',!isAdmin);
-        if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();}
+        if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
       } else {
         welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
         document.getElementById('loginOpenBtn').classList.remove('hidden');
@@ -1697,11 +2011,12 @@
         const p={email:document.getElementById('email').value.trim(),password:document.getElementById('password').value};
         let ep='/api/login';
         if(authMode==='register'){p.username=document.getElementById('registerName').value.trim();p.confirmPassword=document.getElementById('confirmPassword').value;p.referral_code=document.getElementById('registerReferral').value.trim();ep='/api/register';}
-        const r=await fastFetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),timeout:2200});
+        const r=await fastFetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),timeout:12000});
         const d=await readJsonSafe(r);
         if(!d.ok){authMsg.textContent=d.message||'Hata oluştu.';return;}
         if(d.pending_approval){authMsg.textContent=d.message||'Hesap admin onayı bekliyor.';toast('Admin onayı bekliyor');return;}
-        closeModal();refreshSession();toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap oluşturuldu');
+        closeModal();loadMarifetStoreConfig();
+    refreshSession();toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap oluşturuldu');
       }catch(_err){
         authMsg.textContent='Sunucu geç cevap verdi. Birazdan tekrar dene.';
       }finally{
@@ -1781,15 +2096,24 @@
     document.getElementById('createLicenseCodesBtn')?.addEventListener('click',async()=>{
       const r=await fetch('/api/admin/license-codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:document.getElementById('adminLicenseCodePackage').value,count:document.getElementById('adminLicenseCodeCount').value})}),d=await r.json();
       commerceMessage.textContent=d.ok?`${d.message} ${d.codes.join(', ')}`:(d.message||'');if(d.ok)loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();
     });
     document.getElementById('createCouponBtn')?.addEventListener('click',async()=>{
       const r=await fetch('/api/admin/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('adminCouponCode').value,discount_percent:document.getElementById('adminCouponDiscount').value,package_id:document.getElementById('adminCouponPackage').value})}),d=await r.json();
       commerceMessage.textContent=d.message||'';if(d.ok)loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();
     });
     orderClaimsAdminList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-claim-review]');if(!btn)return;
       const r=await fetch(`/api/admin/order-claims/${btn.dataset.claimReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved:btn.dataset.approved==='1'})}),d=await r.json();
-      commerceMessage.textContent=d.message||'';if(d.ok){loadAdminDashboard();loadAdminUsers();}
+      commerceMessage.textContent=d.message||'';if(d.ok){loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();loadAdminUsers();}
     });
     document.addEventListener('click',e=>{const a=e.target.closest('[data-commerce-package]');if(a)fetch('/api/commerce/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event_type:'checkout_click',package_id:a.dataset.commercePackage})}).catch(()=>{});});
     document.getElementById('giftLicenseBtn')?.addEventListener('click',async()=>{
@@ -1827,7 +2151,10 @@
         const r=await fetch('/api/admin/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm_restore:true,backup})});
         const d=await r.json();
         backupMessage.textContent=d.message||'';
-        if(d.ok){toast('✓ Yedek geri yüklendi');loadAdminUsers();loadAdminDashboard();}
+        if(d.ok){toast('✓ Yedek geri yüklendi');loadAdminUsers();loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
       }catch(err){backupMessage.textContent='Yedek dosyası okunamadı.';}
       e.target.value='';
     });
@@ -1842,14 +2169,20 @@
       const btn=e.target.closest('button[data-resolve-report]');if(!btn)return;
       const r=await fetch(`/api/admin/error-reports/${btn.dataset.resolveReport}/resolve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({open:btn.dataset.open==='1'})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast('✓ Rapor guncellendi');loadAdminDashboard();}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast('✓ Rapor guncellendi');loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
     });
     sourceHealthList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-enable-source]');if(!btn)return;
       const r=await fetch(`/api/admin/source-health/${btn.dataset.enableSource}/enable`,{method:'POST'}),d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast('✓ Kaynak aktif');loadAdminDashboard();}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast('✓ Kaynak aktif');loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();}
     });
     deviceResetQueueList?.addEventListener('click',async e=>{
       const btn=e.target.closest('button[data-device-reset-review]');if(!btn)return;
@@ -1857,8 +2190,11 @@
       const note=approved?'Admin onayladı':'Admin reddetti';
       const r=await fetch(`/api/admin/device-reset-requests/${btn.dataset.deviceResetReview}/review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved,note})});
       const d=await r.json();
-      adminMsg.textContent=d.message||'';
-      if(d.ok){toast(approved?'✓ HWID sıfırlandı':'Talep reddedildi');loadAdminDashboard();loadAdminUsers();}
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));
+      if(d.ok){toast(approved?'✓ HWID sıfırlandı':'Talep reddedildi');loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();loadAdminUsers();}
     });
     supportTicketsList?.addEventListener('click',e=>{
       const btn=e.target.closest('button[data-ticket-reply]');if(!btn)return;
@@ -1897,8 +2233,24 @@
       if(action==='detail'){openUserDetail(id);return;}
       if(action==='approve'||action==='reject'){
         const approved=action==='approve';
-        const r=await fetch(adminUserUrl(id,'/approval'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved})}),d=await r.json();
-        adminMsg.textContent=d.message||'';if(d.ok){toast(approved?'Hesap onaylandi':'Hesap reddedildi');loadAdminUsers();loadAdminDashboard();}return;
+        try {
+          const r=await fetch(adminUserUrl(id,'/approval'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approved})});
+          const d=await readJsonSafe(r);
+          adminMsg.textContent=d.message||'';
+          if(d.ok){
+            toast(approved?'✓ Hesap onaylandı':'✓ Hesap reddedildi');
+            await loadAdminUsers();
+            await loadAdminDashboard();
+      checkAdminDbStatus();
+      loadTokens();
+          loadCredits();
+          } else {
+            alert('İşlem başarısız: ' + (d.message || 'Bilinmeyen hata'));
+          }
+        } catch(err) {
+          alert('Bağlantı hatası: ' + err.message);
+        }
+        return;
       }
       if(action==='reviewon'||action==='reviewoff'){
         await setReviewMode(id,action==='reviewon');
@@ -1920,11 +2272,11 @@
         const daily_limit=prompt('Günlük oyun ekleme limiti. 0 sınırsız demek.','0');
         if(daily_limit===null)return;
         const r=await fetch(adminUserUrl(id,'/license'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({license_until,daily_limit:Number(daily_limit||0)})}),d=await r.json();
-        adminMsg.textContent=d.message||'';if(d.ok)loadAdminUsers();return;
+        adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok)loadAdminUsers();return;
       }
       if(action==='delete'){if(!confirm('Bu kullanıcı silinsin mi?'))return;ep=adminUserUrl(id,'/delete');}
       const r=await fetch(ep,{method:'POST'}),d=await r.json();
-      adminMsg.textContent=d.message||'';if(d.ok)loadAdminUsers();
+      adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok)loadAdminUsers();
     });
 
     logoutBtn.addEventListener('click',async()=>{
@@ -2054,6 +2406,402 @@
       else window.open('https://www.instagram.com/securityshoop/?hl=tr','_blank','noopener');
     });
 
+    
+    
+    // TOKEN LOGIC
+    async function loadTokens() {
+      try {
+        const r = await fastFetch('/api/admin/tokens');
+        const d = await readJsonSafe(r);
+        const tbody = document.getElementById('tokensTableBody');
+        if(d.ok && d.tokens) {
+          tbody.innerHTML = '';
+          if(d.tokens.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
+            return;
+          }
+          [...d.tokens].reverse().forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            if(t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
+            
+            let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Boşta</span>';
+            if(t.frozen) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900 text-blue-300">❄️ Dondurulmuş</span>';
+            else if(t.used_by_hwid) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + t.used_by_hwid.substring(0,12) + '...</span>';
+            
+            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
+            const durationName = durMap[t.duration_type] || '1 Hafta';
+            
+            let expiryStr = 'Sınırsız';
+            if (t.expires_at) {
+                const exDt = new Date(t.expires_at);
+                if (exDt < new Date()) expiryStr = '<span class="text-red-400 font-700">Süresi Bitti</span>';
+                else expiryStr = exDt.toLocaleString('tr-TR');
+            }
+
+            const lastIp = t.last_ip || '-';
+            const refCode = t.ref_code || '-';
+            const freezeBtn = t.frozen
+              ? `<button onclick="unfreezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Çöz</button>`
+              : `<button onclick="freezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Dondur</button>`;
+
+            tr.innerHTML = `
+              <td class="px-3 py-3 font-mono text-xs">${t.token}</td>
+              <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500">${expiryStr}</span></td>
+              <td class="px-3 py-3 text-xs text-gray-400">${lastIp}</td>
+              <td class="px-3 py-3 text-xs font-mono text-cyan-400">${refCode}</td>
+              <td class="px-3 py-3">${statusHtml}</td>
+              <td class="px-3 py-3 flex gap-1 flex-wrap">
+                ${freezeBtn}
+                <button onclick="deleteToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-red-900 text-red-300">Sil</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch(e) {}
+    }
+
+    window.freezeToken = async function(token) {
+      if(!confirm('Bu token dondurulsun mu? Kullanıcı giriş yapamaz.')) return;
+      try {
+        const r = await fastFetch('/api/admin/tokens/' + token + '/freeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        await r.json();
+        loadTokens(); loadTokenStats(); loadV5Data();
+      } catch(e) {}
+    };
+
+    window.unfreezeToken = async function(token) {
+      try {
+        const r = await fastFetch('/api/admin/tokens/' + token + '/unfreeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        await r.json();
+        loadTokens(); loadTokenStats(); loadV5Data();
+      } catch(e) {}
+    };
+
+    async function loadTokenStats() {
+      try {
+        const r = await fastFetch('/api/admin/token-stats');
+        const d = await readJsonSafe(r);
+        if(d.ok) {
+          const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+          set('stat-total', d.total);
+          set('stat-active', d.active);
+          set('stat-expired', d.expired);
+          set('stat-frozen', d.frozen);
+          set('stat-today-created', d.today_created);
+          set('stat-today-used', d.today_used);
+        }
+      } catch(e) {}
+    }
+    
+    document.getElementById('generateTokenBtn')?.addEventListener('click', async () => {
+      try {
+        const dur = document.getElementById('token-duration') ? document.getElementById('token-duration').value : 'lifetime';
+        const r = await fastFetch('/api/admin/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ duration: dur })
+        });
+        const d = await r.json();
+        if(d.ok) {
+          alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
+          loadTokens();
+          loadCredits();
+        } else {
+          alert('Hata: ' + d.message);
+        }
+      } catch(e) { alert('Hata: ' + e); }
+    });
+
+    window.deleteToken = async function(token) {
+      if(!confirm('Bu token silinsin mi?')) return;
+      try {
+        const r = await fastFetch(`/api/admin/tokens/${token}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        await r.json();
+        loadTokens();
+          loadCredits();
+      } catch(e) {}
+    };
+
+
+    // ======================================================
+    // DUYURU SİSTEMİ
+    // ======================================================
+    document.getElementById('saveAnnouncementBtn')?.addEventListener('click', async () => {
+      const title = document.getElementById('annTitle')?.value?.trim();
+      const message = document.getElementById('annMessage')?.value?.trim();
+      const msg = document.getElementById('annMsg');
+      if(!title || !message) { if(msg) msg.textContent = 'Başlık ve mesaj zorunlu!'; return; }
+      try {
+        const r = await fastFetch('/api/admin/marifetstore/store', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ announcement: { title, message, active: true } })
+        });
+        const d = await r.json();
+        if(msg) msg.textContent = d.ok ? '✅ Duyuru yayınlandı!' : '❌ ' + d.message;
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+    document.getElementById('clearAnnouncementBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('annMsg');
+      try {
+        const r = await fastFetch('/api/admin/marifetstore/store', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ announcement: null })
+        });
+        const d = await r.json();
+        if(msg) msg.textContent = d.ok ? '✅ Duyuru kaldırıldı.' : '❌ ' + d.message;
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+    // ======================================================
+    // MAĞAZA & STORE CONFIG
+    // ======================================================
+    document.getElementById('loadStoreConfigBtn')?.addEventListener('click', async () => {
+      try {
+        const r = await fastFetch('/api/plugin/store-config');
+        const d = await readJsonSafe(r);
+        if(d.ok) {
+          const pp = document.getElementById('pricePlansJson');
+          const si = document.getElementById('storeItemsJson');
+          const dw = document.getElementById('discordWebhook');
+          const av = document.getElementById('appVersionInput');
+          const dl = document.getElementById('appDownloadUrl');
+          if(pp) pp.value = JSON.stringify(d.price_plans || [], null, 2);
+          if(si) si.value = JSON.stringify(d.store_items || [], null, 2);
+          if(dw) dw.value = d.discord_webhook || '';
+          if(av) av.value = d.app_version || '1.0.0';
+          if(dl) dl.value = d.app_download_url || '';
+        }
+      } catch(e) {}
+    });
+
+    document.getElementById('saveStoreConfigBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('storeConfigMsg');
+      try {
+        let price_plans = [], store_items = [];
+        try { price_plans = JSON.parse(document.getElementById('pricePlansJson')?.value || '[]'); } catch(e) { if(msg) msg.textContent = '❌ Fiyat JSON hatalı!'; return; }
+        try { store_items = JSON.parse(document.getElementById('storeItemsJson')?.value || '[]'); } catch(e) { if(msg) msg.textContent = '❌ Mağaza JSON hatalı!'; return; }
+        const r = await fastFetch('/api/admin/marifetstore/store', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            price_plans,
+            store_items,
+            discord_webhook: document.getElementById('discordWebhook')?.value?.trim(),
+            app_version: document.getElementById('appVersionInput')?.value?.trim(),
+            app_download_url: document.getElementById('appDownloadUrl')?.value?.trim()
+          })
+        });
+        const d = await r.json();
+        if(msg) msg.textContent = d.ok ? '✅ Kaydedildi!' : '❌ ' + d.message;
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+    // ======================================================
+    // TOPLU TOKEN OLUŞTURMA
+    // ======================================================
+    document.getElementById('bulkGenerateBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('bulkMsg');
+      const count = parseInt(document.getElementById('bulk-token-count')?.value || '10');
+      const dur = document.getElementById('bulk-token-duration')?.value || 'lifetime';
+      if(count < 1 || count > 100) { if(msg) msg.textContent = '1-100 arası giriniz.'; return; }
+      if(msg) msg.textContent = 'Oluşturuluyor...';
+      try {
+        const tokens = [];
+        for(let i = 0; i < count; i++) {
+          const r = await fastFetch('/api/admin/tokens', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ duration: dur })
+          });
+          const d = await r.json();
+          if(d.ok && d.token) tokens.push(d.token.token);
+        }
+        // Download as TXT
+        const blob = new Blob([tokens.join('\n')], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tokens_' + dur + '_' + count + 'adet.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+        if(msg) msg.textContent = '✅ ' + tokens.length + ' token oluşturuldu ve indirildi!';
+        loadTokens(); loadTokenStats(); loadV5Data();
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+
+    // ======================================================
+    // V5: PROMO, BLACKLIST, TICKETS
+    // ======================================================
+    
+    async function loadV5Data() {
+      try {
+        const r = await fastFetch('/api/admin/v5-data');
+        const d = await readJsonSafe(r);
+        if(!d.ok) return;
+        
+        // Render Promos
+        const pt = document.getElementById('promoTableBody');
+        if(pt) {
+            pt.innerHTML = '';
+            (d.promo_codes||[]).forEach(p => {
+                pt.innerHTML += `<tr style="border-bottom:1px solid var(--border)">
+                    <td class="py-2 font-mono text-cyan-400">${p.code}</td>
+                    <td class="py-2 text-sm text-green-400">+${p.days}</td>
+                    <td class="py-2 text-xs text-gray-400">${p.used_by.length} / ${p.max_uses==0 ? 'Sınırsız' : p.max_uses}</td>
+                    <td class="py-2 text-right"><button onclick="deletePromo('${p.code}')" class="text-xs px-2 py-1 bg-red-900 text-red-300 rounded">Sil</button></td>
+                </tr>`;
+            });
+        }
+        
+        // Render Blacklist
+        const bt = document.getElementById('blacklistTableBody');
+        if(bt) {
+            bt.innerHTML = '';
+            const all_bans = [];
+            (d.blacklist.hwids||[]).forEach(x => all_bans.push({t:'hwid', v:x}));
+            (d.blacklist.ips||[]).forEach(x => all_bans.push({t:'ip', v:x}));
+            all_bans.forEach(b => {
+                bt.innerHTML += `<tr style="border-bottom:1px solid var(--border)">
+                    <td class="py-2 text-xs font-bold text-red-400">[${b.t.toUpperCase()}]</td>
+                    <td class="py-2 font-mono text-xs">${b.v}</td>
+                    <td class="py-2 text-right"><button onclick="removeBlacklist('${b.t}', '${b.v}')" class="text-xs px-2 py-1 bg-gray-700 text-white rounded">Kaldır</button></td>
+                </tr>`;
+            });
+        }
+        
+        // Render Tickets
+        const tGrid = document.getElementById('ticketsGrid');
+        if(tGrid) {
+            tGrid.innerHTML = '';
+            [...d.tickets||[]].reverse().forEach(t => {
+                const isOp = t.status === 'open';
+                tGrid.innerHTML += `<div style="border:1px solid ${isOp ? '#ef4444' : '#334155'}; background:rgba(0,0,0,0.2); padding:15px; border-radius:8px;">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-mono text-cyan-400">${t.token.substring(0,8)}...</span>
+                        <span class="text-xs px-2 py-1 rounded ${isOp ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}">${isOp ? 'Bekliyor' : 'Cevaplandı'}</span>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-3">${t.message}</p>
+                    ${isOp ? 
+                        `<div class="flex gap-2"><input type="text" id="reply_${t.id}" class="fi2 w-full text-xs" placeholder="Cevap..."/><button onclick="replyTicket('${t.id}')" class="btn btn-g px-3 py-1 text-xs">Gönder</button></div>` :
+                        `<div class="text-xs text-green-400 bg-green-900 bg-opacity-20 p-2 rounded"><b>Sen:</b> ${t.reply}</div>`
+                    }
+                </div>`;
+            });
+        }
+      } catch(e){}
+    }
+
+    window.addPromoCode = async function() {
+        const code = document.getElementById('promoCodeInput').value;
+        const days = document.getElementById('promoDaysInput').value;
+        const max_uses = document.getElementById('promoMaxUsesInput').value;
+        if(!code || !days) return alert("Kod ve gün zorunlu!");
+        await fastFetch('/api/admin/promo-codes', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, days, max_uses}) });
+        document.getElementById('promoCodeInput').value = '';
+        loadV5Data();
+    };
+    
+    window.deletePromo = async function(code) {
+        if(!confirm('Silinsin mi?')) return;
+        await fastFetch('/api/admin/promo-codes', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code, action:'delete'}) });
+        loadV5Data();
+    };
+    
+    window.addBlacklist = async function() {
+        const type = document.getElementById('blacklistType').value;
+        const value = document.getElementById('blacklistValue').value;
+        if(!value) return;
+        await fastFetch('/api/admin/blacklist', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type, value, action:'add'}) });
+        document.getElementById('blacklistValue').value = '';
+        loadV5Data();
+    };
+    
+    window.removeBlacklist = async function(type, value) {
+        await fastFetch('/api/admin/blacklist', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type, value, action:'remove'}) });
+        loadV5Data();
+    };
+    
+    window.replyTicket = async function(id) {
+        const reply = document.getElementById('reply_'+id).value;
+        if(!reply) return;
+        await fastFetch('/api/admin/tickets/' + id + '/reply', { method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reply}) });
+        loadV5Data();
+    };
+
+    // MARIFETSTORE ADMIN LOGIC
+    async function loadMarifetStoreConfig() {
+      try {
+        const r = await fastFetch('/api/plugin/marifetstore');
+        const d = await readJsonSafe(r);
+        if(d.ok && d.config) {
+          const k = document.getElementById('mfApiKey'); if(k) k.value = d.config.api_key || '';
+          const u = document.getElementById('mfApiUrl'); if(u) u.value = d.config.api_url || '';
+          const h = document.getElementById('mfHookUrl'); if(h) h.value = d.config.hook_url || '';
+          const m = document.getElementById('mfMessage'); if(m) m.value = d.config.message || '';
+        }
+      } catch(e) {}
+    }
+    document.getElementById('saveMarifetBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('saveMarifetBtn');
+      btn.disabled = true; btn.textContent = 'Kaydediliyor...';
+      const payload = {
+        api_key: document.getElementById('mfApiKey')?.value || '',
+        api_url: document.getElementById('mfApiUrl')?.value || '',
+        hook_url: document.getElementById('mfHookUrl')?.value || '',
+        message: document.getElementById('mfMessage')?.value || ''
+      };
+      try {
+        const r = await fetch('/api/admin/marifetstore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const d = await r.json();
+        const msgEl = document.getElementById('mfMsg');
+        if(msgEl) {
+          msgEl.textContent = d.message || 'Kaydedildi';
+          setTimeout(() => { msgEl.textContent = ''; }, 3500);
+        }
+        toast('✓ MarifetStore ayarları güncellendi');
+      } catch(err) {
+        alert('Ayarlar kaydedilemedi: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 MarifetStore Ayarlarını Kaydet';
+      }
+    });
+
+    
+    async function checkAdminDbStatus() {
+      const badge = document.getElementById('adminDbStatusBadge');
+      if(!badge) return;
+      try {
+        const r = await fastFetch('/api/storage-status?debug=1', {timeout: 6000});
+        const d = await readJsonSafe(r);
+        if(d.persistent) {
+          badge.textContent = '🟢 MySQL Veritabanı Aktif ve Bağlı';
+          badge.style.color = '#7dffc0';
+          badge.style.borderColor = 'rgba(0,230,118,0.3)';
+          badge.style.background = 'rgba(0,230,118,0.1)';
+        } else {
+          badge.textContent = '🟡 Geçici Mod (MySQL Bağlantısı Bekleniyor)';
+          badge.style.color = '#fde68a';
+          badge.style.borderColor = 'rgba(245,158,11,0.3)';
+          badge.style.background = 'rgba(245,158,11,0.1)';
+        }
+      } catch(e) {
+        badge.textContent = '⚪ Durum Alınamadı';
+      }
+    }
+
     // INIT
     switchMode('login');loadPublicLicenses();loadReviews();refreshSession();updateC();updateO();setInterval(updateO,25000);
   </script>
@@ -2078,5 +2826,109 @@
     })();
   </script>
   <!--End of Tawk.to Script-->
+
+    
+<script>
+    // === OYUN KREDILERI (CREDITS) GUVENLI SCRIPT ===
+    window.loadCredits = async function() {
+      try {
+        const res = await fastFetch('/api/admin/credits');
+        const data = await res.json();
+        const tbody = document.getElementById('creditsTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if(data.ok && data.credits) {
+          if(data.credits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-sm text-gray-500">Henüz kredi kodu oluşturulmamış.</td></tr>';
+            return;
+          }
+          data.credits.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-gray-800/30 hover:bg-white/5 transition-colors';
+            
+            let status = `<span class="px-2 py-1 rounded text-xs bg-yellow-500/20 text-yellow-400">Bekliyor</span>`;
+            if (c.used) {
+               status = `<span class="px-2 py-1 rounded text-xs bg-green-500/20 text-green-400">Kullanıldı (AppID: ${c.used_for_appid})</span><br><span class="text-xs text-gray-500">${c.used_by_token}</span>`;
+            }
+              
+            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
+            const durationName = durMap[c.duration_type] || '1 Hafta';
+            
+            tr.innerHTML = `
+              <td class="px-4 py-3 font-mono text-sm text-white">${c.code}</td>
+              <td class="px-4 py-3 text-xs text-gray-300">${durationName}</td>
+              <td class="px-4 py-3">${status}</td>
+              <td class="px-4 py-3">
+                <button onclick="deleteCredit('${c.code}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-400/10 rounded">Sil</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    window.deleteCredit = async function(code) {
+      if(!confirm(code + ' kodunu silmek istediğinize emin misiniz?')) return;
+      try {
+        const res = await fastFetch('/api/admin/credits/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        if(data.ok) window.loadCredits();
+        else alert('Hata: ' + data.message);
+      } catch (err) {
+        alert('Sunucu hatası.');
+      }
+    };
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        const genBtn = document.getElementById('generateCreditBtn');
+        if(genBtn) {
+            genBtn.addEventListener('click', async () => {
+              try {
+                const dur = document.getElementById('credit-duration').value;
+                const count = document.getElementById('credit-count').value;
+                const res = await fastFetch('/api/admin/credits', { 
+                  method: 'POST', 
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ duration: dur, count: count })
+                });
+                const data = await res.json();
+                if(data.ok) {
+                  alert(data.message + '\nÖrnek Kod: ' + data.codes[0].code);
+                  window.loadCredits();
+                } else {
+                  alert('Hata: ' + data.message);
+                }
+              } catch (err) {
+                alert('Sunucu hatası. fastFetch kullanılamadı.');
+              }
+            });
+        }
+        
+        // Bind nav-credits click
+        const navCredits = document.getElementById('nav-credits');
+        if(navCredits) {
+            navCredits.addEventListener('click', () => {
+                document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('bg-white/10'));
+                
+                const cTab = document.getElementById('credits');
+                if(cTab) cTab.classList.remove('hidden');
+                navCredits.classList.add('bg-white/10');
+                window.loadCredits(); // Load when tab is clicked
+            });
+        }
+        
+        // Also load initially if credits is visible
+        window.loadCredits();
+    });
+</script>
+
 </body>
 </html>

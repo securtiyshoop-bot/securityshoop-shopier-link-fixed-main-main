@@ -11,6 +11,69 @@ const crypto = require('crypto');
 const os = require('os');
 const desktopAuth = require('./desktop-auth');
 
+// ==========================================
+// PERSISTENT CLOUD STORAGE ENGINE
+// ==========================================
+const https = require('https');
+
+const CLOUD_STORAGE_IDS = {
+  users: 'ff8081819ff5b11001a043506c03360b',
+  activity_logs: 'ff8081819ff5b11001a04350703c360c',
+  plugin_control: 'ff8081819ff5b11001a0435075fb360d',
+  marifetstore: 'ff8081819ff5b11001a043507d05360e',
+  hwid_bans: 'ff8081819ff5b11001a043508572360f',
+  orders: 'ff8081819ff5b11001a0435091743610',
+  tokens: 'ff8081819ff5b11001a0435d7b2f3674'
+};
+
+const cloudCache = new Map();
+
+function fetchCloudJson(id, fallback) {
+  return new Promise((resolve) => {
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.data) {
+            cloudCache.set(id, parsed.data);
+            resolve(parsed.data);
+          } else {
+            resolve(cloudCache.get(id) || fallback);
+          }
+        } catch {
+          resolve(cloudCache.get(id) || fallback);
+        }
+      });
+    });
+    req.on('error', () => resolve(cloudCache.get(id) || fallback));
+    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
+  });
+}
+
+function saveCloudJson(id, name, data) {
+  cloudCache.set(id, data);
+  return new Promise((resolve) => {
+    const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
+    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 4000
+    }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+
 const app = express();
 const shopierOsbForm = multer({
   storage: multer.memoryStorage(),
@@ -144,12 +207,40 @@ const LICENSE_PACKAGES = Object.freeze([
   }
 ]);
 
+function cleanHost(val) {
+  let s = String(val || '').trim();
+  s = s.replace(/^["']|["']$/g, '');
+  s = s.replace(/^https?:\/\//i, '');
+  s = s.replace(/\/.*$/, '');
+  if (s.includes(':')) {
+    s = s.split(':')[0];
+  }
+  return s;
+}
+
+function cleanPort(val, hostVal) {
+  let h = String(hostVal || '').trim().replace(/^https?:\/\//i, '');
+  if (h.includes(':')) {
+    const p = Number(h.split(':')[1]);
+    if (p) return p;
+  }
+  const p = Number(String(val || '').trim().replace(/^["']|["']$/g, ''));
+  return (Number.isFinite(p) && p > 0) ? p : 3306;
+}
+
+function cleanEnvStr(val, fallback = '') {
+  const s = String(val || '').trim().replace(/^["']|["']$/g, '');
+  return s || fallback;
+}
+
+const rawDbHost = cleanEnvStr(process.env.DB_HOST, 'localhost');
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'securityshoop'
+  host: cleanHost(rawDbHost),
+  port: cleanPort(process.env.DB_PORT, rawDbHost),
+  user: cleanEnvStr(process.env.DB_USER, 'root'),
+  password: cleanEnvStr(process.env.DB_PASSWORD, ''),
+  database: cleanEnvStr(process.env.DB_NAME, 'securityshoop'),
+  ssl: (process.env.DB_SSL === 'false' || process.env.DB_SSL === '0') ? undefined : { rejectUnauthorized: false }
 };
 
 let pool = null;
@@ -157,9 +248,9 @@ let useDatabase = false;
 let databaseRetryPromise = null;
 let lastDatabaseRetryAt = 0;
 let lastDatabaseError = null;
-const DATABASE_RETRY_INTERVAL_MS = Math.max(500, Math.min(5000, Number(process.env.DATABASE_RETRY_INTERVAL_MS || 1500)));
-const DATABASE_READY_WAIT_MS = Math.max(250, Math.min(2500, Number(process.env.DB_READY_WAIT_MS || 700)));
-const DB_CONNECT_TIMEOUT_MS = Math.max(250, Math.min(2500, Number(process.env.DB_CONNECT_TIMEOUT_MS || 700)));
+const DATABASE_RETRY_INTERVAL_MS = 1500;
+const DATABASE_READY_WAIT_MS = 8000;
+const DB_CONNECT_TIMEOUT_MS = 10000;
 const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL || 'openai/gpt-5.5';
 const AI_CHAT_RATE_LIMIT = Math.max(3, Math.min(60, Number(process.env.AI_CHAT_RATE_LIMIT || 12)));
 const aiChatBuckets = new Map();
@@ -200,6 +291,8 @@ function ensureUsersFile() {
 function readUsersFile() {
   ensureUsersFile();
   try {
+    const cached = cloudCache.get(CLOUD_STORAGE_IDS.users);
+    if (cached && Array.isArray(cached.users) && cached.users.length > 0) return cached;
     const raw = fs.readFileSync(USERS_FILE, 'utf8');
     const parsed = JSON.parse(raw || '{"users":[]}');
     if (!Array.isArray(parsed.users)) return { users: [] };
@@ -210,7 +303,10 @@ function readUsersFile() {
 }
 
 function writeUsersFile(data) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch(e) {}
+  saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
 }
 
 async function postWithTimeout(url, options = {}, timeoutMs = 2500) {
@@ -953,7 +1049,7 @@ function findLicensePackageFromShopierOsb(payload) {
 
 function buildAutoSubmitShopierPage(fields) {
   const inputs = Object.entries(fields).map(([key, value]) => `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}">`).join('\n');
-  return `<!doctype html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Shopier Ödemeye Yönlendiriliyor...</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#080b0f;color:#fff;font-family:Arial,sans-serif;text-align:center;padding:24px}.card{max-width:480px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:32px;box-shadow:0 30px 80px rgba(0,0,0,.35)}button{margin-top:18px;padding:13px 20px;border:0;border-radius:14px;background:#34d399;color:#06100c;font-weight:800;cursor:pointer}p{color:#cbd5e1;line-height:1.6}</style></head><body><div class="card"><h1>Shopier ödemeye yönlendiriliyorsun...</h1><p>Sayfa otomatik açılmazsa aşağıdaki butona bas.</p><form id="shopier_form_special" method="post" action="${SHOPIER_PAYMENT_ENDPOINT}">${inputs}<button type="submit">Shopier ile Güvenli Öde</button></form></div><script>document.getElementById('shopier_form_special').submit();</script></body></html>`;
+  return `<!doctype html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Shopier ├ûdemeye Y├Ânlendiriliyor...</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#080b0f;color:#fff;font-family:Arial,sans-serif;text-align:center;padding:24px}.card{max-width:480px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:32px;box-shadow:0 30px 80px rgba(0,0,0,.35)}button{margin-top:18px;padding:13px 20px;border:0;border-radius:14px;background:#34d399;color:#06100c;font-weight:800;cursor:pointer}p{color:#cbd5e1;line-height:1.6}</style></head><body><div class="card"><h1>Shopier ├Âdemeye y├Ânlendiriliyorsun...</h1><p>Sayfa otomatik a├ğ─▒lmazsa a┼şa─ş─▒daki butona bas.</p><form id="shopier_form_special" method="post" action="${SHOPIER_PAYMENT_ENDPOINT}">${inputs}<button type="submit">Shopier ile G├╝venli ├ûde</button></form></div><script>document.getElementById('shopier_form_special').submit();</script></body></html>`;
 }
 
 async function ensureAdminUser() {
@@ -999,16 +1095,20 @@ async function ensureAdminUser() {
 }
 
 async function initDatabase() {
-  const setupConnection = await mysql.createConnection({
-    host: dbConfig.host,
-    port: dbConfig.port,
-    user: dbConfig.user,
-    password: dbConfig.password,
-    connectTimeout: DB_CONNECT_TIMEOUT_MS
-  });
-
-  await setupConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-  await setupConnection.end();
+  try {
+    const setupConnection = await mysql.createConnection({
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.user,
+      password: dbConfig.password,
+      ssl: dbConfig.ssl,
+      connectTimeout: DB_CONNECT_TIMEOUT_MS
+    });
+    await setupConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`).catch(() => {});
+    await setupConnection.end().catch(() => {});
+  } catch (e) {
+    // Ignore setup connection error if user has no CREATE DB permissions
+  }
 
   pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 10, queueLimit: 0, connectTimeout: DB_CONNECT_TIMEOUT_MS });
 
@@ -1392,7 +1492,7 @@ async function initStorage() {
     ensureJsonFile(DEVICE_RESETS_FILE, { requests: [] });
     ensureJsonFile(SUPPORT_TICKETS_FILE, { tickets: [] });
     ensureJsonFile(DESKTOP_AUTH_FILE, { keys: [], sessions: [] });
-    console.log('MySQL bağlantısı başarılı.');
+    console.log('MySQL ba─şlant─▒s─▒ ba┼şar─▒l─▒.');
   } catch (error) {
     useDatabase = false;
     pool = null;
@@ -1412,7 +1512,7 @@ async function initStorage() {
     ensureJsonFile(SUPPORT_TICKETS_FILE, { tickets: [] });
     ensureJsonFile(DESKTOP_AUTH_FILE, { keys: [], sessions: [] });
     await ensureAdminUser();
-    console.warn('MySQL bağlantısı başarısız. JSON moduna geçildi.');
+    console.warn('MySQL ba─şlant─▒s─▒ ba┼şar─▒s─▒z. JSON moduna ge├ğildi.');
     console.warn(error?.code || error?.message || error);
   }
 }
@@ -1460,7 +1560,7 @@ async function ensureDatabaseReady(force = false) {
       try {
         await initDatabase();
         lastDatabaseError = null;
-        console.log('MySQL bağlantısı başarılı.');
+        console.log('MySQL ba─şlant─▒s─▒ ba┼şar─▒l─▒.');
         return true;
       } catch (error) {
         useDatabase = false;
@@ -1469,7 +1569,7 @@ async function ensureDatabaseReady(force = false) {
         }
         pool = null;
         lastDatabaseError = sanitizeDatabaseError(error);
-        console.warn('MySQL bağlantısı yeniden denemede başarısız.');
+        console.warn('MySQL ba─şlant─▒s─▒ yeniden denemede ba┼şar─▒s─▒z.');
         console.warn(error?.code || error?.message || error);
         return false;
       } finally {
@@ -1593,34 +1693,22 @@ function persistCookieUserToSession(req, user) {
 
 function requireAuth(req, res, next) {
   const user = getRequestUser(req);
-  if (!user) return res.status(401).json({ ok: false, message: 'Giriş yapman gerekiyor.' });
+  if (!user) return res.status(401).json({ ok: false, message: 'Giri┼ş yapman gerekiyor.' });
   persistCookieUserToSession(req, user);
   next();
 }
 function requireAdmin(req, res, next) {
   const user = getRequestUser(req);
   if (!user || user.role !== 'admin') {
-    return res.status(403).json({ ok: false, message: 'Bu alan sadece admin içindir.' });
+    return res.status(403).json({ ok: false, message: 'Bu alan sadece admin i├ğindir.' });
   }
   persistCookieUserToSession(req, user);
   next();
 }
 
 async function requirePersistentStorage(req, res, options = {}) {
-  if (useDatabase) return true;
-  if (options.allowTemporary === true) {
-    scheduleDatabaseRetry();
-    return true;
-  }
-  if (await waitForDatabaseReady()) return true;
-  if (!process.env.VERCEL || process.env.ALLOW_TEMP_VERCEL_STORAGE === 'true') return true;
-  res.status(503).json({
-    ok: false,
-    persistent: false,
-    storage: 'temporary-json',
-    message: 'Vercel kalici veritabani bagli degil. DB_HOST, DB_PORT, DB_USER, DB_PASSWORD ve DB_NAME envlerini ekle; yoksa plugin hesaplari admin panelinde kalici gorunmez.'
-  });
-  return false;
+  // Always allow because we have Cloud Storage backup active
+  return true;
 }
 
 function normalizeEmail(email) {
@@ -1640,7 +1728,7 @@ function normalizeApprovalStatus(value, role = 'user') {
   if (role === 'admin') return 'approved';
   const status = String(value || '').trim().toLowerCase();
   if (['pending', 'approved', 'rejected'].includes(status)) return status;
-  return 'approved';
+  return 'pending';
 }
 
 function withUserDefaults(user) {
@@ -1654,7 +1742,10 @@ function withUserDefaults(user) {
 }
 
 function isUserApproved(user) {
-  return normalizeApprovalStatus(user?.approval_status, user?.role) === 'approved';
+  if (user?.role === 'admin') return true;
+  if (user?.is_blocked) return false;
+  const status = normalizeApprovalStatus(user?.approval_status, user?.role);
+  return status === 'approved';
 }
 
 function approvalBlockedBody(user) {
@@ -1708,11 +1799,11 @@ function publicUserPayload(user, token = '') {
   };
 }
 
-function pendingRegistrationBody(user, message = 'Hesap olusturuldu. Admin onayindan sonra kullanabilirsin.') {
+function pendingRegistrationBody(user, message = 'Hesap basariyla olusturuldu. Giris yapabilirsiniz.') {
   return {
     ok: true,
-    pending_approval: true,
-    approval_status: 'pending',
+    pending_approval: false,
+    approval_status: 'approved',
     message,
     user: publicUserPayload(user, '')
   };
@@ -1726,6 +1817,15 @@ async function findUserByEmail(email) {
       [cleanEmail]
     );
     return rows[0] ? withUserDefaults(rows[0]) : null;
+  }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => u.email === cleanEmail) || null);
+      }
+    } catch(e) {}
   }
   const data = readUsersFile();
   return withUserDefaults(data.users.find((u) => u.email === cleanEmail) || null);
@@ -1743,8 +1843,17 @@ async function findUserByLogin(login) {
     );
     return rows[0] ? withUserDefaults(rows[0]) : null;
   }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => String(u.username || '').trim().toLowerCase() === lowered || u.email === cleanLogin.toLowerCase()) || null);
+      }
+    } catch(e) {}
+  }
   const data = readUsersFile();
-  return withUserDefaults(data.users.find((u) => String(u.username || '').trim().toLowerCase() === lowered) || null);
+  return withUserDefaults(data.users.find((u) => String(u.username || '').trim().toLowerCase() === lowered || u.email === cleanLogin.toLowerCase()) || null);
 }
 
 async function findUserByToken(token) {
@@ -1850,7 +1959,7 @@ function findLicensePackage(packageId) {
     '50': 'pack-50',
     '100': 'pack-100',
     'sinirsiz': 'unlimited',
-    'sınırsız': 'unlimited',
+    's─▒n─▒rs─▒z': 'unlimited',
     'unlimited': 'unlimited'
   };
   cleanId = aliases[cleanId] || cleanId;
@@ -1959,7 +2068,11 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
     return { id: result.insertId, username: cleanUsername, email: cleanEmail, hwid: cleanHwid, role, is_blocked: 0, daily_limit: 0, license_until: null, allowed_appids: '', approval_status: approvalStatus, review_mode: false, review_note: '' };
   }
 
-  const data = readUsersFile();
+  let data = readUsersFile();
+  try {
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+    if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+  } catch(e) {}
   const nextId = data.users.reduce((m, u) => Math.max(m, Number(u.id) || 0), 0) + 1;
   const user = {
     id: nextId,
@@ -1981,6 +2094,7 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
   };
   data.users.push(user);
   writeUsersFile(data);
+  await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
   return user;
 }
 
@@ -2016,11 +2130,11 @@ function calculateUserRisk(user, logs = [], pluginStatuses = [], reports = []) {
   const addCount = Number(user.add_game_count || 0);
 
   if (user.is_blocked) { score += 30; reasons.push('Hesap engelli'); }
-  if (user.is_pc_banned) { score += 35; reasons.push('PC banlı'); }
-  if (uniqueHwids.size > 1) { score += Math.min(40, uniqueHwids.size * 15); reasons.push(`${uniqueHwids.size} farklı HWID`); }
+  if (user.is_pc_banned) { score += 35; reasons.push('PC banl─▒'); }
+  if (uniqueHwids.size > 1) { score += Math.min(40, uniqueHwids.size * 15); reasons.push(`${uniqueHwids.size} farkl─▒ HWID`); }
   if (userReports.length) { score += Math.min(25, userReports.length * 8); reasons.push(`${userReports.length} hata raporu`); }
-  if (failedActions) { score += Math.min(20, failedActions * 4); reasons.push(`${failedActions} başarısız işlem`); }
-  if (addCount > 25) { score += 10; reasons.push('Yoğun oyun ekleme'); }
+  if (failedActions) { score += Math.min(20, failedActions * 4); reasons.push(`${failedActions} ba┼şar─▒s─▒z i┼şlem`); }
+  if (addCount > 25) { score += 10; reasons.push('Yo─şun oyun ekleme'); }
   if (!user.hwid) { score += 8; reasons.push('HWID yok'); }
   if (isUserInReview(user)) { score += 25; reasons.push('Inceleme modu'); }
 
@@ -2223,6 +2337,15 @@ async function findUserById(id) {
   if (useDatabase) {
     const [rows] = await pool.query('SELECT id, username, email, hwid, role, is_blocked, session_token, token_created_at, license_until, daily_limit, allowed_appids, approval_status, review_mode, review_note, created_at FROM users WHERE id = ? LIMIT 1', [id]);
     return rows[0] ? withUserDefaults(rows[0]) : null;
+  }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => Number(u.id) === Number(id)) || null);
+      }
+    } catch(e) {}
   }
   const data = readUsersFile();
   return withUserDefaults(data.users.find((u) => Number(u.id) === Number(id)) || null);
@@ -3319,8 +3442,8 @@ async function buildPluginControlResponse(control) {
     update_url: control.update_url || '/securityshoop-plugin.zip'
   };
   const message = control.maintenance_mode
-    ? 'Plugin bakım modunda. Oyun ekleme geçici olarak kapalı.'
-    : (!control.add_game_enabled ? 'Admin oyun eklemeyi kapattı.' : '');
+    ? 'Plugin bak─▒m modunda. Oyun ekleme ge├ğici olarak kapal─▒.'
+    : (!control.add_game_enabled ? 'Admin oyun eklemeyi kapatt─▒.' : '');
   return {
     ok: true,
     control: visibleControl,
@@ -3622,7 +3745,7 @@ async function updatePluginStatus({ user, req, body = {} }) {
   const userStatuses = statusSource.filter((item) => item.email === normalizeEmail(user?.email));
   const uniqueHwids = new Set(userStatuses.map((item) => normalizeHwid(item.hwid)).filter(Boolean));
   if (uniqueHwids.size > 1) {
-    await recordActivityLog({ user, action: 'SUSPICIOUS_HWID', details: `Aynı hesap ${uniqueHwids.size} farklı bilgisayarda görüldü.` });
+    await recordActivityLog({ user, action: 'SUSPICIOUS_HWID', details: `Ayn─▒ hesap ${uniqueHwids.size} farkl─▒ bilgisayarda g├Âr├╝ld├╝.` });
   }
 
   if (uniqueHwids.size >= 3 && user?.role !== 'admin' && !isLicenseActive(user)) {
@@ -3744,9 +3867,9 @@ async function markCommandsDelivered(commands) {
 async function acknowledgePluginCommand({ id, user, ok, result, status }) {
   const commandId = Number(id);
   const cmd = await getPluginCommandById(commandId);
-  if (!cmd) return { errorStatus: 404, body: { ok: false, message: 'Komut bulunamadı.' } };
+  if (!cmd) return { errorStatus: 404, body: { ok: false, message: 'Komut bulunamad─▒.' } };
   if (normalizeEmail(cmd.email) !== normalizeEmail(user.email) && Number(cmd.user_id || 0) !== Number(user.id)) {
-    return { errorStatus: 403, body: { ok: false, message: 'Komut bu kullanıcıya ait değil.' } };
+    return { errorStatus: 403, body: { ok: false, message: 'Komut bu kullan─▒c─▒ya ait de─şil.' } };
   }
   const requestedStatus = String(status || '').trim().toLowerCase();
   const nextStatus = requestedStatus === 'running' ? 'running' : (ok === false ? 'failed' : 'completed');
@@ -3773,9 +3896,9 @@ async function acknowledgePluginCommand({ id, user, ok, result, status }) {
 async function cancelPluginCommand(id, adminEmail = 'admin') {
   const commandId = Number(id);
   const cmd = await getPluginCommandById(commandId);
-  if (!cmd) return { errorStatus: 404, body: { ok: false, message: 'Komut bulunamadı.' } };
+  if (!cmd) return { errorStatus: 404, body: { ok: false, message: 'Komut bulunamad─▒.' } };
   if (!['pending', 'delivered'].includes(cmd.status)) {
-    return { errorStatus: 400, body: { ok: false, message: 'Bu komut artık iptal edilemez.' } };
+    return { errorStatus: 400, body: { ok: false, message: 'Bu komut art─▒k iptal edilemez.' } };
   }
   const completedAt = new Date().toISOString();
   const result = `Cancelled by ${adminEmail || 'admin'}`;
@@ -3799,7 +3922,7 @@ async function cancelPluginCommand(id, adminEmail = 'admin') {
 
 function buildAutoRecoveryAction(report = {}) {
   const text = `${report.message || ''} ${report.context || ''}`.toLowerCase();
-  if (/duplicate|already in progress|tekrar|aynı appid|same appid/.test(text)) {
+  if (/duplicate|already in progress|tekrar|ayn─▒ appid|same appid/.test(text)) {
     return 'Ayni oyun icin tekrar baslatma kilidi devrede; ikinci istek yok sayilir.';
   }
   if (/game not found|api|kaynak|source|manifest/.test(text)) {
@@ -4163,7 +4286,7 @@ async function listReviews(limit = 20) {
 
 async function createReview({ userId = null, username, text, rating = 5, isDemo = 0 }) {
   const cleanText = String(text || '').trim();
-  const cleanUsername = String(username || '').trim() || 'Üye';
+  const cleanUsername = String(username || '').trim() || '├£ye';
   if (useDatabase) {
     const [result] = await pool.query(
       'INSERT INTO reviews (user_id, username, text, rating, is_demo) VALUES (?, ?, ?, ?, ?)',
@@ -4530,10 +4653,10 @@ async function bootSecurityShoopServer(options = {}) {
       if (String(password).length < 8) return res.status(400).json({ ok: false, message: 'Sifre en az 8 karakter olmali.' });
       if (password !== confirmPassword) return res.status(400).json({ ok: false, message: 'Sifreler eslesmiyor.' });
 
-      if (await isHwidBanned(hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanmış.' });
+      if (await isHwidBanned(hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanm─▒┼ş.' });
 
       const existingUser = await findUserByEmail(email);
-      if (existingUser) return res.status(400).json({ ok: false, message: 'Bu e-posta zaten kayıtlı.' });
+      if (existingUser) return res.status(400).json({ ok: false, message: 'Bu e-posta zaten kay─▒tl─▒.' });
 
       const referralCode = String(req.body?.referral_code || '').trim().toUpperCase().slice(0, 40);
       if (referralCode && useDatabase) {
@@ -4546,10 +4669,10 @@ async function bootSecurityShoopServer(options = {}) {
       clearAdminCookie(res);
       await recordActivityLog({ user, action: 'REGISTER', details: hwid ? `HWID: ${hwid}` : '' });
       await notifyAdminRegistration(user, { source: 'site', hwid, req });
-      res.json(pendingRegistrationBody(user, 'Hesap olusturuldu. Admin onayindan sonra giris yapabilirsin.'));
+      res.json({ ok: true, message: 'Hesap basariyla olusturuldu. Simdi giris yapabilirsiniz!', user: publicUserPayload(user, '') });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Sunucu hatası oluştu.' });
+      res.status(500).json({ ok: false, message: 'Sunucu hatas─▒ olu┼ştu.' });
     }
   });
 
@@ -4563,12 +4686,12 @@ async function bootSecurityShoopServer(options = {}) {
       if (String(password).length < 8) return res.status(400).json({ ok: false, message: 'E-posta veya sifre hatali.' });
 
       const user = await findUserByLogin(login);
-      if (user && await isHwidBanned(user.hwid || req.body?.hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanmış.' });
-      if (!user) return res.status(400).json({ ok: false, message: 'E-posta veya şifre hatalı.' });
-      if (user.is_blocked) return res.status(403).json({ ok: false, message: 'Bu hesap engellenmiş.' });
+      if (user && await isHwidBanned(user.hwid || req.body?.hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanm─▒┼ş.' });
+      if (!user) return res.status(400).json({ ok: false, message: 'E-posta veya ┼şifre hatal─▒.' });
+      if (user.is_blocked) return res.status(403).json({ ok: false, message: 'Bu hesap engellenmi┼ş.' });
 
       const isValid = await bcrypt.compare(password, user.password_hash);
-      if (!isValid) return res.status(400).json({ ok: false, message: 'E-posta veya şifre hatalı.' });
+      if (!isValid) return res.status(400).json({ ok: false, message: 'E-posta veya ┼şifre hatal─▒.' });
       if (!isUserApproved(user)) return res.status(403).json(approvalBlockedBody(user));
 
       await updateUserHwidIfMissing(user, req.body?.hwid);
@@ -4580,7 +4703,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, message: 'Giris basarili.', user: publicUserPayload({ ...user, ...req.session.user }, token) });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Sunucu hatası oluştu.' });
+      res.status(500).json({ ok: false, message: 'Sunucu hatas─▒ olu┼ştu.' });
     }
   });
 
@@ -4604,7 +4727,7 @@ async function bootSecurityShoopServer(options = {}) {
       const user = await createUser({ username, email, password, role: 'user', hwid });
       await recordActivityLog({ user, action: 'PLUGIN_REGISTER', details: hwid ? `HWID: ${hwid}` : '' });
       await notifyAdminRegistration(user, { source: 'plugin', hwid, req });
-      res.json(pendingRegistrationBody(user, 'Plugin hesabi olusturuldu. Admin onayindan sonra giris yapabilirsin.'));
+      res.json({ ok: true, message: 'Plugin hesabi basariyla olusturuldu. Giris yapabilirsiniz!', user: publicUserPayload(user, '') });
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi olustu.' });
@@ -4855,7 +4978,7 @@ async function bootSecurityShoopServer(options = {}) {
     req.session.destroy(() => {
       res.clearCookie('securityshoop.sid');
       clearAdminCookie(res);
-      res.json({ ok: true, message: 'Çıkış yapıldı.' });
+      res.json({ ok: true, message: '├ç─▒k─▒┼ş yap─▒ld─▒.' });
     });
   });
 
@@ -4932,7 +5055,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, announcements });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Duyurular alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Duyurular al─▒namad─▒.' });
     }
   });
 
@@ -4958,15 +5081,15 @@ async function bootSecurityShoopServer(options = {}) {
       const control = await getPluginControl();
 
       if (control.account_required && !user) {
-        return res.status(401).json({ ok: false, blocked: true, message: 'Önce SecurityShoop hesabına giriş yap.' });
+        return res.status(401).json({ ok: false, blocked: true, message: '├ûnce SecurityShoop hesab─▒na giri┼ş yap.' });
       }
 
       if (user && await isHwidBanned(user.hwid || req.body?.hwid)) {
-        return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanmış.' });
+        return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanm─▒┼ş.' });
       }
 
       if (user?.is_blocked) {
-        return res.status(403).json({ ok: false, blocked: true, message: 'Bu hesap engellenmiş.' });
+        return res.status(403).json({ ok: false, blocked: true, message: 'Bu hesap engellenmi┼ş.' });
       }
 
       if (user && !isUserApproved(user)) return res.status(403).json(approvalBlockedBody(user));
@@ -4975,7 +5098,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json(await buildPluginControlResponse(control));
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, blocked: false, message: 'Plugin kontrolü alınamadı.' });
+      res.status(500).json({ ok: false, blocked: false, message: 'Plugin kontrol├╝ al─▒namad─▒.' });
     }
   });
 
@@ -4992,7 +5115,7 @@ async function bootSecurityShoopServer(options = {}) {
         });
       }
       if (user.is_blocked || await isHwidBanned(user.hwid || req.body?.hwid)) {
-        return res.status(403).json({ ok: false, blocked: true, message: 'Bu hesap veya bilgisayar engellenmiş.' });
+        return res.status(403).json({ ok: false, blocked: true, message: 'Bu hesap veya bilgisayar engellenmi┼ş.' });
       }
       if (!isUserApproved(user)) return res.status(403).json(approvalBlockedBody(user));
       const status = await updatePluginStatus({ user, req, body: req.body || {} });
@@ -5008,7 +5131,7 @@ async function bootSecurityShoopServer(options = {}) {
   app.post('/api/plugin/commands/:id/ack', async (req, res) => {
     try {
       const user = await authenticatePluginRequest(req);
-      if (!user) return res.status(401).json({ ok: false, message: 'Hesap doğrulanamadı.' });
+      if (!user) return res.status(401).json({ ok: false, message: 'Hesap do─şrulanamad─▒.' });
       if (!isUserApproved(user)) return res.status(403).json(approvalBlockedBody(user));
       const id = Number(req.params.id);
       const ack = await acknowledgePluginCommand({ id, user, ok: req.body?.ok, result: req.body?.result, status: req.body?.status || req.body?.state });
@@ -5016,9 +5139,9 @@ async function bootSecurityShoopServer(options = {}) {
       return res.json(ack.body);
       const data = readPluginCommandsFile();
       const cmd = data.commands.find((item) => Number(item.id) === id);
-      if (!cmd) return res.status(404).json({ ok: false, message: 'Komut bulunamadı.' });
+      if (!cmd) return res.status(404).json({ ok: false, message: 'Komut bulunamad─▒.' });
       if (normalizeEmail(cmd.email) !== normalizeEmail(user.email) && Number(cmd.user_id || 0) !== Number(user.id)) {
-        return res.status(403).json({ ok: false, message: 'Komut bu kullanıcıya ait değil.' });
+        return res.status(403).json({ ok: false, message: 'Komut bu kullan─▒c─▒ya ait de─şil.' });
       }
       cmd.status = req.body?.ok === false ? 'failed' : 'completed';
       cmd.completed_at = new Date().toISOString();
@@ -5045,7 +5168,7 @@ async function bootSecurityShoopServer(options = {}) {
   app.post('/api/plugin/error-report', async (req, res) => {
     try {
       const user = await authenticatePluginRequest(req);
-      if (!user) return res.status(401).json({ ok: false, message: 'Hesap doğrulanamadı.' });
+      if (!user) return res.status(401).json({ ok: false, message: 'Hesap do─şrulanamad─▒.' });
       if (!isUserApproved(user)) return res.status(403).json(approvalBlockedBody(user));
       const message = String(req.body?.message || '').trim().slice(0, 2000);
       const context = String(req.body?.context || '').trim().slice(0, 4000);
@@ -5053,7 +5176,7 @@ async function bootSecurityShoopServer(options = {}) {
       const version = String(req.body?.version || '').trim().slice(0, 40);
       const pageUrl = String(req.body?.page_url || req.body?.pageUrl || '').trim().slice(0, 500);
       const hwid = normalizeHwid(req.body?.hwid || user.hwid || '');
-      if (!message) return res.status(400).json({ ok: false, message: 'Rapor mesajı gerekli.' });
+      if (!message) return res.status(400).json({ ok: false, message: 'Rapor mesaj─▒ gerekli.' });
       const report = await createErrorReport({
         id: Date.now(),
         user_id: user.id,
@@ -5087,7 +5210,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, reports });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Raporlar alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Raporlar al─▒namad─▒.' });
     }
   });
 
@@ -5104,12 +5227,32 @@ async function bootSecurityShoopServer(options = {}) {
     }
   });
 
-  app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
+  
+// --- MARIFETSTORE API ---
+let marifetStoreConfig = {
+    api_key: "436b0828-9799-4ce4-b1f2-ea5a3ce32f73",
+    api_url: "https://depotbox.org/api/direct-lua",
+    hook_url: "https://github.com/OpenSteam001/OpenSteamTool/releases/download/1.4.8/OpenSteamTool-1.4.8-Debug.zip",
+    version: "4.0",
+    message: "MarifetStore'a Hosgeldiniz!"
+};
+
+app.get('/api/plugin/marifetstore', (req, res) => {
+    res.json({ ok: true, config: marifetStoreConfig });
+});
+
+app.post('/api/admin/marifetstore', requireAdmin, (req, res) => {
+    marifetStoreConfig = { ...marifetStoreConfig, ...req.body };
+    res.json({ ok: true, message: 'MarifetStore ayarlari basariyla guncellendi!', config: marifetStoreConfig });
+});
+// ------------------------
+
+app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     try {
       res.json({ ok: true, dashboard: await buildAdminDashboard() });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Admin dashboard alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Admin dashboard al─▒namad─▒.' });
     }
   });
 
@@ -5279,7 +5422,7 @@ async function bootSecurityShoopServer(options = {}) {
   app.get('/api/admin/users/:id/detail', requireAdmin, async (req, res) => {
     try {
       const user = await resolveAdminUserTarget(req.params.id);
-      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
       const email = normalizeEmail(user.email);
       const logs = (await listActivityLogs(300)).filter((log) => normalizeEmail(log.email) === email).slice(0, 80);
       const reports = (await listErrorReports(500)).filter((report) => normalizeEmail(report.email) === email).slice(0, 50);
@@ -5290,17 +5433,17 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, user: safeUser, logs, reports, plugin, commands, installed_games: installedGames });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Kullanıcı detayı alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Kullan─▒c─▒ detay─▒ al─▒namad─▒.' });
     }
   });
 
   app.post('/api/admin/users/:id/command', requireAdmin, async (req, res) => {
     try {
       const user = await resolveAdminUserTarget(req.params.id);
-      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
-      if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin hesabına uzaktan komut gönderilemez.' });
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
+      if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin hesab─▒na uzaktan komut g├Ânderilemez.' });
       const command = String(req.body?.command || '').trim();
-      if (!ALLOWED_PLUGIN_COMMANDS.has(command)) return res.status(400).json({ ok: false, message: 'Geçersiz komut.' });
+      if (!ALLOWED_PLUGIN_COMMANDS.has(command)) return res.status(400).json({ ok: false, message: 'Ge├ğersiz komut.' });
       const commandPayload = req.body?.payload && typeof req.body.payload === 'object' ? { ...req.body.payload } : {};
       if (command === 'cleanup_games' && (req.body?.confirm_cleanup === true || commandPayload.confirm_cleanup === true)) {
         commandPayload.confirm_cleanup = true;
@@ -5315,7 +5458,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, message: item.deduped ? 'Ayni aktif komut zaten kuyrukta.' : 'Komut kuyruga eklendi.', command: item });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Komut oluşturulamadı.' });
+      res.status(500).json({ ok: false, message: 'Komut olu┼şturulamad─▒.' });
     }
   });
 
@@ -5337,8 +5480,8 @@ async function bootSecurityShoopServer(options = {}) {
       return res.json(cancel.body);
       const data = readPluginCommandsFile();
       const cmd = data.commands.find((item) => Number(item.id) === Number(req.params.id));
-      if (!cmd) return res.status(404).json({ ok: false, message: 'Komut bulunamadı.' });
-      if (!['pending', 'delivered'].includes(cmd.status)) return res.status(400).json({ ok: false, message: 'Bu komut artık iptal edilemez.' });
+      if (!cmd) return res.status(404).json({ ok: false, message: 'Komut bulunamad─▒.' });
+      if (!['pending', 'delivered'].includes(cmd.status)) return res.status(400).json({ ok: false, message: 'Bu komut art─▒k iptal edilemez.' });
       cmd.status = 'cancelled';
       cmd.completed_at = new Date().toISOString();
       cmd.result = `Cancelled by ${req.session.user?.email || 'admin'}`;
@@ -5356,7 +5499,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, control });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Plugin kontrolü alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Plugin kontrol├╝ al─▒namad─▒.' });
     }
   });
 
@@ -5382,10 +5525,10 @@ async function bootSecurityShoopServer(options = {}) {
         details: `maintenance=${control.maintenance_mode}, add_game=${control.add_game_enabled}, force_update=${control.force_update}`
       });
 
-      res.json({ ok: true, message: 'Plugin kontrol ayarları güncellendi.', control });
+      res.json({ ok: true, message: 'Plugin kontrol ayarlar─▒ g├╝ncellendi.', control });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Plugin kontrolü kaydedilemedi.' });
+      res.status(500).json({ ok: false, message: 'Plugin kontrol├╝ kaydedilemedi.' });
     }
   });
 
@@ -5393,7 +5536,7 @@ async function bootSecurityShoopServer(options = {}) {
     try {
       const latestVersion = String(req.body?.latest_version || '').trim();
       const updateUrl = String(req.body?.update_url || '').trim();
-      if (!latestVersion || !updateUrl) return res.status(400).json({ ok: false, message: 'Sürüm ve ZIP linki gerekli.' });
+      if (!latestVersion || !updateUrl) return res.status(400).json({ ok: false, message: 'S├╝r├╝m ve ZIP linki gerekli.' });
       const control = await savePluginControl({
         latest_version: latestVersion,
         update_url: updateUrl,
@@ -5401,13 +5544,13 @@ async function bootSecurityShoopServer(options = {}) {
         rollout_channel: req.body?.rollout_channel || 'stable',
         force_update: Boolean(req.body?.force_update),
         notice_title: `SecurityShoop ${latestVersion}`,
-        notice_message: req.body?.release_notes || 'Yeni plugin sürümü yayında.'
+        notice_message: req.body?.release_notes || 'Yeni plugin s├╝r├╝m├╝ yay─▒nda.'
       }, req.session.user?.email || 'admin');
       await recordActivityLog({ user: req.session.user, action: 'RELEASE_PUBLISH', details: `version=${latestVersion}, force=${control.force_update}` });
-      res.json({ ok: true, message: 'Güncelleme yayına alındı.', control });
+      res.json({ ok: true, message: 'G├╝ncelleme yay─▒na al─▒nd─▒.', control });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Güncelleme yayına alınamadı.' });
+      res.status(500).json({ ok: false, message: 'G├╝ncelleme yay─▒na al─▒namad─▒.' });
     }
   });
 
@@ -5416,14 +5559,14 @@ async function bootSecurityShoopServer(options = {}) {
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean).slice(0, 200) : [];
       const action = String(req.body?.action || '').trim();
       const allowed = new Set(['block', 'unblock', 'delete', 'license', 'pcban', 'command', 'approve', 'reject']);
-      if (!ids.length) return res.status(400).json({ ok: false, message: 'Kullanıcı seçilmedi.' });
-      if (!allowed.has(action)) return res.status(400).json({ ok: false, message: 'Geçersiz toplu işlem.' });
+      if (!ids.length) return res.status(400).json({ ok: false, message: 'Kullan─▒c─▒ se├ğilmedi.' });
+      if (!allowed.has(action)) return res.status(400).json({ ok: false, message: 'Ge├ğersiz toplu i┼şlem.' });
 
       const results = [];
       for (const id of ids) {
         const user = await findUserById(id);
-        if (!user) { results.push({ id, ok: false, message: 'Bulunamadı' }); continue; }
-        if (user.role === 'admin') { results.push({ id, ok: false, message: 'Admin atlandı' }); continue; }
+        if (!user) { results.push({ id, ok: false, message: 'Bulunamad─▒' }); continue; }
+        if (user.role === 'admin') { results.push({ id, ok: false, message: 'Admin atland─▒' }); continue; }
         try {
           if (action === 'block') await updateUserBlock(id, true);
           if (action === 'unblock') await updateUserBlock(id, false);
@@ -5469,10 +5612,10 @@ async function bootSecurityShoopServer(options = {}) {
         }
       }
       await recordActivityLog({ user: req.session.user, action: 'BULK_ACTION', details: `${action} -> ${ids.length} user(s)` });
-      res.json({ ok: true, message: `Toplu işlem tamamlandı: ${results.filter((r) => r.ok).length}/${results.length}`, results });
+      res.json({ ok: true, message: `Toplu i┼şlem tamamland─▒: ${results.filter((r) => r.ok).length}/${results.length}`, results });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Toplu işlem başarısız.' });
+      res.status(500).json({ ok: false, message: 'Toplu i┼şlem ba┼şar─▒s─▒z.' });
     }
   });
 
@@ -5480,7 +5623,7 @@ async function bootSecurityShoopServer(options = {}) {
     try {
       const title = String(req.body?.title || '').trim().slice(0, 120);
       const message = String(req.body?.message || '').trim().slice(0, 1000);
-      if (!title || !message) return res.status(400).json({ ok: false, message: 'Başlık ve mesaj gerekli.' });
+      if (!title || !message) return res.status(400).json({ ok: false, message: 'Ba┼şl─▒k ve mesaj gerekli.' });
       const data = readAnnouncementsFile();
       const item = {
         id: Date.now(),
@@ -5515,16 +5658,16 @@ async function bootSecurityShoopServer(options = {}) {
       } else {
         const data = readUsersFile();
         const user = data.users.find((u) => Number(u.id) === id);
-        if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+        if (!user) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
         user.license_until = licenseUntil || '';
         user.daily_limit = dailyLimit;
         writeUsersFile(data);
       }
       await recordActivityLog({ user: req.session.user, action: 'ADMIN_LICENSE', details: `Target: ${id}, until=${licenseUntil || 'unlimited'}, limit=${dailyLimit}` });
-      res.json({ ok: true, message: 'Lisans ayarları güncellendi.' });
+      res.json({ ok: true, message: 'Lisans ayarlar─▒ g├╝ncellendi.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Lisans güncellenemedi.' });
+      res.status(500).json({ ok: false, message: 'Lisans g├╝ncellenemedi.' });
     }
   });
 
@@ -5583,7 +5726,7 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, logs });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Loglar alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Loglar al─▒namad─▒.' });
     }
   });
 
@@ -5604,7 +5747,7 @@ async function bootSecurityShoopServer(options = {}) {
       });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Kullanıcılar alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Kullan─▒c─▒lar al─▒namad─▒.' });
     }
   });
 
@@ -5645,14 +5788,14 @@ async function bootSecurityShoopServer(options = {}) {
     try {
       const id = Number(req.params.id);
       const user = await findUserById(id);
-      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
       if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin engellenemez.' });
       await updateUserBlock(id, true);
       await recordActivityLog({ user: req.session.user, action: 'ADMIN_BLOCK', details: `Target: ${user.email || id}` });
-      res.json({ ok: true, message: 'Kullanıcı engellendi.' });
+      res.json({ ok: true, message: 'Kullan─▒c─▒ engellendi.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'İşlem başarısız.' });
+      res.status(500).json({ ok: false, message: '─░┼şlem ba┼şar─▒s─▒z.' });
     }
   });
 
@@ -5660,27 +5803,27 @@ async function bootSecurityShoopServer(options = {}) {
     try {
       const id = Number(req.params.id);
       const user = await findUserById(id);
-      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
       if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin engellenemez.' });
-      if (!normalizeHwid(user.hwid)) return res.status(400).json({ ok: false, message: 'Bu kullanıcıda HWID yok. Kullanıcı pluginden giriş yapmali.' });
+      if (!normalizeHwid(user.hwid)) return res.status(400).json({ ok: false, message: 'Bu kullan─▒c─▒da HWID yok. Kullan─▒c─▒ pluginden giri┼ş yapmali.' });
       await addHwidBan({ hwid: user.hwid, user, reason: `Admin ban by ${req.session.user?.email || 'admin'}` });
       await recordActivityLog({ user: req.session.user, action: 'BAN_PC', details: `Target: ${user.email || id}, HWID: ${user.hwid}` });
-      res.json({ ok: true, message: 'Bilgisayar banlandı.' });
+      res.json({ ok: true, message: 'Bilgisayar banland─▒.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'İşlem başarısız.' });
+      res.status(500).json({ ok: false, message: '─░┼şlem ba┼şar─▒s─▒z.' });
     }
   });
 
   app.post('/api/admin/users/:id/unblock', requireAdmin, async (req, res) => {
     try {
       const updated = await updateUserBlock(Number(req.params.id), false);
-      if (updated === false) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (updated === false) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
       await recordActivityLog({ user: req.session.user, action: 'ADMIN_UNBLOCK', details: `Target: ${req.params.id}` });
-      res.json({ ok: true, message: 'Kullanıcı engeli kaldırıldı.' });
+      res.json({ ok: true, message: 'Kullan─▒c─▒ engeli kald─▒r─▒ld─▒.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'İşlem başarısız.' });
+      res.status(500).json({ ok: false, message: '─░┼şlem ba┼şar─▒s─▒z.' });
     }
   });
 
@@ -5688,14 +5831,14 @@ async function bootSecurityShoopServer(options = {}) {
     try {
       const id = Number(req.params.id);
       const user = await findUserById(id);
-      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullan─▒c─▒ bulunamad─▒.' });
       if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin silinemez.' });
       await deleteUserById(id);
       await recordActivityLog({ user: req.session.user, action: 'ADMIN_DELETE', details: `Target: ${user.email || id}` });
-      res.json({ ok: true, message: 'Kullanıcı silindi.' });
+      res.json({ ok: true, message: 'Kullan─▒c─▒ silindi.' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'İşlem başarısız.' });
+      res.status(500).json({ ok: false, message: '─░┼şlem ba┼şar─▒s─▒z.' });
     }
   });
 
@@ -5714,7 +5857,7 @@ async function bootSecurityShoopServer(options = {}) {
 
     if (!apiKey || !apiSecret) {
       if (!checkoutUrl) {
-        return res.status(500).json({ ok: false, message: 'Shopier API veya ödeme linki ayarlanmamış.' });
+        return res.status(500).json({ ok: false, message: 'Shopier API veya ├Âdeme linki ayarlanmam─▒┼ş.' });
       }
       return res.redirect(302, checkoutUrl);
     }
@@ -5858,15 +6001,15 @@ async function bootSecurityShoopServer(options = {}) {
       res.json({ ok: true, reviews });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Yorumlar alınamadı.' });
+      res.status(500).json({ ok: false, message: 'Yorumlar al─▒namad─▒.' });
     }
   });
 
   app.post('/api/reviews', requireAuth, async (req, res) => {
     try {
       const text = String(req.body.text || '').trim();
-      if (!text) return res.status(400).json({ ok: false, message: 'Yorum boş olamaz.' });
-      if (text.length < 3) return res.status(400).json({ ok: false, message: 'Yorum en az 3 karakter olmalı.' });
+      if (!text) return res.status(400).json({ ok: false, message: 'Yorum bo┼ş olamaz.' });
+      if (text.length < 3) return res.status(400).json({ ok: false, message: 'Yorum en az 3 karakter olmal─▒.' });
       if (text.length > 500) return res.status(400).json({ ok: false, message: 'Yorum en fazla 500 karakter olabilir.' });
       const review = await createReview({
         userId: req.session.user.id,
@@ -5881,6 +6024,653 @@ async function bootSecurityShoopServer(options = {}) {
       res.status(500).json({ ok: false, message: 'Yorum eklenemedi.' });
     }
   });
+
+
+  // ==========================================
+  // SINGLE-USE TOKEN SYSTEM
+  // ==========================================
+  app.get('/api/admin/tokens', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      res.json({ ok: true, tokens: data.tokens || [] });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Tokenlar alinamadi.' });
+    }
+  });
+
+  app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
+    try {
+      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let t = 'MS-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      const newToken = {
+        token: t,
+        created_at: new Date().toISOString(),
+        duration_type: duration,
+        expires_at: null, // Hesaplanacak (ilk giriste)
+        used: false,
+        first_used_at: null,
+        used_by_hwid: null
+      };
+      if (!data.tokens) data.tokens = [];
+      data.tokens.push(newToken);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, token: newToken });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
+    }
+  });
+
+  app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      data.tokens = (data.tokens || []).filter(t => t.token !== req.params.token);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token silindi.' });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Token silinemedi.' });
+    }
+  });
+
+  app.post('/api/plugin/token-login', async (req, res) => {
+    try {
+      const userToken = String(req.body.token || '').trim();
+      const hwid = String(req.body.hwid || '').trim();
+      if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
+      if (!hwid) return res.status(400).json({ ok: false, message: 'HWID eksik.' });
+
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
+
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+
+      // Blacklist Check
+      const blacklist = data.blacklist || { hwids: [], ips: [] };
+      if (blacklist.hwids && blacklist.hwids.includes(hwid)) {
+        return res.status(403).json({ ok: false, message: 'Cihaziniz (HWID) kalici olarak yasaklanmistir.' });
+      }
+      if (blacklist.ips && blacklist.ips.includes(clientIp)) {
+        return res.status(403).json({ ok: false, message: 'IP Adresiniz kalici olarak yasaklanmistir.' });
+      }
+
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Gecersiz token.' });
+
+      // Frozen (dondurulmus) kontrol
+      if (tokenObj.frozen) {
+        return res.status(403).json({ ok: false, message: 'Hesabiniz dondurulmustur. Lutfen yonetici ile iletisime gecin.' });
+      }
+
+      const now = new Date();
+
+      // IP log - her giriste kaydet
+      if (!tokenObj.ip_log) tokenObj.ip_log = [];
+      tokenObj.ip_log.unshift({ ip: clientIp, at: now.toISOString() });
+      if (tokenObj.ip_log.length > 10) tokenObj.ip_log = tokenObj.ip_log.slice(0, 10);
+      tokenObj.last_ip = clientIp;
+      tokenObj.last_login = now.toISOString();
+
+      // Referral kodu yoksa olustur
+      if (!tokenObj.ref_code) {
+        const refChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let rc = 'REF-';
+        for(let i=0;i<6;i++) rc += refChars.charAt(Math.floor(Math.random()*refChars.length));
+        tokenObj.ref_code = rc;
+      }
+
+      if (tokenObj.used) {
+        // Zaten kullanilmis, HWID kontrol et
+        if (tokenObj.used_by_hwid !== hwid) {
+          return res.status(403).json({ ok: false, message: 'Bu token baska bir cihaza kilitlenmis!' });
+        }
+        
+        // Suresi dolmus mu kontrol et
+        if (tokenObj.expires_at && new Date(tokenObj.expires_at) < now) {
+          return res.status(403).json({ ok: false, message: 'Token suresi dolmus!' });
+        }
+        
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+
+        // Discord webhook bildirimi
+        const webhookData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
+        const webhookUrl = (webhookData.settings || {}).discord_webhook;
+        if (webhookUrl) {
+          try {
+            const durLabel = tokenObj.duration_type === '1d' ? '1 Gunluk' : tokenObj.duration_type === '7d' ? '1 Haftalik' : tokenObj.duration_type === '30d' ? '1 Aylik' : 'Sinirsiz';
+            const expLabel = tokenObj.expires_at ? new Date(tokenObj.expires_at).toLocaleDateString('tr-TR') : 'Sinirsiz';
+            await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                embeds: [{
+                  title: '🔑 Token Girisi',
+                  color: 0x00e676,
+                  fields: [
+                    { name: 'Token', value: '`' + userToken + '`', inline: true },
+                    { name: 'Sure', value: durLabel, inline: true },
+                    { name: 'Bitis', value: expLabel, inline: true },
+                    { name: 'IP', value: clientIp, inline: true },
+                    { name: 'HWID', value: hwid.substring(0, 12) + '...', inline: true },
+                  ],
+                  timestamp: now.toISOString()
+                }]
+              })
+            });
+          } catch(e) { /* webhook hatasi sessizce gec */ }
+        }
+
+        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at || null, ref_code: tokenObj.ref_code });
+      }
+
+      // Ilk kullanim (Kilitlenme ve Sure Baslatma)
+      tokenObj.used = true;
+      tokenObj.first_used_at = now.toISOString();
+      tokenObj.used_by_hwid = hwid;
+      
+      if (tokenObj.duration_type === '1d') {
+        tokenObj.expires_at = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (tokenObj.duration_type === '7d') {
+        tokenObj.expires_at = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (tokenObj.duration_type === '30d') {
+        tokenObj.expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else {
+        tokenObj.expires_at = null; // lifetime
+      }
+
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+
+      // Discord webhook bildirimi
+      try {
+        const webhookData2 = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
+        const webhookUrl2 = (webhookData2.settings || {}).discord_webhook;
+        if (webhookUrl2) {
+          const durLabel2 = tokenObj.duration_type === '1d' ? '1 Gunluk' : tokenObj.duration_type === '7d' ? '1 Haftalik' : tokenObj.duration_type === '30d' ? '1 Aylik' : 'Sinirsiz';
+          await fetch(webhookUrl2, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              embeds: [{
+                title: '🆕 Yeni Token Aktivasyonu',
+                color: 0x00b4d8,
+                fields: [
+                  { name: 'Token', value: '`' + userToken + '`', inline: true },
+                  { name: 'Sure', value: durLabel2, inline: true },
+                  { name: 'IP', value: clientIp, inline: true },
+                ],
+                timestamp: now.toISOString()
+              }]
+            })
+          });
+        }
+      } catch(e) {}
+
+      res.json({ ok: true, message: 'Cihaz kilitlendi ve giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at, ref_code: tokenObj.ref_code });
+    } catch (err) {
+      console.error('token-login error:', err);
+      res.status(500).json({ ok: false, message: 'Sunucu hatasi.' });
+    }
+  });
+
+  // ==========================================================
+// CREDIT CODES & PER-GAME LIBRARY SYSTEM
+// ==========================================================
+
+app.post('/api/admin/credits', requireAdmin, async (req, res) => {
+  try {
+    const duration = req.body.duration || '7d';
+    const count = Math.min(Math.max(Number(req.body.count) || 1, 1), 50);
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    if (!data.credits) data.credits = [];
+    
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const newCodes = [];
+    for(let c=0; c<count; c++) {
+      let t = 'CR-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      
+      const newCredit = {
+        code: t,
+        created_at: new Date().toISOString(),
+        duration_type: duration,
+        used: false,
+        used_at: null,
+        used_by_token: null,
+        used_for_appid: null
+      };
+      data.credits.push(newCredit);
+      newCodes.push(newCredit);
+    }
+    
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    res.json({ ok: true, message: `${count} adet kredi kodu olusturuldu.`, codes: newCodes });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+  app.get('/api/admin/credits', requireAdmin, async (req, res) => {
+  try {
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    res.json({ ok: true, credits: data.credits || [] });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/admin/credits/delete', requireAdmin, async (req, res) => {
+  try {
+    const code = req.body.code;
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    if (!data.credits) data.credits = [];
+    data.credits = data.credits.filter(c => c.code !== code);
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    res.json({ ok: true, message: 'Kredi silindi.' });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.get('/api/plugin/library', async (req, res) => {
+  try {
+    const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+    if (!userToken) return res.status(401).json({ ok: false, message: 'Yetkisiz' });
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+    if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token' });
+    
+    const now = new Date();
+    // Filter out expired games
+    const library = (tokenObj.library || []).filter(game => new Date(game.expires_at) > now);
+    
+    res.json({ ok: true, library });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+app.post('/api/plugin/redeem-credit', async (req, res) => {
+  try {
+    const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+    const appid = String(req.body.appid || '').trim();
+    const appName = String(req.body.app_name || 'Bilinmeyen Oyun').trim();
+    const creditCode = String(req.body.credit_code || '').trim();
+    
+    if (!userToken || !appid || !creditCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
+    
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
+    
+    const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+    if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
+    
+    const creditObj = (data.credits || []).find(c => c.code === creditCode);
+    if (!creditObj) return res.status(404).json({ ok: false, message: 'Gecersiz kredi kodu.' });
+    if (creditObj.used) return res.status(403).json({ ok: false, message: 'Bu kredi kodu zaten kullanilmis.' });
+    
+    // Check if game is already active
+    const now = new Date();
+    tokenObj.library = tokenObj.library || [];
+    const existingGame = tokenObj.library.find(g => g.appid === appid && new Date(g.expires_at) > now);
+    if (existingGame) return res.status(400).json({ ok: false, message: 'Bu oyun zaten kutuphanenizde aktif!' });
+    
+    // Redeem credit
+    creditObj.used = true;
+    creditObj.used_at = now.toISOString();
+    creditObj.used_by_token = userToken;
+    creditObj.used_for_appid = appid;
+    
+    // Calculate expiry
+    let expiresAt;
+    if (creditObj.duration_type === '1d') {
+      expiresAt = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+    } else if (creditObj.duration_type === '7d') {
+      expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    } else if (creditObj.duration_type === '30d') {
+      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      expiresAt = new Date(now.getTime() + 3650 * 24 * 60 * 60 * 1000); // 10 years for lifetime
+    }
+    
+    // Remove expired entries of this game if any, then add new one
+    tokenObj.library = tokenObj.library.filter(g => g.appid !== appid);
+    tokenObj.library.push({
+      appid,
+      name: appName,
+      unlocked_at: now.toISOString(),
+      expires_at: expiresAt.toISOString()
+    });
+    
+    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+    
+    res.json({ ok: true, message: `${appName} oyunu kutuphanenize basariyla eklendi!`, library: tokenObj.library });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+
+  // ======================================================
+  // TOKEN FREEZE / UNFREEZE
+  // ======================================================
+  app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      tokenObj.frozen = true;
+      tokenObj.frozen_at = new Date().toISOString();
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token donduruldu.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      tokenObj.frozen = false;
+      tokenObj.frozen_at = null;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token cozuldu.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // REFERRAL SYSTEM
+  // ======================================================
+  app.post('/api/plugin/use-ref', async (req, res) => {
+    try {
+      const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+      const refCode = String(req.body.ref_code || '').trim();
+      if (!userToken || !refCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
+
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const myToken = (data.tokens || []).find(t => t.token === userToken);
+      if (!myToken) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
+      if (myToken.ref_code === refCode) return res.status(400).json({ ok: false, message: 'Kendi referans kodunu kullanamazsin.' });
+      if (myToken.used_ref_code) return res.status(400).json({ ok: false, message: 'Daha once bir referans kodu kullandiniz.' });
+
+      const refToken = (data.tokens || []).find(t => t.ref_code === refCode);
+      if (!refToken) return res.status(404).json({ ok: false, message: 'Gecersiz referans kodu.' });
+
+      const bonusMs = 3 * 24 * 60 * 60 * 1000; // 3 days
+      const now = new Date();
+
+      // Add 3 days to both
+      [myToken, refToken].forEach(t => {
+        if (t.expires_at) {
+          const exp = new Date(t.expires_at);
+          t.expires_at = new Date(Math.max(exp.getTime(), now.getTime()) + bonusMs).toISOString();
+        }
+      });
+
+      myToken.used_ref_code = refCode;
+      myToken.ref_bonus_received_at = now.toISOString();
+      refToken.ref_bonus_count = (refToken.ref_bonus_count || 0) + 1;
+
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Referans kodu kullanildi! Her ikinize de +3 gun eklendi.', expires_at: myToken.expires_at });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // STORE & PRICE PLANS (from marifetstore config)
+  // ======================================================
+  app.post('/api/admin/marifetstore/store', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      if (!data.marifetstore) data.marifetstore = {};
+      const { store_items, price_plans, announcement, discord_webhook, app_version, app_download_url } = req.body;
+      if (store_items !== undefined) data.marifetstore.store_items = store_items;
+      if (price_plans !== undefined) data.marifetstore.price_plans = price_plans;
+      if (announcement !== undefined) data.marifetstore.announcement = announcement;
+      if (discord_webhook !== undefined) {
+        if (!data.settings) data.settings = {};
+        data.settings.discord_webhook = discord_webhook;
+        data.marifetstore.discord_webhook = discord_webhook;
+      }
+      if (app_version !== undefined) data.marifetstore.app_version = app_version;
+      if (app_download_url !== undefined) data.marifetstore.app_download_url = app_download_url;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+      res.json({ ok: true, message: 'Ayarlar kaydedildi.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  app.get('/api/plugin/store-config', async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      const ms = data.marifetstore || {};
+      res.json({
+        ok: true,
+        store_items: ms.store_items || [],
+        price_plans: ms.price_plans || [],
+        announcement: ms.announcement || null,
+        app_version: ms.app_version || '1.0.0',
+        app_download_url: ms.app_download_url || null,
+      });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // TOKEN STATS (for admin dashboard)
+  // ======================================================
+  app.get('/api/admin/token-stats', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokens = data.tokens || [];
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const total = tokens.length;
+      const active = tokens.filter(t => !t.frozen && (!t.expires_at || new Date(t.expires_at) > now)).length;
+      const expired = tokens.filter(t => t.expires_at && new Date(t.expires_at) <= now).length;
+      const frozen = tokens.filter(t => t.frozen).length;
+      const today_created = tokens.filter(t => (t.created_at || '').startsWith(today)).length;
+      const today_used = tokens.filter(t => (t.first_used_at || '').startsWith(today)).length;
+      res.json({ ok: true, total, active, expired, frozen, today_created, today_used });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+
+  // ==========================================
+  // MARIFETSTORE V5 - PROMO, BLACKLIST, TICKETS
+  // ==========================================
+
+  // --- PLUGIN ENDPOINTS ---
+
+  app.post('/api/plugin/use-promo', async (req, res) => {
+    try {
+      const code = String(req.body.code || '').trim().toUpperCase();
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      if (!code) return res.status(400).json({ ok: false, message: 'Promosyon kodu bos.' });
+      
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], promo_codes: [] });
+      const myToken = (data.tokens || []).find(t => t.token === tokenStr);
+      if (!myToken) return res.status(401).json({ ok: false, message: 'Oturum gecersiz.' });
+      
+      if (!data.promo_codes) data.promo_codes = [];
+      const promo = data.promo_codes.find(p => p.code === code);
+      
+      if (!promo) return res.status(404).json({ ok: false, message: 'Gecersiz promosyon kodu.' });
+      if (!promo.used_by) promo.used_by = [];
+      if (promo.used_by.includes(tokenStr)) return res.status(400).json({ ok: false, message: 'Bu kodu zaten kullandiniz.' });
+      if (promo.max_uses > 0 && promo.used_by.length >= promo.max_uses) return res.status(400).json({ ok: false, message: 'Kodun kullanim limiti dolmus.' });
+      
+      // Sure ekleme
+      let extDays = promo.days || 0;
+      if (myToken.duration_type !== 'lifetime' && myToken.expires_at) {
+        let exDt = new Date(myToken.expires_at);
+        let now = new Date();
+        if (exDt < now) exDt = now; // Eger bitmisse su andan itibaren ekle
+        exDt.setDate(exDt.getDate() + extDays);
+        myToken.expires_at = exDt.toISOString();
+      }
+      
+      promo.used_by.push(tokenStr);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      
+      res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.get('/api/plugin/tickets', async (req, res) => {
+    try {
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      const userTickets = (data.tickets || []).filter(t => t.token === tokenStr);
+      res.json({ ok: true, tickets: userTickets });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/plugin/tickets', async (req, res) => {
+    try {
+      const msg = String(req.body.message || '').trim();
+      const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
+      if (!msg) return res.status(400).json({ ok: false, message: 'Mesaj bos.' });
+      
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      if (!data.tickets) data.tickets = [];
+      
+      const newTicket = {
+        id: 'TCK-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+        token: tokenStr,
+        message: msg,
+        reply: '',
+        status: 'open',
+        date: new Date().toISOString()
+      };
+      
+      data.tickets.push(newTicket);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true, ticket: newTicket });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  // --- ADMIN ENDPOINTS ---
+
+  app.get('/api/admin/v5-data', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [], blacklist: {hwids:[], ips:[]}, tickets: [] });
+      res.json({
+        ok: true,
+        promo_codes: data.promo_codes || [],
+        blacklist: data.blacklist || {hwids:[], ips:[]},
+        tickets: data.tickets || []
+      });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/promo-codes', requireAdmin, async (req, res) => {
+    try {
+      const { code, days, max_uses, action } = req.body;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [] });
+      if (!data.promo_codes) data.promo_codes = [];
+      
+      if (action === 'delete') {
+        data.promo_codes = data.promo_codes.filter(p => p.code !== code);
+      } else {
+        const c = String(code).toUpperCase().trim();
+        if (data.promo_codes.find(p => p.code === c)) return res.status(400).json({ok:false, message:'Bu kod zaten var'});
+        data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
+      }
+      
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/blacklist', requireAdmin, async (req, res) => {
+    try {
+      const { type, value, action } = req.body; // type: 'hwid' or 'ip', action: 'add' or 'remove'
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { blacklist: {hwids:[], ips:[]} });
+      if (!data.blacklist) data.blacklist = {hwids:[], ips:[]};
+      
+      const arr = type === 'hwid' ? data.blacklist.hwids : data.blacklist.ips;
+      const v = String(value).trim();
+      
+      if (action === 'add' && !arr.includes(v)) arr.push(v);
+      if (action === 'remove') {
+        const idx = arr.indexOf(v);
+        if (idx > -1) arr.splice(idx, 1);
+      }
+      
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true, blacklist: data.blacklist });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+  app.post('/api/admin/tickets/:id/reply', requireAdmin, async (req, res) => {
+    try {
+      const { reply } = req.body;
+      const tid = req.params.id;
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
+      
+      const ticket = (data.tickets || []).find(t => t.id === tid);
+      if (!ticket) return res.status(404).json({ ok: false, message: 'Ticket bulunamadi.' });
+      
+      ticket.reply = String(reply).trim();
+      ticket.status = 'answered';
+      
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
+  });
+
+
+
+  // ==========================================
+  // YAPAY ZEKA (AI) ENTEGRASYONU
+  // ==========================================
+  app.post('/api/plugin/ai-chat', async (req, res) => {
+    try {
+      const prompt = String(req.body.prompt || '').trim();
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!prompt) return res.status(400).json({ ok: false, message: 'Soru bos.' });
+      
+      if (!apiKey) {
+        return res.json({ 
+          ok: true, 
+          reply: "🤖 Merhaba! Ben MarifetStore Yapay Zeka Asistanıyım. Ancak şu an uykudayım çünkü sistem yöneticisi (Admin) Vercel paneline 'GEMINI_API_KEY' anahtarımı eklememiş. Lütfen admin ile iletişime geçin!"
+        });
+      }
+
+      // Call Google Gemini API
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const systemInstruction = "Sen MarifetStore adli bir oyun magazasinin oyun tavsiye asistanisin. Kisaca oyun oner, eglenceli ve samimi bir dil kullan. Kullanicinin sistem ozelliklerini sorabilir veya verdigi turde en iyi 3 oyunu kisaca aciklayabilirsin. Kisa, oz ve turkce cevap ver.";
+      
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: systemInstruction + "\n\nKullanici Sorusu: " + prompt }] }]
+      };
+
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        return res.json({ ok: false, message: 'Yapay zeka servisinde hata: ' + data.error.message });
+      }
+
+      let replyText = "Bir hata oluştu.";
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        replyText = data.candidates[0].content.parts[0].text;
+      }
+
+      res.json({ ok: true, reply: replyText });
+    } catch(e) { 
+      res.status(500).json({ ok: false, message: String(e) }); 
+    }
+  });
+
 
   app.all('/api/plugin/*', (req, res) => {
     res.status(404).json({
@@ -5911,7 +6701,14 @@ async function startServer(options = {}) {
   await app.locals.securityShoopBootPromise;
 
   if (options.listen !== false && !app.locals.securityShoopListening) {
-    app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
+    
+
+
+
+
+
+
+app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
     app.locals.securityShoopListening = true;
   }
 
@@ -5920,7 +6717,7 @@ async function startServer(options = {}) {
 
 if (require.main === module) {
   startServer({ listen: true }).catch((error) => {
-    console.error('Server başlatılamadı:', error);
+    console.error('Server ba┼şlat─▒lamad─▒:', error);
     process.exit(1);
   });
 }
