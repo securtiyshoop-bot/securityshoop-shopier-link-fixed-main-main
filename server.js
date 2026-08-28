@@ -30,7 +30,7 @@ const cloudCache = new Map();
 
 function fetchCloudJson(id, fallback) {
   return new Promise((resolve) => {
-    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 9000 }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -47,8 +47,15 @@ function fetchCloudJson(id, fallback) {
         }
       });
     });
-    req.on('error', () => resolve(cloudCache.get(id) || fallback));
-    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
+    req.on('error', (err) => {
+      console.error(`fetchCloudJson (${id}) error:`, err.message);
+      resolve(cloudCache.get(id) || fallback);
+    });
+    req.on('timeout', () => {
+      console.error(`fetchCloudJson (${id}) timeout`);
+      req.destroy();
+      resolve(cloudCache.get(id) || fallback);
+    });
   });
 }
 
@@ -62,12 +69,24 @@ function saveCloudJson(id, name, data) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 4000
+      timeout: 9000
     }, (res) => {
-      resolve(res.statusCode === 200);
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        const ok = res.statusCode >= 200 && res.statusCode < 300;
+        resolve(ok);
+      });
     });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.on('error', (err) => {
+      console.error(`saveCloudJson (${id}) error:`, err.message);
+      resolve(false);
+    });
+    req.on('timeout', () => {
+      console.error(`saveCloudJson (${id}) timeout`);
+      req.destroy();
+      resolve(false);
+    });
     req.write(payload);
     req.end();
   });
@@ -6086,7 +6105,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
 
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+      const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
 
       // Blacklist Check
       const blacklist = data.blacklist || { hwids: [], ips: [] };
@@ -6282,7 +6301,7 @@ app.get('/api/plugin/library', async (req, res) => {
     if (!userToken) return res.status(401).json({ ok: false, message: 'Yetkisiz' });
     
     const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
-    const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+    const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
     if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token' });
     
     const now = new Date();
@@ -6306,7 +6325,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     
     const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], credits: [] });
     
-    const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+    const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
     if (!tokenObj) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
     
     const creditObj = (data.credits || []).find(c => c.code === creditCode);
