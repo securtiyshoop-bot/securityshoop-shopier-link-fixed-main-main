@@ -54,9 +54,83 @@ function cloudRequest(method, id, payload, timeout = 7000) {
   });
 }
 
+async function cloudCollectionRequest(method, payload = null, timeout = 9000) {
+  return new Promise((resolve) => {
+    const body = payload == null ? null : JSON.stringify(payload);
+    const req = https.request('https://api.restful-api.dev/objects', {
+      method,
+      headers: body ? {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      } : {},
+      timeout
+    }, (res) => {
+      let responseBody = '';
+      res.on('data', chunk => responseBody += chunk);
+      res.on('end', () => {
+        let parsed = null;
+        try { parsed = responseBody ? JSON.parse(responseBody) : null; } catch {}
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode || 0,
+          body: parsed,
+          raw: responseBody.slice(0, 2000)
+        });
+      });
+    });
+    req.on('error', error => resolve({ ok: false, status: 0, error: error.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 0, error: 'timeout' }); });
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+const TOKEN_COLLECTION_NAME = 'securityshoop_tokens_v1';
+let tokenCollectionId = null;
+
+async function getTokenCollectionId() {
+  if (tokenCollectionId) return tokenCollectionId;
+  const result = await cloudCollectionRequest('GET', null, 9000);
+  if (result.ok && Array.isArray(result.body)) {
+    const found = result.body.find(item => String(item?.name || '') === TOKEN_COLLECTION_NAME);
+    if (found?.id != null) {
+      tokenCollectionId = String(found.id);
+      return tokenCollectionId;
+    }
+  }
+  return null;
+}
+
+async function readTokenCollection(fallback = { tokens: [] }) {
+  const id = await getTokenCollectionId();
+  if (!id) return fallback;
+  const result = await cloudRequest('GET', id, null, 9000);
+  if (result.ok && result.body?.data) {
+    return result.body.data;
+  }
+  tokenCollectionId = null;
+  return fallback;
+}
+
+async function writeTokenCollection(data) {
+  let id = await getTokenCollectionId();
+  const payload = { name: TOKEN_COLLECTION_NAME, data };
+
+  if (id) {
+    const updated = await cloudRequest('PUT', id, payload, 9000);
+    if (updated.ok) return true;
+    tokenCollectionId = null;
+  }
+
+  const created = await cloudCollectionRequest('POST', payload, 9000);
+  if (created.ok && created.body?.id != null) {
+    tokenCollectionId = String(created.body.id);
+    return true;
+  }
+  return false;
+}
+
 async function fetchCloudJson(id, fallback) {
-  // License tokens use the application's configured MySQL database when available.
-  // The previous demo REST object is not a reliable persistence layer on Vercel.
   if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
     try {
       const [rows] = await pool.query('SELECT data FROM securityshoop_token_store WHERE id = 1 LIMIT 1');
@@ -70,14 +144,20 @@ async function fetchCloudJson(id, fallback) {
     }
   }
 
+  if (id === CLOUD_STORAGE_IDS.tokens) {
+    const collectionData = await readTokenCollection(null);
+    if (collectionData && Array.isArray(collectionData.tokens)) {
+      cloudCache.set(id, collectionData);
+      return collectionData;
+    }
+  }
+
   const result = await cloudRequest('GET', id, null, 7000);
   if (result.ok && result.body && result.body.data) {
     cloudCache.set(id, result.body.data);
     return result.body.data;
   }
 
-  // Token storage has a recovery mirror inside the users object.
-  // This keeps license-token persistence alive when the dedicated demo object is unavailable.
   if (id === CLOUD_STORAGE_IDS.tokens && id !== CLOUD_STORAGE_IDS.users) {
     const mirror = await cloudRequest('GET', CLOUD_STORAGE_IDS.users, null, 7000);
     const mirrorData = mirror.ok && mirror.body && mirror.body.data;
@@ -91,8 +171,8 @@ async function fetchCloudJson(id, fallback) {
 }
 
 async function saveCloudJson(id, name, data) {
-  // License-token persistence is handled by MySQL when configured.
-  // This avoids losing generated tokens when the Vercel function is recycled.
+  cloudCache.set(id, data);
+
   if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
     try {
       await pool.query(
@@ -100,20 +180,20 @@ async function saveCloudJson(id, name, data) {
          ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP`,
         [JSON.stringify(data)]
       );
-      cloudCache.set(id, data);
       return true;
     } catch (error) {
       console.error('TOKEN_DB_WRITE_FAILED', error.message);
-      // Fall through to the legacy mirror only if DB persistence failed.
     }
   }
 
-  cloudCache.set(id, data);
+  if (id === CLOUD_STORAGE_IDS.tokens) {
+    if (await writeTokenCollection(data)) return true;
+  }
+
   const payload = { name: `securityshoop_${name}`, data };
-  let result = await cloudRequest('PUT', id, payload, 7000);
+  const result = await cloudRequest('PUT', id, payload, 7000);
   if (result.ok) return true;
 
-  // Some REST demo objects can become unavailable. Token data gets a durable mirror.
   if (id === CLOUD_STORAGE_IDS.tokens && id !== CLOUD_STORAGE_IDS.users) {
     const usersResult = await cloudRequest('GET', CLOUD_STORAGE_IDS.users, null, 7000);
     const usersData = usersResult.ok && usersResult.body && usersResult.body.data
@@ -122,10 +202,7 @@ async function saveCloudJson(id, name, data) {
     usersData.__securityshoop_token_store = data;
     const mirrorPayload = { name: 'securityshoop_users', data: usersData };
     const mirrorSave = await cloudRequest('PUT', CLOUD_STORAGE_IDS.users, mirrorPayload, 7000);
-    if (mirrorSave.ok) {
-      cloudCache.set(id, data);
-      return true;
-    }
+    if (mirrorSave.ok) return true;
   }
 
   console.error('CLOUD_SAVE_FAILED', JSON.stringify({ id, name, status: result.status, error: result.error, response: result.raw }));
