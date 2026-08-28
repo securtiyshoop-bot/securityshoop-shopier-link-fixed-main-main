@@ -6083,12 +6083,34 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
       if (!hwid) return res.status(400).json({ ok: false, message: 'HWID eksik.' });
 
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
+
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => t.token === userToken);
 
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Gecersiz token.' });
 
+      // Frozen (dondurulmus) kontrol
+      if (tokenObj.frozen) {
+        return res.status(403).json({ ok: false, message: 'Hesabiniz dondurulmustur. Lutfen yonetici ile iletisime gecin.' });
+      }
+
       const now = new Date();
+
+      // IP log - her giriste kaydet
+      if (!tokenObj.ip_log) tokenObj.ip_log = [];
+      tokenObj.ip_log.unshift({ ip: clientIp, at: now.toISOString() });
+      if (tokenObj.ip_log.length > 10) tokenObj.ip_log = tokenObj.ip_log.slice(0, 10);
+      tokenObj.last_ip = clientIp;
+      tokenObj.last_login = now.toISOString();
+
+      // Referral kodu yoksa olustur
+      if (!tokenObj.ref_code) {
+        const refChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let rc = 'REF-';
+        for(let i=0;i<6;i++) rc += refChars.charAt(Math.floor(Math.random()*refChars.length));
+        tokenObj.ref_code = rc;
+      }
 
       if (tokenObj.used) {
         // Zaten kullanilmis, HWID kontrol et
@@ -6101,8 +6123,37 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
           return res.status(403).json({ ok: false, message: 'Token suresi dolmus!' });
         }
         
-        // Sorun yok, tekrar girise izin ver
-        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at || null });
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+
+        // Discord webhook bildirimi
+        const webhookData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
+        const webhookUrl = (webhookData.settings || {}).discord_webhook;
+        if (webhookUrl) {
+          try {
+            const durLabel = tokenObj.duration_type === '1d' ? '1 Gunluk' : tokenObj.duration_type === '7d' ? '1 Haftalik' : tokenObj.duration_type === '30d' ? '1 Aylik' : 'Sinirsiz';
+            const expLabel = tokenObj.expires_at ? new Date(tokenObj.expires_at).toLocaleDateString('tr-TR') : 'Sinirsiz';
+            await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                embeds: [{
+                  title: '🔑 Token Girisi',
+                  color: 0x00e676,
+                  fields: [
+                    { name: 'Token', value: '`' + userToken + '`', inline: true },
+                    { name: 'Sure', value: durLabel, inline: true },
+                    { name: 'Bitis', value: expLabel, inline: true },
+                    { name: 'IP', value: clientIp, inline: true },
+                    { name: 'HWID', value: hwid.substring(0, 12) + '...', inline: true },
+                  ],
+                  timestamp: now.toISOString()
+                }]
+              })
+            });
+          } catch(e) { /* webhook hatasi sessizce gec */ }
+        }
+
+        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at || null, ref_code: tokenObj.ref_code });
       }
 
       // Ilk kullanim (Kilitlenme ve Sure Baslatma)
@@ -6121,7 +6172,33 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       }
 
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      res.json({ ok: true, message: 'Cihaz kilitlendi ve giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at });
+
+      // Discord webhook bildirimi
+      try {
+        const webhookData2 = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
+        const webhookUrl2 = (webhookData2.settings || {}).discord_webhook;
+        if (webhookUrl2) {
+          const durLabel2 = tokenObj.duration_type === '1d' ? '1 Gunluk' : tokenObj.duration_type === '7d' ? '1 Haftalik' : tokenObj.duration_type === '30d' ? '1 Aylik' : 'Sinirsiz';
+          await fetch(webhookUrl2, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              embeds: [{
+                title: '🆕 Yeni Token Aktivasyonu',
+                color: 0x00b4d8,
+                fields: [
+                  { name: 'Token', value: '`' + userToken + '`', inline: true },
+                  { name: 'Sure', value: durLabel2, inline: true },
+                  { name: 'IP', value: clientIp, inline: true },
+                ],
+                timestamp: now.toISOString()
+              }]
+            })
+          });
+        }
+      } catch(e) {}
+
+      res.json({ ok: true, message: 'Cihaz kilitlendi ve giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at, ref_code: tokenObj.ref_code });
     } catch (err) {
       console.error('token-login error:', err);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi.' });
@@ -6267,6 +6344,129 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     res.status(500).json({ ok: false, message: err.message });
   }
 });
+
+
+  // ======================================================
+  // TOKEN FREEZE / UNFREEZE
+  // ======================================================
+  app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      tokenObj.frozen = true;
+      tokenObj.frozen_at = new Date().toISOString();
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token donduruldu.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      tokenObj.frozen = false;
+      tokenObj.frozen_at = null;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Token cozuldu.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // REFERRAL SYSTEM
+  // ======================================================
+  app.post('/api/plugin/use-ref', async (req, res) => {
+    try {
+      const userToken = String(req.headers.authorization || '').replace('Bearer ', '').trim();
+      const refCode = String(req.body.ref_code || '').trim();
+      if (!userToken || !refCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
+
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const myToken = (data.tokens || []).find(t => t.token === userToken);
+      if (!myToken) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
+      if (myToken.ref_code === refCode) return res.status(400).json({ ok: false, message: 'Kendi referans kodunu kullanamazsin.' });
+      if (myToken.used_ref_code) return res.status(400).json({ ok: false, message: 'Daha once bir referans kodu kullandiniz.' });
+
+      const refToken = (data.tokens || []).find(t => t.ref_code === refCode);
+      if (!refToken) return res.status(404).json({ ok: false, message: 'Gecersiz referans kodu.' });
+
+      const bonusMs = 3 * 24 * 60 * 60 * 1000; // 3 days
+      const now = new Date();
+
+      // Add 3 days to both
+      [myToken, refToken].forEach(t => {
+        if (t.expires_at) {
+          const exp = new Date(t.expires_at);
+          t.expires_at = new Date(Math.max(exp.getTime(), now.getTime()) + bonusMs).toISOString();
+        }
+      });
+
+      myToken.used_ref_code = refCode;
+      myToken.ref_bonus_received_at = now.toISOString();
+      refToken.ref_bonus_count = (refToken.ref_bonus_count || 0) + 1;
+
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      res.json({ ok: true, message: 'Referans kodu kullanildi! Her ikinize de +3 gun eklendi.', expires_at: myToken.expires_at });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // STORE & PRICE PLANS (from marifetstore config)
+  // ======================================================
+  app.post('/api/admin/marifetstore/store', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      if (!data.marifetstore) data.marifetstore = {};
+      const { store_items, price_plans, announcement, discord_webhook, app_version, app_download_url } = req.body;
+      if (store_items !== undefined) data.marifetstore.store_items = store_items;
+      if (price_plans !== undefined) data.marifetstore.price_plans = price_plans;
+      if (announcement !== undefined) data.marifetstore.announcement = announcement;
+      if (discord_webhook !== undefined) {
+        if (!data.settings) data.settings = {};
+        data.settings.discord_webhook = discord_webhook;
+        data.marifetstore.discord_webhook = discord_webhook;
+      }
+      if (app_version !== undefined) data.marifetstore.app_version = app_version;
+      if (app_download_url !== undefined) data.marifetstore.app_download_url = app_download_url;
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+      res.json({ ok: true, message: 'Ayarlar kaydedildi.' });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  app.get('/api/plugin/store-config', async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      const ms = data.marifetstore || {};
+      res.json({
+        ok: true,
+        store_items: ms.store_items || [],
+        price_plans: ms.price_plans || [],
+        announcement: ms.announcement || null,
+        app_version: ms.app_version || '1.0.0',
+        app_download_url: ms.app_download_url || null,
+      });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
+
+  // ======================================================
+  // TOKEN STATS (for admin dashboard)
+  // ======================================================
+  app.get('/api/admin/token-stats', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokens = data.tokens || [];
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const total = tokens.length;
+      const active = tokens.filter(t => !t.frozen && (!t.expires_at || new Date(t.expires_at) > now)).length;
+      const expired = tokens.filter(t => t.expires_at && new Date(t.expires_at) <= now).length;
+      const frozen = tokens.filter(t => t.frozen).length;
+      const today_created = tokens.filter(t => (t.created_at || '').startsWith(today)).length;
+      const today_used = tokens.filter(t => (t.first_used_at || '').startsWith(today)).length;
+      res.json({ ok: true, total, active, expired, frozen, today_created, today_used });
+    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+  });
 
   app.all('/api/plugin/*', (req, res) => {
     res.status(404).json({

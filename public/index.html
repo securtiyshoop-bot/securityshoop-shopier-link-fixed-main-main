@@ -565,8 +565,9 @@
               <thead>
                 <tr style="border-bottom: 2px solid var(--border)">
                   <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">TOKEN</th>
-                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SÜRE TÜRÜ</th>
-                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">BİTİŞ TARİHİ</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SÜRE / BİTİŞ</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">SON IP</th>
+                  <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">REF KODU</th>
                   <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">DURUM / HWID</th>
                   <th class="px-4 py-3 text-xs font-700" style="color:var(--muted)">İŞLEM</th>
                 </tr>
@@ -621,6 +622,119 @@
         </div>
         <!-- /OYUN KREDILERI -->
 
+
+
+        <!-- TOKEN İSTATİSTİKLERİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #06b6d4; background: rgba(6,182,212,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color: #06b6d4; background: rgba(6,182,212,0.2);">Canlı Veriler</div>
+              <h2 class="syne text-2xl font-800 text-cyan-400">Token İstatistikleri</h2>
+            </div>
+            <button onclick="loadTokenStats()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
+          </div>
+          <div id="tokenStatsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne" id="stat-total">-</div><div class="text-xs mt-1" style="color:var(--muted)">Toplam Token</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-green-400" id="stat-active">-</div><div class="text-xs mt-1" style="color:var(--muted)">Aktif</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-red-400" id="stat-expired">-</div><div class="text-xs mt-1" style="color:var(--muted)">Süresi Dolan</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-blue-400" id="stat-frozen">-</div><div class="text-xs mt-1" style="color:var(--muted)">Dondurulmuş</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-yellow-400" id="stat-today-created">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Oluşturulan</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-purple-400" id="stat-today-used">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Kullanılan</div></div>
+          </div>
+        </div>
+        <!-- /TOKEN İSTATİSTİKLERİ -->
+
+        <!-- DUYURU SİSTEMİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #f59e0b; background: rgba(245,158,11,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#f59e0b;background:rgba(245,158,11,0.2);">Bildirim Sistemi</div>
+              <h2 class="syne text-2xl font-800 text-yellow-400">Duyuru Yönetimi</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">Tüm müşteriler uygulamayı açtığında bu mesajı görür.</p>
+            </div>
+          </div>
+          <div class="grid lg:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-xs font-700 mb-1">Duyuru Başlığı</label>
+              <input type="text" id="annTitle" class="fi2 w-full" placeholder="Örn: Hafta sonu kampanyası!" />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Duyuru Mesajı</label>
+              <input type="text" id="annMessage" class="fi2 w-full" placeholder="Örn: Tüm tokenlerde %50 indirim!" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="saveAnnouncementBtn" class="btn btn-g px-5 py-2">📢 Duyuru Yayınla</button>
+            <button id="clearAnnouncementBtn" class="btn btn-o px-5 py-2">🗑️ Duyuruyu Kaldır</button>
+          </div>
+          <div id="annMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /DUYURU SİSTEMİ -->
+
+        <!-- MAĞAZA YÖNETİMİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #8b5cf6; background: rgba(139,92,246,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#8b5cf6;background:rgba(139,92,246,0.2);">Mağaza Yönetimi</div>
+              <h2 class="syne text-2xl font-800 text-purple-400">Fiyat Planları & Mağaza Ürünleri</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">Masaüstü uygulamasındaki Fiyatlar ve Mağaza sekmelerine buradan içerik ekleyin.</p>
+            </div>
+            <button id="loadStoreConfigBtn" class="btn btn-o px-4 py-2 text-sm">Mevcut Verileri Yükle</button>
+          </div>
+
+          <div class="mb-5">
+            <div class="font-700 mb-2 text-sm text-purple-300">💲 Fiyat Planları (JSON)</div>
+            <p class="text-xs mb-2" style="color:var(--muted)">Örnek: [{"name":"1 Haftalık","price":"₺99","duration":"7d","link":"https://shopier.com/..."}]</p>
+            <textarea id="pricePlansJson" rows="4" class="fi2 w-full font-mono text-xs resize-y" placeholder='[{"name":"1 Haftalık","price":"₺99","duration":"7d","link":"https://shopier.com/xxx"}]'></textarea>
+          </div>
+
+          <div class="mb-5">
+            <div class="font-700 mb-2 text-sm text-purple-300">🎮 Öne Çıkan Mağaza Ürünleri (JSON)</div>
+            <p class="text-xs mb-2" style="color:var(--muted)">Örnek: [{"name":"CS2","appid":"730","img":"https://...","link":"https://shopier.com/..."}]</p>
+            <textarea id="storeItemsJson" rows="4" class="fi2 w-full font-mono text-xs resize-y" placeholder='[{"name":"CS2","appid":"730","img":"https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg","link":"https://shopier.com/xxx"}]'></textarea>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-xs font-700 mb-1">Discord Webhook URL</label>
+              <input type="text" id="discordWebhook" class="fi2 w-full" placeholder="https://discord.com/api/webhooks/..." />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Uygulama Versiyonu</label>
+              <input type="text" id="appVersionInput" class="fi2 w-full" placeholder="1.0.0" />
+            </div>
+            <div class="lg:col-span-2">
+              <label class="block text-xs font-700 mb-1">Güncelleme İndirme Linki (.py veya .exe)</label>
+              <input type="text" id="appDownloadUrl" class="fi2 w-full" placeholder="https://github.com/.../marifet.py" />
+            </div>
+          </div>
+          <button id="saveStoreConfigBtn" class="btn btn-g px-5 py-2">💾 Mağaza & Ayarları Kaydet</button>
+          <div id="storeConfigMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /MAĞAZA YÖNETİMİ -->
+
+        <!-- TOPLU TOKEN OLUŞTURMA -->
+        <div class="admin-shell mb-6" style="border: 1px solid #10b981; background: rgba(16,185,129,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#10b981;background:rgba(16,185,129,0.2);">Toplu Oluşturma</div>
+              <h2 class="syne text-2xl font-800 text-green-400">Toplu Token Oluştur & İndir</h2>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="bulk-token-duration" class="fi2 text-sm">
+              <option value="lifetime">Sınırsız</option>
+              <option value="1d">1 Gün</option>
+              <option value="7d">1 Hafta</option>
+              <option value="30d">1 Ay</option>
+            </select>
+            <input type="number" id="bulk-token-count" min="1" max="100" value="10" class="fi2 text-sm" style="width:80px" />
+            <span class="text-xs" style="color:var(--muted)">adet</span>
+            <button id="bulkGenerateBtn" class="btn btn-g px-5 py-2">⚡ Oluştur ve TXT İndir</button>
+          </div>
+          <div id="bulkMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /TOPLU TOKEN OLUŞTURMA -->
 
         <!-- MARIFETSTORE ADMIN -->
       <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
@@ -2247,37 +2361,80 @@
         if(d.ok && d.tokens) {
           tbody.innerHTML = '';
           if(d.tokens.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
             return;
           }
           [...d.tokens].reverse().forEach(t => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
+            if(t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
             
             let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Boşta</span>';
-            if(t.used_by_hwid) {
-                statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + t.used_by_hwid + '</span>';
-            }
+            if(t.frozen) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900 text-blue-300">❄️ Dondurulmuş</span>';
+            else if(t.used_by_hwid) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + t.used_by_hwid.substring(0,12) + '...</span>';
             
             const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
             const durationName = durMap[t.duration_type] || '1 Hafta';
             
-            let expiryStr = '-';
+            let expiryStr = 'Sınırsız';
             if (t.expires_at) {
                 const exDt = new Date(t.expires_at);
-                if (exDt < new Date()) expiryStr = '<span class="text-red-500">Süresi Bitti</span>';
+                if (exDt < new Date()) expiryStr = '<span class="text-red-400 font-700">Süresi Bitti</span>';
                 else expiryStr = exDt.toLocaleString('tr-TR');
             }
 
+            const lastIp = t.last_ip || '-';
+            const refCode = t.ref_code || '-';
+            const freezeBtn = t.frozen
+              ? `<button onclick="unfreezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Çöz</button>`
+              : `<button onclick="freezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Dondur</button>`;
+
             tr.innerHTML = `
-              <td class="px-4 py-3 font-mono text-sm">${t.token}</td>
-              <td class="px-4 py-3 text-xs text-gray-300">${durationName}</td>
-              <td class="px-4 py-3 text-xs text-gray-400">${expiryStr}</td>
-              <td class="px-4 py-3">${statusHtml}</td>
-              <td class="px-4 py-3"><button onclick="deleteToken('${t.token}')" class="text-xs px-3 py-1.5 rounded-lg font-700 bg-red-900 text-red-300">Sil</button></td>
+              <td class="px-3 py-3 font-mono text-xs">${t.token}</td>
+              <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500">${expiryStr}</span></td>
+              <td class="px-3 py-3 text-xs text-gray-400">${lastIp}</td>
+              <td class="px-3 py-3 text-xs font-mono text-cyan-400">${refCode}</td>
+              <td class="px-3 py-3">${statusHtml}</td>
+              <td class="px-3 py-3 flex gap-1 flex-wrap">
+                ${freezeBtn}
+                <button onclick="deleteToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-red-900 text-red-300">Sil</button>
+              </td>
             `;
             tbody.appendChild(tr);
           });
+        }
+      } catch(e) {}
+    }
+
+    window.freezeToken = async function(token) {
+      if(!confirm('Bu token dondurulsun mu? Kullanıcı giriş yapamaz.')) return;
+      try {
+        const r = await fastFetch('/api/admin/tokens/' + token + '/freeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        await r.json();
+        loadTokens(); loadTokenStats();
+      } catch(e) {}
+    };
+
+    window.unfreezeToken = async function(token) {
+      try {
+        const r = await fastFetch('/api/admin/tokens/' + token + '/unfreeze', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        await r.json();
+        loadTokens(); loadTokenStats();
+      } catch(e) {}
+    };
+
+    async function loadTokenStats() {
+      try {
+        const r = await fastFetch('/api/admin/token-stats');
+        const d = await readJsonSafe(r);
+        if(d.ok) {
+          const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+          set('stat-total', d.total);
+          set('stat-active', d.active);
+          set('stat-expired', d.expired);
+          set('stat-frozen', d.frozen);
+          set('stat-today-created', d.today_created);
+          set('stat-today-used', d.today_used);
         }
       } catch(e) {}
     }
@@ -2313,6 +2470,116 @@
           loadCredits();
       } catch(e) {}
     };
+
+
+    // ======================================================
+    // DUYURU SİSTEMİ
+    // ======================================================
+    document.getElementById('saveAnnouncementBtn')?.addEventListener('click', async () => {
+      const title = document.getElementById('annTitle')?.value?.trim();
+      const message = document.getElementById('annMessage')?.value?.trim();
+      const msg = document.getElementById('annMsg');
+      if(!title || !message) { if(msg) msg.textContent = 'Başlık ve mesaj zorunlu!'; return; }
+      try {
+        const r = await fastFetch('/api/admin/marifetstore/store', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ announcement: { title, message, active: true } })
+        });
+        const d = await r.json();
+        if(msg) msg.textContent = d.ok ? '✅ Duyuru yayınlandı!' : '❌ ' + d.message;
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+    document.getElementById('clearAnnouncementBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('annMsg');
+      try {
+        const r = await fastFetch('/api/admin/marifetstore/store', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ announcement: null })
+        });
+        const d = await r.json();
+        if(msg) msg.textContent = d.ok ? '✅ Duyuru kaldırıldı.' : '❌ ' + d.message;
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+    // ======================================================
+    // MAĞAZA & STORE CONFIG
+    // ======================================================
+    document.getElementById('loadStoreConfigBtn')?.addEventListener('click', async () => {
+      try {
+        const r = await fastFetch('/api/plugin/store-config');
+        const d = await readJsonSafe(r);
+        if(d.ok) {
+          const pp = document.getElementById('pricePlansJson');
+          const si = document.getElementById('storeItemsJson');
+          const dw = document.getElementById('discordWebhook');
+          const av = document.getElementById('appVersionInput');
+          const dl = document.getElementById('appDownloadUrl');
+          if(pp) pp.value = JSON.stringify(d.price_plans || [], null, 2);
+          if(si) si.value = JSON.stringify(d.store_items || [], null, 2);
+          if(dw) dw.value = d.discord_webhook || '';
+          if(av) av.value = d.app_version || '1.0.0';
+          if(dl) dl.value = d.app_download_url || '';
+        }
+      } catch(e) {}
+    });
+
+    document.getElementById('saveStoreConfigBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('storeConfigMsg');
+      try {
+        let price_plans = [], store_items = [];
+        try { price_plans = JSON.parse(document.getElementById('pricePlansJson')?.value || '[]'); } catch(e) { if(msg) msg.textContent = '❌ Fiyat JSON hatalı!'; return; }
+        try { store_items = JSON.parse(document.getElementById('storeItemsJson')?.value || '[]'); } catch(e) { if(msg) msg.textContent = '❌ Mağaza JSON hatalı!'; return; }
+        const r = await fastFetch('/api/admin/marifetstore/store', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            price_plans,
+            store_items,
+            discord_webhook: document.getElementById('discordWebhook')?.value?.trim(),
+            app_version: document.getElementById('appVersionInput')?.value?.trim(),
+            app_download_url: document.getElementById('appDownloadUrl')?.value?.trim()
+          })
+        });
+        const d = await r.json();
+        if(msg) msg.textContent = d.ok ? '✅ Kaydedildi!' : '❌ ' + d.message;
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
+
+    // ======================================================
+    // TOPLU TOKEN OLUŞTURMA
+    // ======================================================
+    document.getElementById('bulkGenerateBtn')?.addEventListener('click', async () => {
+      const msg = document.getElementById('bulkMsg');
+      const count = parseInt(document.getElementById('bulk-token-count')?.value || '10');
+      const dur = document.getElementById('bulk-token-duration')?.value || 'lifetime';
+      if(count < 1 || count > 100) { if(msg) msg.textContent = '1-100 arası giriniz.'; return; }
+      if(msg) msg.textContent = 'Oluşturuluyor...';
+      try {
+        const tokens = [];
+        for(let i = 0; i < count; i++) {
+          const r = await fastFetch('/api/admin/tokens', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ duration: dur })
+          });
+          const d = await r.json();
+          if(d.ok && d.token) tokens.push(d.token.token);
+        }
+        // Download as TXT
+        const blob = new Blob([tokens.join('\n')], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tokens_' + dur + '_' + count + 'adet.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+        if(msg) msg.textContent = '✅ ' + tokens.length + ' token oluşturuldu ve indirildi!';
+        loadTokens(); loadTokenStats();
+      } catch(e) { if(msg) msg.textContent = 'Hata: ' + e; }
+    });
 
     // MARIFETSTORE ADMIN LOGIC
     async function loadMarifetStoreConfig() {
