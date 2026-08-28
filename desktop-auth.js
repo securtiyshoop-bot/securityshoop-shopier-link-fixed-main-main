@@ -419,14 +419,6 @@ function registerRoutes(app, deps) {
           details: `HWID: ${hwid}, device=${payload.deviceName || '-'}`
         }).catch(() => {});
       }
-      if (result.body?.ok && result.body?.key?.role === 'admin' && typeof deps.setAdminCookie === 'function') {
-        deps.setAdminCookie(res, {
-          id: `desktop-key:${result.body.key.id || result.body.key.code}`,
-          username: result.body.key.label || 'desktop-admin',
-          email: result.body.key.code || code,
-          role: 'admin'
-        });
-      }
       res.status(result.status).json(result.body);
     } catch (error) {
       console.error(error);
@@ -500,7 +492,6 @@ function registerRoutes(app, deps) {
       const codes = deps.useDatabase()
         ? await createKeysDb(deps.pool(), payload)
         : createKeysJson(deps.dataFile, payload);
-      if (!codes || !codes.length) return res.status(503).json({ ok: false, message: 'Admin key kaydedilemedi.' });
       if (deps.recordActivityLog) {
         await deps.recordActivityLog({
           user: deps.getAdminUser(req),

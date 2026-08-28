@@ -28,342 +28,49 @@ const CLOUD_STORAGE_IDS = {
 
 const cloudCache = new Map();
 
-function cloudRequest(method, id, payload, timeout = 7000) {
+function fetchCloudJson(id, fallback) {
   return new Promise((resolve) => {
-    const body = payload == null ? null : JSON.stringify(payload);
-    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
-      method,
-      headers: body ? {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
-      } : {},
-      timeout
-    }, (res) => {
-      let responseBody = '';
-      res.on('data', chunk => responseBody += chunk);
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        let parsed = null;
-        try { parsed = responseBody ? JSON.parse(responseBody) : null; } catch {}
-        resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode || 0, body: parsed, raw: responseBody.slice(0, 1000) });
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.data) {
+            cloudCache.set(id, parsed.data);
+            resolve(parsed.data);
+          } else {
+            resolve(cloudCache.get(id) || fallback);
+          }
+        } catch {
+          resolve(cloudCache.get(id) || fallback);
+        }
       });
     });
-    req.on('error', error => resolve({ ok: false, status: 0, error: error.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 0, error: 'timeout' }); });
-    if (body) req.write(body);
-    req.end();
+    req.on('error', () => resolve(cloudCache.get(id) || fallback));
+    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
   });
 }
 
-async function cloudCollectionRequest(method, payload = null, timeout = 9000) {
-  return new Promise((resolve) => {
-    const body = payload == null ? null : JSON.stringify(payload);
-    const req = https.request('https://api.restful-api.dev/objects', {
-      method,
-      headers: body ? {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
-      } : {},
-      timeout
-    }, (res) => {
-      let responseBody = '';
-      res.on('data', chunk => responseBody += chunk);
-      res.on('end', () => {
-        let parsed = null;
-        try { parsed = responseBody ? JSON.parse(responseBody) : null; } catch {}
-        resolve({
-          ok: res.statusCode >= 200 && res.statusCode < 300,
-          status: res.statusCode || 0,
-          body: parsed,
-          raw: responseBody.slice(0, 2000)
-        });
-      });
-    });
-    req.on('error', error => resolve({ ok: false, status: 0, error: error.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: false, status: 0, error: 'timeout' }); });
-    if (body) req.write(body);
-    req.end();
-  });
-}
-
-const TOKEN_COLLECTION_NAME = 'securityshoop_tokens_v1';
-let tokenCollectionId = null;
-
-const TOKEN_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS securityshoop_license_tokens (
-    token VARCHAR(32) PRIMARY KEY,
-    created_at DATETIME NOT NULL,
-    duration_type VARCHAR(16) NOT NULL,
-    expires_at DATETIME NULL,
-    used TINYINT(1) NOT NULL DEFAULT 0,
-    first_used_at DATETIME NULL,
-    used_by_hwid VARCHAR(255) NULL,
-    frozen TINYINT(1) NOT NULL DEFAULT 0,
-    ref_code VARCHAR(40) NULL,
-    last_ip VARCHAR(80) NULL,
-    UNIQUE KEY idx_license_tokens_ref_code (ref_code)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`;
-
-let tokenDbPool = null;
-let tokenDbInitPromise = null;
-
-async function ensureTokenDatabaseReady() {
-  if (useDatabase && pool) {
-    try {
-      await pool.query(TOKEN_TABLE_SQL);
-      return pool;
-    } catch (error) {
-      console.warn('TOKEN_PRIMARY_DB_TABLE_FAILED', error?.message || error);
-    }
-  }
-
-  if (!hasConfiguredDatabase()) return null;
-  if (tokenDbInitPromise) return tokenDbInitPromise;
-
-  tokenDbInitPromise = (async () => {
-    const cfg = { ...dbConfig };
-    const standalone = mysql.createPool({
-      ...cfg,
-      waitForConnections: true,
-      connectionLimit: 4,
-      queueLimit: 0,
-      connectTimeout: DB_CONNECT_TIMEOUT_MS
-    });
-    try {
-      await standalone.query(TOKEN_TABLE_SQL);
-      tokenDbPool = standalone;
-      return standalone;
-    } catch (error) {
-      await standalone.end().catch(() => {});
-      lastDatabaseError = sanitizeDatabaseError(error);
-      console.error('TOKEN_DB_STANDALONE_FAILED', error?.code || error?.message || error);
-      return null;
-    } finally {
-      tokenDbInitPromise = null;
-    }
-  })();
-  return tokenDbInitPromise;
-}
-
-function tokenDbToObject(row) {
-  if (!row) return null;
-  return {
-    token: row.token,
-    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at || ''),
-    duration_type: row.duration_type,
-    expires_at: row.expires_at ? (row.expires_at instanceof Date ? row.expires_at.toISOString() : String(row.expires_at)) : null,
-    used: Boolean(row.used),
-    first_used_at: row.first_used_at ? (row.first_used_at instanceof Date ? row.first_used_at.toISOString() : String(row.first_used_at)) : null,
-    used_by_hwid: row.used_by_hwid || null,
-    frozen: Boolean(row.frozen),
-    ref_code: row.ref_code || null,
-    last_ip: row.last_ip || null
-  };
-}
-
-async function readTokensFromDatabase() {
-  const db = await ensureTokenDatabaseReady();
-  if (!db) return null;
-  const [rows] = await db.query('SELECT token, created_at, duration_type, expires_at, used, first_used_at, used_by_hwid, frozen, ref_code, last_ip FROM securityshoop_license_tokens ORDER BY created_at ASC');
-  return rows.map(tokenDbToObject);
-}
-
-async function insertTokenRows(tokens) {
-  const db = await ensureTokenDatabaseReady();
-  if (!db) return false;
-  if (!Array.isArray(tokens) || !tokens.length) return true;
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-    for (const t of tokens) {
-      await conn.execute(
-        `INSERT INTO securityshoop_license_tokens
-         (token, created_at, duration_type, expires_at, used, first_used_at, used_by_hwid, frozen, ref_code, last_ip)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           duration_type=VALUES(duration_type), expires_at=VALUES(expires_at), used=VALUES(used),
-           first_used_at=VALUES(first_used_at), used_by_hwid=VALUES(used_by_hwid), frozen=VALUES(frozen),
-           ref_code=VALUES(ref_code), last_ip=VALUES(last_ip)`,
-        [
-          t.token,
-          new Date(t.created_at || Date.now()),
-          t.duration_type || 'lifetime',
-          t.expires_at ? new Date(t.expires_at) : null,
-          t.used ? 1 : 0,
-          t.first_used_at ? new Date(t.first_used_at) : null,
-          t.used_by_hwid || null,
-          t.frozen ? 1 : 0,
-          t.ref_code || null,
-          t.last_ip || null
-        ]
-      );
-    }
-    await conn.commit();
-    return true;
-  } catch (error) {
-    await conn.rollback().catch(() => {});
-    console.error('TOKEN_DB_INSERT_FAILED', error?.code || error?.message || error);
-    return false;
-  } finally {
-    conn.release();
-  }
-}
-
-async function replaceTokenRows(tokens) {
-  const db = await ensureTokenDatabaseReady();
-  if (!db) return false;
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-    await conn.query('DELETE FROM securityshoop_license_tokens');
-    if (Array.isArray(tokens) && tokens.length) {
-      for (const t of tokens) {
-        await conn.execute(
-          `INSERT INTO securityshoop_license_tokens
-           (token, created_at, duration_type, expires_at, used, first_used_at, used_by_hwid, frozen, ref_code, last_ip)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            t.token,
-            new Date(t.created_at || Date.now()),
-            t.duration_type || 'lifetime',
-            t.expires_at ? new Date(t.expires_at) : null,
-            t.used ? 1 : 0,
-            t.first_used_at ? new Date(t.first_used_at) : null,
-            t.used_by_hwid || null,
-            t.frozen ? 1 : 0,
-            t.ref_code || null,
-            t.last_ip || null
-          ]
-        );
-      }
-    }
-    await conn.commit();
-    return true;
-  } catch (error) {
-    await conn.rollback().catch(() => {});
-    console.error('TOKEN_DB_REPLACE_FAILED', error?.code || error?.message || error);
-    return false;
-  } finally {
-    conn.release();
-  }
-}
-
-async function getTokenCollectionId() {
-  if (tokenCollectionId) return tokenCollectionId;
-  const result = await cloudCollectionRequest('GET', null, 9000);
-  if (result.ok && Array.isArray(result.body)) {
-    const found = result.body.find(item => String(item?.name || '') === TOKEN_COLLECTION_NAME);
-    if (found?.id != null) {
-      tokenCollectionId = String(found.id);
-      return tokenCollectionId;
-    }
-  }
-  return null;
-}
-
-async function readTokenCollection(fallback = { tokens: [] }) {
-  const id = await getTokenCollectionId();
-  if (!id) return fallback;
-  const result = await cloudRequest('GET', id, null, 9000);
-  if (result.ok && result.body?.data) {
-    return result.body.data;
-  }
-  tokenCollectionId = null;
-  return fallback;
-}
-
-async function writeTokenCollection(data) {
-  let id = await getTokenCollectionId();
-  const payload = { name: TOKEN_COLLECTION_NAME, data };
-
-  if (id) {
-    const updated = await cloudRequest('PUT', id, payload, 9000);
-    if (updated.ok) return true;
-    tokenCollectionId = null;
-  }
-
-  const created = await cloudCollectionRequest('POST', payload, 9000);
-  if (created.ok && created.body?.id != null) {
-    tokenCollectionId = String(created.body.id);
-    return true;
-  }
-  return false;
-}
-
-async function fetchCloudJson(id, fallback) {
-  if (id === CLOUD_STORAGE_IDS.tokens) {
-    try {
-      const rows = await readTokensFromDatabase();
-      if (Array.isArray(rows)) {
-        const parsed = { tokens: rows };
-        cloudCache.set(id, parsed);
-        return parsed;
-      }
-    } catch (error) {
-      console.error('TOKEN_DB_READ_FAILED', error?.code || error?.message || error);
-    }
-  }
-
-  if (id === CLOUD_STORAGE_IDS.tokens) {
-    const collectionData = await readTokenCollection(null);
-    if (collectionData && Array.isArray(collectionData.tokens)) {
-      cloudCache.set(id, collectionData);
-      return collectionData;
-    }
-  }
-
-  const result = await cloudRequest('GET', id, null, 7000);
-  if (result.ok && result.body && result.body.data) {
-    cloudCache.set(id, result.body.data);
-    return result.body.data;
-  }
-
-  if (id === CLOUD_STORAGE_IDS.tokens && id !== CLOUD_STORAGE_IDS.users) {
-    const mirror = await cloudRequest('GET', CLOUD_STORAGE_IDS.users, null, 7000);
-    const mirrorData = mirror.ok && mirror.body && mirror.body.data;
-    if (mirrorData && mirrorData.__securityshoop_token_store) {
-      cloudCache.set(id, mirrorData.__securityshoop_token_store);
-      return mirrorData.__securityshoop_token_store;
-    }
-  }
-
-  return cloudCache.get(id) || fallback;
-}
-
-async function saveCloudJson(id, name, data) {
+function saveCloudJson(id, name, data) {
   cloudCache.set(id, data);
-
-  if (id === CLOUD_STORAGE_IDS.tokens) {
-    try {
-      if (await replaceTokenRows(Array.isArray(data?.tokens) ? data.tokens : [])) {
-        return true;
-      }
-    } catch (error) {
-      console.error('TOKEN_DB_WRITE_FAILED', error?.code || error?.message || error);
-    }
-  }
-
-  if (id === CLOUD_STORAGE_IDS.tokens) {
-    if (await writeTokenCollection(data)) return true;
-  }
-
-  const payload = { name: `securityshoop_${name}`, data };
-  const result = await cloudRequest('PUT', id, payload, 7000);
-  if (result.ok) return true;
-
-  if (id === CLOUD_STORAGE_IDS.tokens && id !== CLOUD_STORAGE_IDS.users) {
-    const usersResult = await cloudRequest('GET', CLOUD_STORAGE_IDS.users, null, 7000);
-    const usersData = usersResult.ok && usersResult.body && usersResult.body.data
-      ? usersResult.body.data
-      : {};
-    usersData.__securityshoop_token_store = data;
-    const mirrorPayload = { name: 'securityshoop_users', data: usersData };
-    const mirrorSave = await cloudRequest('PUT', CLOUD_STORAGE_IDS.users, mirrorPayload, 7000);
-    if (mirrorSave.ok) return true;
-  }
-
-  console.error('CLOUD_SAVE_FAILED', JSON.stringify({ id, name, status: result.status, error: result.error, response: result.raw }));
-  return false;
+  return new Promise((resolve) => {
+    const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
+    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 4000
+    }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.write(payload);
+    req.end();
+  });
 }
 
 
@@ -1440,14 +1147,6 @@ async function initDatabase() {
   try { await pool.query("ALTER TABLE users ADD COLUMN referral_code VARCHAR(40) NULL UNIQUE"); } catch (e) {}
   try { await pool.query("ALTER TABLE users ADD COLUMN referred_by VARCHAR(40) NULL"); } catch (e) {}
   try { await pool.query("UPDATE users SET approval_status = 'approved' WHERE role = 'admin' OR approval_status IS NULL OR approval_status = ''"); } catch (e) {}
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS securityshoop_token_store (
-      id TINYINT UNSIGNED PRIMARY KEY,
-      data LONGTEXT NOT NULL,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS activity_logs (
@@ -5461,7 +5160,6 @@ async function bootSecurityShoopServer(options = {}) {
     getRequestIp,
     recordActivityLog,
     getAdminUser: getRequestUser,
-    setAdminCookie,
     useDatabase: () => useDatabase,
     pool: () => pool,
     dataFile: DESKTOP_AUTH_FILE
@@ -6340,79 +6038,30 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
-  function createLicenseToken(existing) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const used = new Set((existing || []).map((item) => String(item.token || '')));
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      let token = 'MS-';
-      for (let i = 0; i < 4; i += 1) token += chars.charAt(crypto.randomInt(chars.length));
-      token += '-';
-      for (let i = 0; i < 4; i += 1) token += chars.charAt(crypto.randomInt(chars.length));
-      if (!used.has(token)) return token;
-    }
-    throw new Error('Benzersiz token uretilemedi.');
-  }
-
-  function buildLicenseToken(duration, existing) {
-    const allowed = new Set(['1d', '7d', '30d', 'lifetime']);
-    const normalizedDuration = allowed.has(String(duration)) ? String(duration) : 'lifetime';
-    return {
-      token: createLicenseToken(existing),
-      created_at: new Date().toISOString(),
-      duration_type: normalizedDuration,
-      expires_at: null,
-      used: false,
-      first_used_at: null,
-      used_by_hwid: null
-    };
-  }
-
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
+      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      if (!Array.isArray(data.tokens)) data.tokens = [];
-      const newToken = buildLicenseToken(req.body?.duration, data.tokens);
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let t = 'MS-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      const newToken = {
+        token: t,
+        created_at: new Date().toISOString(),
+        duration_type: duration,
+        expires_at: null, // Hesaplanacak (ilk giriste)
+        used: false,
+        first_used_at: null,
+        used_by_hwid: null
+      };
+      if (!data.tokens) data.tokens = [];
       data.tokens.push(newToken);
-      let saved = false;
-      try { saved = await replaceTokenRows(data.tokens); } catch (e) { console.error('TOKEN_CREATE_DB_ERROR', e); }
-      if (!saved) saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      if (!saved) return res.status(503).json({ ok: false, message: 'Token kalici depolama baglantisi kurulamadı. Vercel Environment Variables icindeki DB ayarlarini kontrol edin.', storage: 'unavailable', diagnostics: getDatabaseDebugInfo() });
-      const verify = await readTokensFromDatabase();
-      const persisted = Array.isArray(verify) && verify.some(t => t.token === newToken.token);
-      if (!persisted) return res.status(503).json({ ok: false, message: 'Token kaydedildi dogrulanamadi. Tekrar deneyin.', storage: 'verification_failed' });
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       res.json({ ok: true, token: newToken });
     } catch (err) {
-      console.error('TOKEN_CREATE_ERROR', err);
-      res.status(500).json({ ok: false, message: 'Token olusturulamadi.', error: String(err.message || err) });
-    }
-  });
-
-  app.post('/api/admin/tokens/bulk', requireAdmin, async (req, res) => {
-    try {
-      const count = Math.min(Math.max(Number(req.body?.count) || 1, 1), 1000);
-      const duration = req.body?.duration || 'lifetime';
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      if (!Array.isArray(data.tokens)) data.tokens = [];
-      const created = [];
-      const reserved = data.tokens.slice();
-      for (let i = 0; i < count; i += 1) {
-        const token = buildLicenseToken(duration, reserved);
-        reserved.push(token);
-        created.push(token);
-      }
-      data.tokens.push(...created);
-      let saved = false;
-      try { saved = await replaceTokenRows(data.tokens); } catch (e) { console.error('TOKEN_BULK_DB_ERROR', e); }
-      if (!saved) saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_bulk', data);
-      if (!saved) return res.status(503).json({ ok: false, message: 'Kalici token depolama baglantisi kurulamadı. Vercel DB ayarlarini kontrol edin.', storage: 'unavailable', diagnostics: getDatabaseDebugInfo() });
-      const verify = await readTokensFromDatabase();
-      const persistedSet = new Set((verify || []).map(t => t.token));
-      const verifiedCreated = created.filter(t => persistedSet.has(t.token));
-      if (verifiedCreated.length !== created.length) return res.status(503).json({ ok: false, message: 'Toplu tokenlarin bir kismi kayit dogrulamasindan gecemedi.', stored: verifiedCreated.length, requested: created.length });
-      res.json({ ok: true, count: created.length, tokens: created, message: `${created.length} token olusturuldu.` });
-    } catch (err) {
-      console.error('TOKEN_BULK_CREATE_ERROR', err);
-      res.status(500).json({ ok: false, message: 'Toplu tokenlar olusturulamadi.', error: String(err.message || err) });
+      res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
     }
   });
 
