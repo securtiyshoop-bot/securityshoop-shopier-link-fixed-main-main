@@ -30,57 +30,57 @@ const cloudCache = new Map();
 
 function fetchCloudJson(id, fallback) {
   return new Promise((resolve) => {
-    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 6000 }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
-          if (parsed && parsed.data) {
+          if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.data) {
             cloudCache.set(id, parsed.data);
-            resolve(parsed.data);
-          } else {
-            resolve(cloudCache.get(id) || fallback);
+            return resolve(parsed.data);
           }
+          // Do not silently return stale data for persistent records.
+          return resolve(fallback);
         } catch {
-          resolve(cloudCache.get(id) || fallback);
+          return resolve(fallback);
         }
       });
     });
-    req.on('error', () => resolve(cloudCache.get(id) || fallback));
-    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
+    req.on('error', () => resolve(fallback));
+    req.on('timeout', () => { req.destroy(); resolve(fallback); });
   });
 }
 
 function saveCloudJson(id, name, data) {
-  // Backward-compatible argument normalization. Some legacy V5 call-sites
-  // accidentally used saveCloudJson(name, data, id). Preserve those flows.
-  if (id && typeof id === 'string' && name && typeof name === 'object' && typeof data === 'string') {
-    const legacyName = id;
-    id = data;
-    data = name;
-    name = legacyName;
-  }
-
-  const storageId = String(id || '').trim();
-  if (!storageId || !data || typeof data !== 'object') return Promise.resolve(false);
-
-  cloudCache.set(storageId, data);
   return new Promise((resolve) => {
-    const payload = JSON.stringify({ name: `securityshoop_${String(name || 'data')}`, data });
-    const req = https.request(`https://api.restful-api.dev/objects/${storageId}`, {
+    const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
+    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 5000
+      timeout: 8000
     }, (res) => {
-      // RESTful API variants can answer with any successful 2xx status.
-      resolve(Number(res.statusCode) >= 200 && Number(res.statusCode) < 300);
+      let responseBody = '';
+      res.on('data', chunk => responseBody += chunk);
+      res.on('end', () => {
+        const ok = res.statusCode >= 200 && res.statusCode < 300;
+        if (ok) cloudCache.set(id, data);
+        if (!ok) console.error(`[cloud-storage] PUT ${id} failed: HTTP ${res.statusCode} ${responseBody.slice(0, 300)}`);
+        resolve(ok);
+      });
     });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.on('error', (err) => {
+      console.error(`[cloud-storage] PUT ${id} error: ${err.message}`);
+      resolve(false);
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      console.error(`[cloud-storage] PUT ${id} timeout`);
+      resolve(false);
+    });
     req.write(payload);
     req.end();
   });
@@ -1456,14 +1456,6 @@ async function initDatabase() {
       backup_json LONGTEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_backup_created (created_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS securityshoop_token_store (
-      id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
-      data_json LONGTEXT NOT NULL,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
@@ -6048,133 +6040,58 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 
 
   // ==========================================
-  // PERSISTENT TOKEN STORE
-  // ==========================================
-  async function loadTokenStore() {
-    if (await ensureDatabaseReady(true)) {
-      try {
-        const [rows] = await pool.query('SELECT data_json FROM securityshoop_token_store WHERE id = 1 LIMIT 1');
-        if (rows.length) {
-          const parsed = JSON.parse(rows[0].data_json || '{}');
-          cloudCache.set(CLOUD_STORAGE_IDS.tokens, parsed);
-          return parsed;
-        }
-
-        const cloud = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-        await pool.query(
-          'INSERT INTO securityshoop_token_store (id, data_json) VALUES (1, ?) ON DUPLICATE KEY UPDATE data_json = VALUES(data_json)',
-          [JSON.stringify(cloud || { tokens: [] })]
-        );
-        return cloud || { tokens: [] };
-      } catch (dbError) {
-        console.error('Token DB load failed:', dbError);
-      }
-    }
-
-    return fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-  }
-
-  async function saveTokenStore(data) {
-    const normalized = data && typeof data === 'object' ? data : { tokens: [] };
-    cloudCache.set(CLOUD_STORAGE_IDS.tokens, normalized);
-
-    if (await ensureDatabaseReady(true)) {
-      try {
-        await pool.query(
-          'INSERT INTO securityshoop_token_store (id, data_json) VALUES (1, ?) ON DUPLICATE KEY UPDATE data_json = VALUES(data_json)',
-          [JSON.stringify(normalized)]
-        );
-        return true;
-      } catch (dbError) {
-        console.error('Token DB save failed:', dbError);
-      }
-    }
-
-    return saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', normalized);
-  }
-
-  // ==========================================
   // SINGLE-USE TOKEN SYSTEM
   // ==========================================
   app.get('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const data = await loadTokenStore();
-      const tokens = Array.isArray(data.tokens) ? data.tokens : [];
-      res.json({ ok: true, tokens });
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      if (!data || !Array.isArray(data.tokens)) {
+        return res.status(503).json({ ok: false, message: 'Token depolama servisine erişilemedi.' });
+      }
+      res.json({ ok: true, tokens: data.tokens });
     } catch (err) {
-      console.error('GET /api/admin/tokens:', err);
-      res.status(500).json({ ok: false, message: 'Tokenlar alinamadi: ' + (err?.message || 'bilinmeyen hata') });
+      res.status(500).json({ ok: false, message: 'Tokenlar alinamadi.' });
     }
   });
 
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const duration = ['1d', '7d', '30d', 'lifetime'].includes(req.body?.duration)
-        ? req.body.duration : 'lifetime';
-      const data = await loadTokenStore();
-      if (!Array.isArray(data.tokens)) data.tokens = [];
-
+      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      const randomPart = () => {
-        let part = '';
-        while (part.length < 4) {
-          const bytes = crypto.randomBytes(8);
-          for (const byte of bytes) {
-            part += chars[byte % chars.length];
-            if (part.length === 4) break;
-          }
-        }
-        return part;
-      };
-
-      let t;
-      do {
-        t = `MS-${randomPart()}-${randomPart()}`;
-      } while (data.tokens.some(existing => existing && existing.token === t));
-
+      let t = 'MS-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
       const newToken = {
         token: t,
         created_at: new Date().toISOString(),
         duration_type: duration,
-        expires_at: null,
+        expires_at: null, // Hesaplanacak (ilk giriste)
         used: false,
         first_used_at: null,
-        used_by_hwid: null,
-        frozen: false,
-        frozen_at: null,
-        ip_log: [],
-        last_ip: null,
-        last_login: null,
-        ref_code: null,
-        used_ref_code: null,
-        ref_bonus_count: 0,
-        ref_bonus_received_at: null,
-        library: []
+        used_by_hwid: null
       };
-
+      if (!data.tokens) data.tokens = [];
       data.tokens.push(newToken);
-      const saved = await saveTokenStore(data);
+      const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       if (!saved) {
-        // Do not claim success when the persistent store rejected the write.
-        // cloudCache remains updated only for this warm instance.
         return res.status(503).json({
           ok: false,
-          message: 'Token olusturuldu ancak kalici depolamaya yazilamadi.'
+          message: 'Token oluşturuldu ancak kalıcı depolamaya yazılamadı. Token listeye eklenmedi.'
         });
       }
-
-      res.status(201).json({ ok: true, token: newToken, tokens: data.tokens });
+      res.json({ ok: true, token: newToken });
     } catch (err) {
-      console.error('POST /api/admin/tokens:', err);
-      res.status(500).json({ ok: false, message: 'Token olusturulamadi: ' + (err?.message || 'bilinmeyen hata') });
+      res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
     }
   });
 
   app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
     try {
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       data.tokens = (data.tokens || []).filter(t => t.token !== req.params.token);
-      await saveTokenStore(data);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       res.json({ ok: true, message: 'Token silindi.' });
     } catch (err) {
       res.status(500).json({ ok: false, message: 'Token silinemedi.' });
@@ -6190,7 +6107,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 
       const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
 
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => t.token === userToken);
 
       // Blacklist Check
@@ -6237,7 +6154,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
           return res.status(403).json({ ok: false, message: 'Token suresi dolmus!' });
         }
         
-        await saveTokenStore(data);
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
         // Discord webhook bildirimi
         const webhookData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
@@ -6285,7 +6202,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         tokenObj.expires_at = null; // lifetime
       }
 
-      await saveTokenStore(data);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
       // Discord webhook bildirimi
       try {
@@ -6465,24 +6382,24 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // ======================================================
   app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
     try {
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       tokenObj.frozen = true;
       tokenObj.frozen_at = new Date().toISOString();
-      await saveTokenStore(data);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       res.json({ ok: true, message: 'Token donduruldu.' });
     } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
   });
 
   app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
     try {
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       tokenObj.frozen = false;
       tokenObj.frozen_at = null;
-      await saveTokenStore(data);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       res.json({ ok: true, message: 'Token cozuldu.' });
     } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
   });
@@ -6496,7 +6413,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       const refCode = String(req.body.ref_code || '').trim();
       if (!userToken || !refCode) return res.status(400).json({ ok: false, message: 'Eksik bilgi.' });
 
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const myToken = (data.tokens || []).find(t => t.token === userToken);
       if (!myToken) return res.status(401).json({ ok: false, message: 'Gecersiz token.' });
       if (myToken.ref_code === refCode) return res.status(400).json({ ok: false, message: 'Kendi referans kodunu kullanamazsin.' });
@@ -6520,7 +6437,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       myToken.ref_bonus_received_at = now.toISOString();
       refToken.ref_bonus_count = (refToken.ref_bonus_count || 0) + 1;
 
-      await saveTokenStore(data);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       res.json({ ok: true, message: 'Referans kodu kullanildi! Her ikinize de +3 gun eklendi.', expires_at: myToken.expires_at });
     } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
   });
@@ -6568,7 +6485,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // ======================================================
   app.get('/api/admin/token-stats', requireAdmin, async (req, res) => {
     try {
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokens = data.tokens || [];
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
@@ -6595,7 +6512,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
       if (!code) return res.status(400).json({ ok: false, message: 'Promosyon kodu bos.' });
       
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], promo_codes: [] });
       const myToken = (data.tokens || []).find(t => t.token === tokenStr);
       if (!myToken) return res.status(401).json({ ok: false, message: 'Oturum gecersiz.' });
       
@@ -6618,7 +6535,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       }
       
       promo.used_by.push(tokenStr);
-      await saveTokenStore(data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       
       res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
@@ -6627,7 +6544,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   app.get('/api/plugin/tickets', async (req, res) => {
     try {
       const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
       const userTickets = (data.tickets || []).filter(t => t.token === tokenStr);
       res.json({ ok: true, tickets: userTickets });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
@@ -6639,7 +6556,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       const tokenStr = (req.headers.authorization || '').replace('Bearer ', '').trim();
       if (!msg) return res.status(400).json({ ok: false, message: 'Mesaj bos.' });
       
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
       if (!data.tickets) data.tickets = [];
       
       const newTicket = {
@@ -6652,7 +6569,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       };
       
       data.tickets.push(newTicket);
-      await saveTokenStore(data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true, ticket: newTicket });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6661,7 +6578,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
 
   app.get('/api/admin/v5-data', requireAdmin, async (req, res) => {
     try {
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { promo_codes: [], blacklist: {hwids:[], ips:[]}, tickets: [] });
       res.json({
         ok: true,
         promo_codes: data.promo_codes || [],
@@ -6685,7 +6602,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
       }
       
-      await saveTokenStore(data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6705,7 +6622,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         if (idx > -1) arr.splice(idx, 1);
       }
       
-      await saveTokenStore(data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true, blacklist: data.blacklist });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6714,7 +6631,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     try {
       const { reply } = req.body;
       const tid = req.params.id;
-      const data = await loadTokenStore();
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tickets: [] });
       
       const ticket = (data.tickets || []).find(t => t.id === tid);
       if (!ticket) return res.status(404).json({ ok: false, message: 'Ticket bulunamadi.' });
@@ -6722,7 +6639,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       ticket.reply = String(reply).trim();
       ticket.status = 'answered';
       
-      await saveTokenStore(data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });

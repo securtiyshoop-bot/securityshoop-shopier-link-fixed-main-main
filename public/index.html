@@ -2414,7 +2414,7 @@
         const r = await fastFetch('/api/admin/tokens');
         const d = await readJsonSafe(r);
         const tbody = document.getElementById('tokensTableBody');
-        if(d.ok && d.tokens) {
+        if(d.ok && Array.isArray(d.tokens)) {
           tbody.innerHTML = '';
           if(d.tokens.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
@@ -2459,7 +2459,9 @@
             tbody.appendChild(tr);
           });
         }
-      } catch(e) {}
+      } catch(e) {
+        if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">Token verileri alınamadı. Lütfen Yenile ile tekrar deneyin.</td></tr>';
+      }
     }
 
     window.freezeToken = async function(token) {
@@ -2506,7 +2508,8 @@
         const d = await r.json();
         if(d.ok) {
           alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
-          loadTokens();
+          await loadTokens();
+          await loadTokenStats();
           loadCredits();
         } else {
           alert('Hata: ' + d.message);

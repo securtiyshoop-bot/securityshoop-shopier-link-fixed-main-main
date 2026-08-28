@@ -32,5 +32,3 @@ SecurityShoop online Python key kurulumu
    %APPDATA%\SecurityShoopOnlineAuth\auth.json
 
    Bu dosyada ham key saklanmaz; sadece site oturum tokeni tutulur.
-
-7. Tek kullanimlik token sistemi MySQL icindeki securityshoop_token_store tablosunu otomatik olusturur. Tokenlar artik uygulama instance'i yeniden baslasa da veritabaninda kalir. DB_* degiskenleri dogru degilse sistem eski bulut depolama geri donus yolunu kullanir.
