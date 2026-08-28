@@ -29,170 +29,49 @@ const CLOUD_STORAGE_IDS = {
 const cloudCache = new Map();
 
 function fetchCloudJson(id, fallback) {
-  // Token verileri için Vercel üzerinde kalıcı MySQL kullan.
-  // restful-api.dev yalnızca eski kurulumlar için yedek olarak bırakılır.
-  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
-    return pool.query('SELECT data FROM securityshoop_token_store WHERE id = 1 LIMIT 1')
-      .then(([rows]) => {
-        if (rows.length && rows[0].data) {
-          const parsed = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
-          cloudCache.set(CLOUD_STORAGE_IDS.tokens, parsed);
-          return parsed;
-        }
-        return new Promise((resolve) => {
-          const requestObject = (objectId) => {
-            const req = https.get(`https://api.restful-api.dev/objects/${objectId}`, { timeout: 6000 }, (res) => {
-              let body = '';
-              res.on('data', chunk => body += chunk);
-              res.on('end', async () => {
-                try {
-                  const parsed = JSON.parse(body);
-                  if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.data) {
-                    await pool.query('INSERT INTO securityshoop_token_store (id, data, updated_at) VALUES (1, ?, NOW()) ON DUPLICATE KEY UPDATE data=VALUES(data), updated_at=NOW()', [JSON.stringify(parsed.data)]);
-                    cloudCache.set(CLOUD_STORAGE_IDS.tokens, parsed.data);
-                    return resolve(parsed.data);
-                  }
-                } catch {}
-                resolve(fallback);
-              });
-            });
-            req.on('error', () => resolve(fallback));
-            req.on('timeout', () => { req.destroy(); resolve(fallback); });
-          };
-          requestObject(CLOUD_STORAGE_IDS.tokens);
-        });
-      })
-      .catch(() => fallback);
-  }
   return new Promise((resolve) => {
-    const requestObject = (objectId) => {
-      const req = https.get(`https://api.restful-api.dev/objects/${objectId}`, { timeout: 6000 }, (res) => {
-        let body = '';
-        res.on('data', chunk => body += chunk);
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(body);
-            if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.data) {
-              cloudCache.set(CLOUD_STORAGE_IDS.tokens === objectId ? CLOUD_STORAGE_IDS.tokens : id, parsed.data);
-              return resolve(parsed.data);
-            }
-          } catch {}
-          if (id === CLOUD_STORAGE_IDS.tokens) return findTokenObject(resolve, fallback);
-          return resolve(fallback);
-        });
-      });
-      req.on('error', () => {
-        if (id === CLOUD_STORAGE_IDS.tokens) return findTokenObject(resolve, fallback);
-        resolve(fallback);
-      });
-      req.on('timeout', () => {
-        req.destroy();
-        if (id === CLOUD_STORAGE_IDS.tokens) return findTokenObject(resolve, fallback);
-        resolve(fallback);
-      });
-    };
-    requestObject(id);
-  });
-}
-
-function findTokenObject(resolve, fallback) {
-  const req = https.get('https://api.restful-api.dev/objects', { timeout: 8000 }, (res) => {
-    let body = '';
-    res.on('data', chunk => body += chunk);
-    res.on('end', () => {
-      try {
-        const list = JSON.parse(body);
-        const found = Array.isArray(list) ? list.find(o => o && o.name === 'securityshoop_tokens') : null;
-        if (found && found.id && found.data) {
-          CLOUD_STORAGE_IDS.tokens = String(found.id);
-          cloudCache.set(CLOUD_STORAGE_IDS.tokens, found.data);
-          return resolve(found.data);
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 3500 }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed.data) {
+            cloudCache.set(id, parsed.data);
+            resolve(parsed.data);
+          } else {
+            resolve(cloudCache.get(id) || fallback);
+          }
+        } catch {
+          resolve(cloudCache.get(id) || fallback);
         }
-      } catch {}
-      resolve(fallback);
+      });
     });
+    req.on('error', () => resolve(cloudCache.get(id) || fallback));
+    req.on('timeout', () => { req.destroy(); resolve(cloudCache.get(id) || fallback); });
   });
-  req.on('error', () => resolve(fallback));
-  req.on('timeout', () => { req.destroy(); resolve(fallback); });
 }
 
 function saveCloudJson(id, name, data) {
-  // Tokenların gerçek kalıcı kaynağı MySQL olsun; API'ye bağımlı kalmasın.
-  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
-    return pool.query(
-      'INSERT INTO securityshoop_token_store (id, data, updated_at) VALUES (1, ?, NOW()) ON DUPLICATE KEY UPDATE data=VALUES(data), updated_at=NOW()',
-      [JSON.stringify(data)]
-    ).then(() => {
-      cloudCache.set(CLOUD_STORAGE_IDS.tokens, data);
-      return true;
-    }).catch((err) => {
-      console.error('[token-storage] MySQL save failed:', err?.message || err);
-      return false;
-    });
-  }
+  cloudCache.set(id, data);
   return new Promise((resolve) => {
     const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
-
-    const createReplacement = () => {
-      const body = JSON.stringify({ name: 'securityshoop_tokens', data });
-      const req = https.request('https://api.restful-api.dev/objects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-        timeout: 10000
-      }, (res) => {
-        let responseBody = '';
-        res.on('data', chunk => responseBody += chunk);
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(responseBody);
-            if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.id) {
-              CLOUD_STORAGE_IDS.tokens = String(parsed.id);
-              cloudCache.set(CLOUD_STORAGE_IDS.tokens, data);
-              console.warn(`[cloud-storage] token storage recovered with object ${parsed.id}`);
-              return resolve(true);
-            }
-          } catch {}
-          console.error(`[cloud-storage] token storage recovery failed: HTTP ${res.statusCode} ${responseBody.slice(0, 300)}`);
-          resolve(false);
-        });
-      });
-      req.on('error', err => { console.error(`[cloud-storage] recovery error: ${err.message}`); resolve(false); });
-      req.on('timeout', () => { req.destroy(); console.error('[cloud-storage] recovery timeout'); resolve(false); });
-      req.write(body);
-      req.end();
-    };
-
     const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-      timeout: 8000
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 4000
     }, (res) => {
-      let responseBody = '';
-      res.on('data', chunk => responseBody += chunk);
-      res.on('end', () => {
-        const ok = res.statusCode >= 200 && res.statusCode < 300;
-        if (ok) { cloudCache.set(id, data); return resolve(true); }
-        console.error(`[cloud-storage] PUT ${id} failed: HTTP ${res.statusCode} ${responseBody.slice(0, 300)}`);
-        if (id === CLOUD_STORAGE_IDS.tokens) return createReplacement();
-        resolve(false);
-      });
+      resolve(res.statusCode === 200);
     });
-    req.on('error', err => {
-      console.error(`[cloud-storage] PUT ${id} error: ${err.message}`);
-      if (id === CLOUD_STORAGE_IDS.tokens) return createReplacement();
-      resolve(false);
-    });
-    req.on('timeout', () => {
-      req.destroy();
-      console.error(`[cloud-storage] PUT ${id} timeout`);
-      if (id === CLOUD_STORAGE_IDS.tokens) return createReplacement();
-      resolve(false);
-    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
     req.write(payload);
     req.end();
   });
 }
-
 
 
 const app = express();
@@ -1232,14 +1111,6 @@ async function initDatabase() {
   }
 
   pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 10, queueLimit: 0, connectTimeout: DB_CONNECT_TIMEOUT_MS });
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS securityshoop_token_store (
-      id TINYINT UNSIGNED PRIMARY KEY,
-      data LONGTEXT NOT NULL,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -6161,10 +6032,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
   app.get('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      if (!data || !Array.isArray(data.tokens)) {
-        return res.status(503).json({ ok: false, message: 'Token depolama servisine erişilemedi.' });
-      }
-      res.json({ ok: true, tokens: data.tokens });
+      res.json({ ok: true, tokens: data.tokens || [] });
     } catch (err) {
       res.status(500).json({ ok: false, message: 'Tokenlar alinamadi.' });
     }
@@ -6190,13 +6058,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       };
       if (!data.tokens) data.tokens = [];
       data.tokens.push(newToken);
-      const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      if (!saved) {
-        return res.status(503).json({
-          ok: false,
-          message: 'Token oluşturuldu ancak kalıcı depolamaya yazılamadı. Token listeye eklenmedi.'
-        });
-      }
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
       res.json({ ok: true, token: newToken });
     } catch (err) {
       res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
@@ -6651,7 +6513,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       }
       
       promo.used_by.push(tokenStr);
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       
       res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
@@ -6685,7 +6547,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       };
       
       data.tickets.push(newTicket);
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true, ticket: newTicket });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6718,7 +6580,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
       }
       
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6738,7 +6600,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         if (idx > -1) arr.splice(idx, 1);
       }
       
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true, blacklist: data.blacklist });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6755,7 +6617,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       ticket.reply = String(reply).trim();
       ticket.status = 'answered';
       
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
+      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
