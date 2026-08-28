@@ -64,7 +64,7 @@ function saveCloudJson(id, name, data) {
       },
       timeout: 4000
     }, (res) => {
-      resolve(res.statusCode === 200);
+      resolve(Number(res.statusCode) >= 200 && Number(res.statusCode) < 300);
     });
     req.on('error', () => resolve(false));
     req.on('timeout', () => { req.destroy(); resolve(false); });
@@ -1434,6 +1434,17 @@ async function initDatabase() {
       event_type VARCHAR(40) NOT NULL DEFAULT 'register',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_referral_code (referral_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS single_use_tokens (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      token VARCHAR(64) NOT NULL UNIQUE,
+      token_json LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      INDEX idx_single_use_tokens_created_at (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
@@ -6026,53 +6037,209 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
   });
 
 
+
+  // ==========================================
+  // SINGLE-USE TOKEN PERSISTENCE
+  // ==========================================
+  function normalizeTokenObject(tokenObj = {}) {
+    return {
+      token: String(tokenObj.token || '').trim(),
+      created_at: tokenObj.created_at || new Date().toISOString(),
+      updated_at: tokenObj.updated_at || new Date().toISOString(),
+      duration_type: ['1d', '7d', '30d', 'lifetime'].includes(tokenObj.duration_type) ? tokenObj.duration_type : 'lifetime',
+      expires_at: tokenObj.expires_at || null,
+      used: Boolean(tokenObj.used),
+      first_used_at: tokenObj.first_used_at || null,
+      used_by_hwid: tokenObj.used_by_hwid || null,
+      frozen: Boolean(tokenObj.frozen),
+      frozen_at: tokenObj.frozen_at || null,
+      ip_log: Array.isArray(tokenObj.ip_log) ? tokenObj.ip_log.slice(0, 10) : [],
+      last_ip: tokenObj.last_ip || null,
+      last_login: tokenObj.last_login || null,
+      ref_code: tokenObj.ref_code || null,
+      used_ref_code: tokenObj.used_ref_code || null,
+      ref_bonus_count: Number(tokenObj.ref_bonus_count || 0),
+      ref_bonus_received_at: tokenObj.ref_bonus_received_at || null,
+      library: Array.isArray(tokenObj.library) ? tokenObj.library : []
+    };
+  }
+
+  async function getDbSingleUseTokens() {
+    const [rows] = await pool.query('SELECT token_json FROM single_use_tokens ORDER BY created_at DESC, id DESC');
+    return rows.map(row => {
+      try { return normalizeTokenObject(JSON.parse(row.token_json)); } catch { return null; }
+    }).filter(Boolean);
+  }
+
+  async function getDbSingleUseToken(token) {
+    const [rows] = await pool.query(
+      'SELECT token_json FROM single_use_tokens WHERE token = ? LIMIT 1',
+      [String(token || '').trim()]
+    );
+    if (!rows[0]) return null;
+    try { return normalizeTokenObject(JSON.parse(rows[0].token_json)); } catch { return null; }
+  }
+
+  async function insertDbSingleUseToken(tokenObj) {
+    const clean = normalizeTokenObject(tokenObj);
+    const now = new Date();
+    clean.updated_at = now.toISOString();
+    await pool.query(
+      'INSERT INTO single_use_tokens (token, token_json, created_at, updated_at) VALUES (?, ?, ?, ?)',
+      [clean.token, JSON.stringify(clean), new Date(clean.created_at), now]
+    );
+    return clean;
+  }
+
+  async function updateDbSingleUseToken(tokenObj) {
+    const clean = normalizeTokenObject(tokenObj);
+    clean.updated_at = new Date().toISOString();
+    const [result] = await pool.query(
+      'UPDATE single_use_tokens SET token_json = ?, updated_at = ? WHERE token = ?',
+      [JSON.stringify(clean), new Date(clean.updated_at), clean.token]
+    );
+    if (!result.affectedRows) await insertDbSingleUseToken(clean);
+    return clean;
+  }
+
+  async function deleteDbSingleUseToken(token) {
+    await pool.query('DELETE FROM single_use_tokens WHERE token = ?', [String(token || '').trim()]);
+  }
+
+  async function migrateCloudTokensToDatabase() {
+    if (!useDatabase || !pool) return;
+    const [rows] = await pool.query('SELECT COUNT(*) AS count FROM single_use_tokens');
+    if (Number(rows[0]?.count || 0) > 0) return;
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    const cloudTokens = Array.isArray(cloudData?.tokens) ? cloudData.tokens : [];
+    for (const tokenObj of cloudTokens) {
+      try { await insertDbSingleUseToken(tokenObj); }
+      catch (err) {
+        if (err?.code !== 'ER_DUP_ENTRY') console.warn('Token migrasyon hatasi:', err?.message || err);
+      }
+    }
+  }
+
+  async function listSingleUseTokens() {
+    if (useDatabase && pool) {
+      await migrateCloudTokensToDatabase();
+      return getDbSingleUseTokens();
+    }
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    return Array.isArray(data?.tokens) ? data.tokens.map(normalizeTokenObject) : [];
+  }
+
+  async function createSingleUseToken(tokenObj) {
+    if (useDatabase && pool) {
+      await migrateCloudTokensToDatabase();
+      const saved = await insertDbSingleUseToken(tokenObj);
+      await syncSingleUseTokensToCloud();
+      return saved;
+    }
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    data.tokens = Array.isArray(data.tokens) ? data.tokens.map(normalizeTokenObject) : [];
+    data.tokens.push(normalizeTokenObject(tokenObj));
+    if (!await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data)) {
+      throw new Error('Token kalici depolamaya yazilamadi.');
+    }
+    return normalizeTokenObject(tokenObj);
+  }
+
+  async function getSingleUseToken(token) {
+    if (useDatabase && pool) {
+      await migrateCloudTokensToDatabase();
+      return getDbSingleUseToken(token);
+    }
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    return (data.tokens || []).find(t => t.token === String(token || '').trim()) || null;
+  }
+
+  async function updateSingleUseToken(tokenObj) {
+    if (useDatabase && pool) {
+      const saved = await updateDbSingleUseToken(tokenObj);
+      await syncSingleUseTokensToCloud();
+      return saved;
+    }
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    const token = String(tokenObj?.token || '').trim();
+    const index = (data.tokens || []).findIndex(t => t.token === token);
+    if (index < 0) throw new Error('Token bulunamadi.');
+    data.tokens[index] = normalizeTokenObject(tokenObj);
+    if (!await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data)) {
+      throw new Error('Token guncellenemedi.');
+    }
+    return data.tokens[index];
+  }
+
+  async function syncSingleUseTokensToCloud() {
+    if (!useDatabase || !pool) return true;
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    data.tokens = await getDbSingleUseTokens();
+    return saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+  }
+
+  async function deleteSingleUseToken(token) {
+    if (useDatabase && pool) {
+      await deleteDbSingleUseToken(token);
+      await syncSingleUseTokensToCloud();
+      return;
+    }
+    const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+    data.tokens = (data.tokens || []).filter(t => t.token !== String(token || '').trim());
+    if (!await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data)) {
+      throw new Error('Token silinemedi.');
+    }
+  }
+
   // ==========================================
   // SINGLE-USE TOKEN SYSTEM
   // ==========================================
   app.get('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      res.json({ ok: true, tokens: data.tokens || [] });
+      res.json({ ok: true, tokens: await listSingleUseTokens() });
     } catch (err) {
-      res.status(500).json({ ok: false, message: 'Tokenlar alinamadi.' });
+      console.error('GET /api/admin/tokens:', err);
+      res.status(500).json({ ok: false, message: 'Tokenlar alinamadi: ' + (err?.message || 'bilinmeyen hata') });
     }
   });
 
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const duration = ['1d', '7d', '30d', 'lifetime'].includes(req.body?.duration)
+        ? req.body.duration : 'lifetime';
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let t = 'MS-';
-      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-      t += '-';
-      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-      const newToken = {
-        token: t,
-        created_at: new Date().toISOString(),
-        duration_type: duration,
-        expires_at: null, // Hesaplanacak (ilk giriste)
-        used: false,
-        first_used_at: null,
-        used_by_hwid: null
+      const randomPart = () => {
+        let out = '';
+        while (out.length < 4) {
+          for (const byte of crypto.randomBytes(8)) {
+            out += chars[byte % chars.length];
+            if (out.length >= 4) break;
+          }
+        }
+        return out;
       };
-      if (!data.tokens) data.tokens = [];
-      data.tokens.push(newToken);
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      res.json({ ok: true, token: newToken });
+      let t = `MS-${randomPart()}-${randomPart()}`;
+      while (await getSingleUseToken(t)) t = `MS-${randomPart()}-${randomPart()}`;
+      const now = new Date().toISOString();
+      const savedToken = await createSingleUseToken({
+        token: t, created_at: now, updated_at: now, duration_type: duration,
+        expires_at: null, used: false, first_used_at: null, used_by_hwid: null,
+        frozen: false, frozen_at: null, ip_log: [], last_ip: null, last_login: null, ref_code: null
+      });
+      res.status(201).json({ ok: true, token: savedToken, tokens: await listSingleUseTokens() });
     } catch (err) {
-      res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
+      console.error('POST /api/admin/tokens:', err);
+      res.status(500).json({ ok: false, message: 'Token olusturulamadi: ' + (err?.message || 'bilinmeyen hata') });
     }
   });
 
   app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
     try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      data.tokens = (data.tokens || []).filter(t => t.token !== req.params.token);
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      await deleteSingleUseToken(req.params.token);
       res.json({ ok: true, message: 'Token silindi.' });
     } catch (err) {
-      res.status(500).json({ ok: false, message: 'Token silinemedi.' });
+      console.error('DELETE token:', err);
+      res.status(500).json({ ok: false, message: 'Token silinemedi: ' + (err?.message || 'bilinmeyen hata') });
     }
   });
 
@@ -6086,7 +6253,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
 
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === userToken);
+      let tokenObj = await getSingleUseToken(userToken);
 
       // Blacklist Check
       const blacklist = data.blacklist || { hwids: [], ips: [] };
@@ -6132,7 +6299,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
           return res.status(403).json({ ok: false, message: 'Token suresi dolmus!' });
         }
         
-        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+        await updateSingleUseToken(tokenObj);
 
         // Discord webhook bildirimi
         const webhookData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
@@ -6180,7 +6347,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         tokenObj.expires_at = null; // lifetime
       }
 
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      await updateSingleUseToken(tokenObj);
 
       // Discord webhook bildirimi
       try {
@@ -6360,26 +6527,28 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // ======================================================
   app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
     try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      const tokenObj = await getSingleUseToken(req.params.token);
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       tokenObj.frozen = true;
       tokenObj.frozen_at = new Date().toISOString();
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      await updateSingleUseToken(tokenObj);
       res.json({ ok: true, message: 'Token donduruldu.' });
-    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+    } catch (err) {
+      res.status(500).json({ ok: false, message: err?.message || 'Token dondurulamadi.' });
+    }
   });
 
   app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
     try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      const tokenObj = await getSingleUseToken(req.params.token);
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       tokenObj.frozen = false;
       tokenObj.frozen_at = null;
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      await updateSingleUseToken(tokenObj);
       res.json({ ok: true, message: 'Token cozuldu.' });
-    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
+    } catch (err) {
+      res.status(500).json({ ok: false, message: err?.message || 'Token cozulamadi.' });
+    }
   });
 
   // ======================================================
@@ -6463,8 +6632,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // ======================================================
   app.get('/api/admin/token-stats', requireAdmin, async (req, res) => {
     try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokens = data.tokens || [];
+      const tokens = await listSingleUseTokens();
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
       const total = tokens.length;
@@ -6513,7 +6681,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       }
       
       promo.used_by.push(tokenStr);
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       
       res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
@@ -6547,7 +6715,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       };
       
       data.tickets.push(newTicket);
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true, ticket: newTicket });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6580,7 +6748,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
       }
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6600,7 +6768,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         if (idx > -1) arr.splice(idx, 1);
       }
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true, blacklist: data.blacklist });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6617,7 +6785,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       ticket.reply = String(reply).trim();
       ticket.status = 'answered';
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });

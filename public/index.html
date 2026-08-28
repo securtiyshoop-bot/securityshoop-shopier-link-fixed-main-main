@@ -2409,58 +2409,88 @@
     
     
     // TOKEN LOGIC
-    async function loadTokens() {
-      try {
-        const r = await fastFetch('/api/admin/tokens');
-        const d = await readJsonSafe(r);
-        const tbody = document.getElementById('tokensTableBody');
-        if(d.ok && d.tokens) {
-          tbody.innerHTML = '';
-          if(d.tokens.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
-            return;
-          }
-          [...d.tokens].reverse().forEach(t => {
-            const tr = document.createElement('tr');
-            tr.style.borderBottom = '1px solid var(--border)';
-            if(t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
-            
-            let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Boşta</span>';
-            if(t.frozen) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900 text-blue-300">❄️ Dondurulmuş</span>';
-            else if(t.used_by_hwid) statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + t.used_by_hwid.substring(0,12) + '...</span>';
-            
-            const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
-            const durationName = durMap[t.duration_type] || '1 Hafta';
-            
-            let expiryStr = 'Sınırsız';
-            if (t.expires_at) {
-                const exDt = new Date(t.expires_at);
-                if (exDt < new Date()) expiryStr = '<span class="text-red-400 font-700">Süresi Bitti</span>';
-                else expiryStr = exDt.toLocaleString('tr-TR');
-            }
+    function renderTokenRows(tokens) {
+      const tbody = document.getElementById('tokensTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
 
-            const lastIp = t.last_ip || '-';
-            const refCode = t.ref_code || '-';
-            const freezeBtn = t.frozen
-              ? `<button onclick="unfreezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Çöz</button>`
-              : `<button onclick="freezeToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Dondur</button>`;
+      if (!Array.isArray(tokens) || tokens.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-500">Hiç token yok.</td></tr>';
+        return;
+      }
 
-            tr.innerHTML = `
-              <td class="px-3 py-3 font-mono text-xs">${t.token}</td>
-              <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500">${expiryStr}</span></td>
-              <td class="px-3 py-3 text-xs text-gray-400">${lastIp}</td>
-              <td class="px-3 py-3 text-xs font-mono text-cyan-400">${refCode}</td>
-              <td class="px-3 py-3">${statusHtml}</td>
-              <td class="px-3 py-3 flex gap-1 flex-wrap">
-                ${freezeBtn}
-                <button onclick="deleteToken('${t.token}')" class="text-xs px-2 py-1 rounded font-700 bg-red-900 text-red-300">Sil</button>
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
+      [...tokens].reverse().forEach(t => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        if (t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
+
+        let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900 text-green-300">Boşta</span>';
+        if (t.frozen) {
+          statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900 text-blue-300">❄️ Dondurulmuş</span>';
+        } else if (t.used_by_hwid) {
+          statusHtml = '<span class="text-xs px-2 py-1 rounded bg-yellow-900 text-yellow-300">' + esc(String(t.used_by_hwid).substring(0,12)) + '...</span>';
         }
-      } catch(e) {}
+
+        const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız'};
+        const durationName = durMap[t.duration_type] || 'Sınırsız';
+        let expiryStr = 'Sınırsız';
+
+        if (t.expires_at) {
+          const exDt = new Date(t.expires_at);
+          expiryStr = exDt < new Date()
+            ? '<span class="text-red-400 font-700">Süresi Bitti</span>'
+            : esc(exDt.toLocaleString('tr-TR'));
+        }
+
+        const tokenValue = esc(t.token || '');
+        const lastIp = esc(t.last_ip || '-');
+        const refCode = esc(t.ref_code || '');
+        const freezeBtn = t.frozen
+          ? `<button onclick="unfreezeToken('${tokenValue}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Çöz</button>`
+          : `<button onclick="freezeToken('${tokenValue}')" class="text-xs px-2 py-1 rounded font-700 bg-blue-900 text-blue-300">Dondur</button>`;
+
+        tr.innerHTML = `
+          <td class="px-3 py-3 font-mono text-xs">${tokenValue}</td>
+          <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500">${expiryStr}</span></td>
+          <td class="px-3 py-3 text-xs text-gray-400">${lastIp}</td>
+          <td class="px-3 py-3 text-xs font-mono text-cyan-400">${refCode || '-'}</td>
+          <td class="px-3 py-3">${statusHtml}</td>
+          <td class="px-3 py-3 flex gap-1 flex-wrap">
+            ${freezeBtn}
+            <button onclick="deleteToken('${tokenValue}')" class="text-xs px-2 py-1 rounded font-700 bg-red-900 text-red-300">Sil</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
+
+    async function loadTokens() {
+      const tbody = document.getElementById('tokensTableBody');
+      if (!tbody) return [];
+
+      try {
+        const r = await fastFetch('/api/admin/tokens', { timeout: 12000 });
+        const d = await readJsonSafe(r);
+
+        if (r.ok && d.ok) {
+          renderTokenRows(d.tokens || []);
+          return d.tokens || [];
+        }
+
+        const message = d.message || `Token listesi alınamadı. HTTP ${r.status}`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">${esc(message)}</td></tr>`;
+        console.error('loadTokens:', r.status, d);
+        return [];
+      } catch (e) {
+        const message = e?.name === 'AbortError'
+          ? 'Token listesi zaman aşımına uğradı.'
+          : (e?.message || 'Token listesi alınamadı.');
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">${esc(message)}</td></tr>`;
+        console.error('loadTokens exception:', e);
+        return [];
+      }
+    }
+
 
     window.freezeToken = async function(token) {
       if(!confirm('Bu token dondurulsun mu? Kullanıcı giriş yapamaz.')) return;
@@ -2506,7 +2536,8 @@
         const d = await r.json();
         if(d.ok) {
           alert('Yeni Token Oluşturuldu:\n\n' + d.token.token + '\n\nBu kodu kopyalayıp kullanıcıya verebilirsiniz.');
-          loadTokens();
+          renderTokenRows(d.tokens || [d.token]);
+          await loadTokens();
           loadCredits();
         } else {
           alert('Hata: ' + d.message);
