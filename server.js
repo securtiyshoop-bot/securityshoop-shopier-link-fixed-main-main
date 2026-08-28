@@ -5160,6 +5160,7 @@ async function bootSecurityShoopServer(options = {}) {
     getRequestIp,
     recordActivityLog,
     getAdminUser: getRequestUser,
+    setAdminCookie,
     useDatabase: () => useDatabase,
     pool: () => pool,
     dataFile: DESKTOP_AUTH_FILE
@@ -6038,30 +6039,68 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
+  function createLicenseToken(existing) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const used = new Set((existing || []).map((item) => String(item.token || '')));
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      let token = 'MS-';
+      for (let i = 0; i < 4; i += 1) token += chars.charAt(crypto.randomInt(chars.length));
+      token += '-';
+      for (let i = 0; i < 4; i += 1) token += chars.charAt(crypto.randomInt(chars.length));
+      if (!used.has(token)) return token;
+    }
+    throw new Error('Benzersiz token uretilemedi.');
+  }
+
+  function buildLicenseToken(duration, existing) {
+    const allowed = new Set(['1d', '7d', '30d', 'lifetime']);
+    const normalizedDuration = allowed.has(String(duration)) ? String(duration) : 'lifetime';
+    return {
+      token: createLicenseToken(existing),
+      created_at: new Date().toISOString(),
+      duration_type: normalizedDuration,
+      expires_at: null,
+      used: false,
+      first_used_at: null,
+      used_by_hwid: null
+    };
+  }
+
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let t = 'MS-';
-      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-      t += '-';
-      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-      const newToken = {
-        token: t,
-        created_at: new Date().toISOString(),
-        duration_type: duration,
-        expires_at: null, // Hesaplanacak (ilk giriste)
-        used: false,
-        first_used_at: null,
-        used_by_hwid: null
-      };
-      if (!data.tokens) data.tokens = [];
+      if (!Array.isArray(data.tokens)) data.tokens = [];
+      const newToken = buildLicenseToken(req.body?.duration, data.tokens);
       data.tokens.push(newToken);
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (!saved) return res.status(503).json({ ok: false, message: 'Token olusturuldu ancak kalici depolamaya yazilamadi. Tekrar deneyin.' });
       res.json({ ok: true, token: newToken });
     } catch (err) {
-      res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
+      console.error('TOKEN_CREATE_ERROR', err);
+      res.status(500).json({ ok: false, message: 'Token olusturulamadi.', error: String(err.message || err) });
+    }
+  });
+
+  app.post('/api/admin/tokens/bulk', requireAdmin, async (req, res) => {
+    try {
+      const count = Math.min(Math.max(Number(req.body?.count) || 1, 1), 1000);
+      const duration = req.body?.duration || 'lifetime';
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      if (!Array.isArray(data.tokens)) data.tokens = [];
+      const created = [];
+      const reserved = data.tokens.slice();
+      for (let i = 0; i < count; i += 1) {
+        const token = buildLicenseToken(duration, reserved);
+        reserved.push(token);
+        created.push(token);
+      }
+      data.tokens.push(...created);
+      const saved = await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_bulk', data);
+      if (!saved) return res.status(503).json({ ok: false, message: 'Toplu tokenlar hazirlandi ancak kalici depolamaya yazilamadi. Hicbir token basarili kabul edilmedi.' });
+      res.json({ ok: true, count: created.length, tokens: created, message: `${created.length} token olusturuldu.` });
+    } catch (err) {
+      console.error('TOKEN_BULK_CREATE_ERROR', err);
+      res.status(500).json({ ok: false, message: 'Toplu tokenlar olusturulamadi.', error: String(err.message || err) });
     }
   });
 
