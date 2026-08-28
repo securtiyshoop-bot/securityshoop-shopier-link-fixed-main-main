@@ -27,10 +27,16 @@ const CLOUD_STORAGE_IDS = {
 };
 
 const cloudCache = new Map();
+const cloudCacheTTL = new Map();
 
 function fetchCloudJson(id, fallback) {
+  const cached = cloudCache.get(id);
+  const exp = cloudCacheTTL.get(id) || 0;
+  if (cached && Date.now() < exp) {
+    return Promise.resolve(cached);
+  }
   return new Promise((resolve) => {
-    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 9000 }, (res) => {
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 8000 }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -38,6 +44,7 @@ function fetchCloudJson(id, fallback) {
           const parsed = JSON.parse(data);
           if (parsed && parsed.data) {
             cloudCache.set(id, parsed.data);
+            cloudCacheTTL.set(id, Date.now() + 25000); // 25s TTL
             resolve(parsed.data);
           } else {
             resolve(cloudCache.get(id) || fallback);
@@ -6135,7 +6142,68 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
-  app.post('/api/plugin/token-login', async (req, res) => {
+  
+// ==========================================
+// IN-MEMORY RATE LIMITER & SECURE DEPOTBOX PROXY
+// ==========================================
+const ipRateLimits = new Map();
+function checkRateLimit(ip, endpoint, maxHits, windowMs) {
+  const key = `${ip || 'unknown'}:${endpoint}`;
+  const now = Date.now();
+  let record = ipRateLimits.get(key);
+  if (!record || now - record.startTime > windowMs) {
+    record = { count: 1, startTime: now };
+    ipRateLimits.set(key, record);
+    return true;
+  }
+  record.count++;
+  if (record.count > maxHits) {
+    return false;
+  }
+  return true;
+}
+
+app.get('/api/plugin/get-lua', async (req, res) => {
+  const ip = getRequestIp(req);
+  if (!checkRateLimit(ip, 'get-lua', 80, 60000)) {
+    return res.status(429).json({ ok: false, message: 'Cok fazla istek yapildi. Lutfen bekleyin.' });
+  }
+
+  const appid = String(req.query.appid || '').trim();
+  if (!appid || !/^\d+$/.test(appid)) {
+    return res.status(400).json({ ok: false, message: 'Gecersiz AppID.' });
+  }
+
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+  // Validate session token against cloud database
+  const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+  const validToken = (cloudData.tokens || []).find(t => t.code === token && !t.is_blocked);
+  if (!validToken) {
+    return res.status(401).json({ ok: false, message: 'Yetkisiz erisim / Gecersiz lisans.' });
+  }
+
+  try {
+    const depotboxRes = await fetch(`https://depotbox.org/api/direct-lua?appid=${appid}`, {
+      headers: { 'X-API-Key': '436b0828-9799-4ce4-b1f2-ea5a3ce32f73' },
+      signal: AbortSignal.timeout(15000)
+    });
+    if (depotboxRes.ok) {
+      const buffer = await depotboxRes.arrayBuffer();
+      if (buffer.byteLength >= 50) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.send(Buffer.from(buffer));
+      }
+    }
+    return res.status(404).json({ ok: false, message: 'Oyun verisi alinamadi' });
+  } catch (err) {
+    console.error('get-lua proxy error:', err.message);
+    return res.status(502).json({ ok: false, message: 'Oyun verisi alinamadi' });
+  }
+});
+
+app.post('/api/plugin/token-login', async (req, res) => {
     try {
       const userToken = String(req.body.token || '').trim();
       const hwid = String(req.body.hwid || '').trim();
