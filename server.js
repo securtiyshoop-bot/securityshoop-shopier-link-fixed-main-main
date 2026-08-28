@@ -30,61 +30,121 @@ const cloudCache = new Map();
 
 function fetchCloudJson(id, fallback) {
   return new Promise((resolve) => {
-    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 6000 }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.data) {
-            cloudCache.set(id, parsed.data);
-            return resolve(parsed.data);
-          }
-          // Do not silently return stale data for persistent records.
+    const requestObject = (objectId) => {
+      const req = https.get(`https://api.restful-api.dev/objects/${objectId}`, { timeout: 6000 }, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.data) {
+              cloudCache.set(CLOUD_STORAGE_IDS.tokens === objectId ? CLOUD_STORAGE_IDS.tokens : id, parsed.data);
+              return resolve(parsed.data);
+            }
+          } catch {}
+          if (id === CLOUD_STORAGE_IDS.tokens) return findTokenObject(resolve, fallback);
           return resolve(fallback);
-        } catch {
-          return resolve(fallback);
-        }
+        });
       });
-    });
-    req.on('error', () => resolve(fallback));
-    req.on('timeout', () => { req.destroy(); resolve(fallback); });
+      req.on('error', () => {
+        if (id === CLOUD_STORAGE_IDS.tokens) return findTokenObject(resolve, fallback);
+        resolve(fallback);
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        if (id === CLOUD_STORAGE_IDS.tokens) return findTokenObject(resolve, fallback);
+        resolve(fallback);
+      });
+    };
+    requestObject(id);
   });
+}
+
+function findTokenObject(resolve, fallback) {
+  const req = https.get('https://api.restful-api.dev/objects', { timeout: 8000 }, (res) => {
+    let body = '';
+    res.on('data', chunk => body += chunk);
+    res.on('end', () => {
+      try {
+        const list = JSON.parse(body);
+        const found = Array.isArray(list) ? list.find(o => o && o.name === 'securityshoop_tokens') : null;
+        if (found && found.id && found.data) {
+          CLOUD_STORAGE_IDS.tokens = String(found.id);
+          cloudCache.set(CLOUD_STORAGE_IDS.tokens, found.data);
+          return resolve(found.data);
+        }
+      } catch {}
+      resolve(fallback);
+    });
+  });
+  req.on('error', () => resolve(fallback));
+  req.on('timeout', () => { req.destroy(); resolve(fallback); });
 }
 
 function saveCloudJson(id, name, data) {
   return new Promise((resolve) => {
     const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
+
+    const createReplacement = () => {
+      const body = JSON.stringify({ name: 'securityshoop_tokens', data });
+      const req = https.request('https://api.restful-api.dev/objects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        timeout: 10000
+      }, (res) => {
+        let responseBody = '';
+        res.on('data', chunk => responseBody += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(responseBody);
+            if (res.statusCode >= 200 && res.statusCode < 300 && parsed && parsed.id) {
+              CLOUD_STORAGE_IDS.tokens = String(parsed.id);
+              cloudCache.set(CLOUD_STORAGE_IDS.tokens, data);
+              console.warn(`[cloud-storage] token storage recovered with object ${parsed.id}`);
+              return resolve(true);
+            }
+          } catch {}
+          console.error(`[cloud-storage] token storage recovery failed: HTTP ${res.statusCode} ${responseBody.slice(0, 300)}`);
+          resolve(false);
+        });
+      });
+      req.on('error', err => { console.error(`[cloud-storage] recovery error: ${err.message}`); resolve(false); });
+      req.on('timeout', () => { req.destroy(); console.error('[cloud-storage] recovery timeout'); resolve(false); });
+      req.write(body);
+      req.end();
+    };
+
     const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
       timeout: 8000
     }, (res) => {
       let responseBody = '';
       res.on('data', chunk => responseBody += chunk);
       res.on('end', () => {
         const ok = res.statusCode >= 200 && res.statusCode < 300;
-        if (ok) cloudCache.set(id, data);
-        if (!ok) console.error(`[cloud-storage] PUT ${id} failed: HTTP ${res.statusCode} ${responseBody.slice(0, 300)}`);
-        resolve(ok);
+        if (ok) { cloudCache.set(id, data); return resolve(true); }
+        console.error(`[cloud-storage] PUT ${id} failed: HTTP ${res.statusCode} ${responseBody.slice(0, 300)}`);
+        if (id === CLOUD_STORAGE_IDS.tokens) return createReplacement();
+        resolve(false);
       });
     });
-    req.on('error', (err) => {
+    req.on('error', err => {
       console.error(`[cloud-storage] PUT ${id} error: ${err.message}`);
+      if (id === CLOUD_STORAGE_IDS.tokens) return createReplacement();
       resolve(false);
     });
     req.on('timeout', () => {
       req.destroy();
       console.error(`[cloud-storage] PUT ${id} timeout`);
+      if (id === CLOUD_STORAGE_IDS.tokens) return createReplacement();
       resolve(false);
     });
     req.write(payload);
     req.end();
   });
 }
+
 
 
 const app = express();
@@ -6535,7 +6595,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       }
       
       promo.used_by.push(tokenStr);
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       
       res.json({ ok: true, message: `Kod basariyla kullanildi. +${extDays} gun eklendi.`, expires_at: myToken.expires_at });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
@@ -6569,7 +6629,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       };
       
       data.tickets.push(newTicket);
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true, ticket: newTicket });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6602,7 +6662,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         data.promo_codes.push({ code: c, days: parseInt(days)||1, max_uses: parseInt(max_uses)||0, used_by: [] });
       }
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6622,7 +6682,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
         if (idx > -1) arr.splice(idx, 1);
       }
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true, blacklist: data.blacklist });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
@@ -6639,7 +6699,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       ticket.reply = String(reply).trim();
       ticket.status = 'answered';
       
-      await saveCloudJson('tokens_v5', data, CLOUD_STORAGE_IDS.tokens);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_v5', data);
       res.json({ ok: true });
     } catch(e) { res.status(500).json({ ok: false, message: String(e) }); }
   });
