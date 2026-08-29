@@ -65,7 +65,47 @@
       <a href="/">Siteye Don</a>
     </header>
 
+    
+    <!-- (146) FİNANS & METRİK RAPORLARI -->
+    <section class="panel" style="background:linear-gradient(135deg,rgba(49,233,129,0.06),rgba(92,184,255,0.04));border-color:rgba(49,233,129,0.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin:0;font-size:18px;color:var(--green)">📊 Finans & Sistem Metrikleri</h2>
+        <span class="pill online" id="adminOnlineUsers">🟢 Çevrimiçi: 1 Aktif</span>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+        <div style="background:var(--panel-2);padding:12px;border-radius:8px;border:1px solid var(--line)">
+          <div class="muted" style="font-size:11px;font-weight:700">TOPLAM TOKEN</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text)" id="statTotalTokens">-</div>
+        </div>
+        <div style="background:var(--panel-2);padding:12px;border-radius:8px;border:1px solid var(--line)">
+          <div class="muted" style="font-size:11px;font-weight:700">AKTİF KULLANICI</div>
+          <div style="font-size:22px;font-weight:800;color:var(--green)" id="statActiveTokens">-</div>
+        </div>
+        <div style="background:var(--panel-2);padding:12px;border-radius:8px;border:1px solid var(--line)">
+          <div class="muted" style="font-size:11px;font-weight:700">SINIRSIZ / LİFETİME</div>
+          <div style="font-size:22px;font-weight:800;color:var(--amber)" id="statLifetimeTokens">-</div>
+        </div>
+        <div style="background:var(--panel-2);padding:12px;border-radius:8px;border:1px solid var(--line)">
+          <div class="muted" style="font-size:11px;font-weight:700">YEDEK & BAKIM</div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button id="btnExportDb" style="padding:6px;font-size:11px" class="plain">💾 Yedek Al</button>
+            <button id="btnCleanDb" style="padding:6px;font-size:11px" class="danger">🧹 Temizle</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- (148) CANLI DUYURU YAYINLAMA -->
     <section class="panel">
+      <h2 style="margin:0 0 6px;font-size:16px">📢 Tüm Kullanıcılara Canlı Duyuru Gönder</h2>
+      <div class="muted" style="margin-bottom:10px">Masaüstü uygulamasını açan tüm kullanıcıların ekranına anlık popup duyuru basar.</div>
+      <div style="display:flex;gap:10px">
+        <input id="broadcastTitleInput" placeholder="Duyuru Başlığı..." style="max-width:240px">
+        <input id="broadcastBodyInput" placeholder="Duyuru Metni..." style="flex:1">
+        <button id="btnBroadcast" class="primary" style="width:auto;padding:0 24px">Yayınla</button>
+      </div>
+    </section>
+<section class="panel">
   <h2 style="margin:0 0 6px">Desktop Admin Key</h2>
   <div class="muted" style="margin-bottom:12px">MarifetStore masaüstü uygulamasında Admin Paneli için tek cihazlık yönetici key'i üretir.</div>
   <div class="actions">
@@ -265,6 +305,40 @@ $('createBtn').addEventListener('click', createKeys);
     });
     loadKeys();
     setInterval(loadKeys, 30000);
-  </script>
+  
+    document.getElementById('btnBroadcast')?.addEventListener('click', async () => {
+      const title = document.getElementById('broadcastTitleInput').value.trim();
+      const body = document.getElementById('broadcastBodyInput').value.trim();
+      if (!title || !body) return alert('Lütfen başlık ve metin girin.');
+      try {
+        const res = await fetch('/api/admin/announcements/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, body })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          alert('✅ Duyuru tüm kullanıcılara başarıyla yayınlandı!');
+          document.getElementById('broadcastTitleInput').value = '';
+          document.getElementById('broadcastBodyInput').value = '';
+        } else alert('Hata: ' + d.message);
+      } catch(e) { alert('Hata: ' + e.message); }
+    });
+
+    document.getElementById('btnExportDb')?.addEventListener('click', () => {
+      window.open('/api/admin/backup/export', '_blank');
+    });
+
+    document.getElementById('btnCleanDb')?.addEventListener('click', async () => {
+      if (!confirm('Süresi bitmiş 90 günden eski pasif tokenler temizlenecek. Onaylıyor musunuz?')) return;
+      try {
+        const res = await fetch('/api/admin/clean-database', { method: 'POST' });
+        const d = await res.json();
+        alert('Temizlenen eski kayıt sayısı: ' + (d.cleaned_count || 0));
+        loadKeys();
+      } catch(e) { alert('Hata: ' + e.message); }
+    });
+
+</script>
 </body>
 </html>
