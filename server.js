@@ -1670,13 +1670,42 @@ function signAdminPayload(payload) {
   return crypto.createHmac('sha256', getSessionSecret()).update(payload).digest('base64url');
 }
 
+const AUTH_COOKIE_NAME = 'securityshoop_auth';
+
+function createAuthCookieValue(user) {
+  const payload = Buffer.from(JSON.stringify({
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role || 'user',
+    exp: Date.now() + (1000 * 60 * 60 * 24 * 30)
+  })).toString('base64url');
+  return `${payload}.${signAdminPayload(payload)}`;
+}
+
+function verifyAuthCookieValue(value) {
+  const [payload, signature] = String(value || '').split('.');
+  if (!payload || !signature) return null;
+  const expected = signAdminPayload(payload);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (signatureBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) return null;
+  try {
+    const user = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!user || Number(user.exp || 0) < Date.now()) return null;
+    return { id: user.id, username: user.username, email: user.email, role: user.role || 'user' };
+  } catch {
+    return null;
+  }
+}
+
 function createAdminCookieValue(user) {
   const payload = Buffer.from(JSON.stringify({
     id: user.id,
     username: user.username,
     email: user.email,
     role: user.role,
-    exp: Date.now() + (1000 * 60 * 60 * 24 * 7)
+    exp: Date.now() + (1000 * 60 * 60 * 24 * 30)
   })).toString('base64url');
   return `${payload}.${signAdminPayload(payload)}`;
 }
@@ -1713,13 +1742,30 @@ function cookieFlags(maxAge) {
   return `Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
 }
 
+function setAuthCookie(res, user) {
+  if (!user) return;
+  appendSetCookie(res, `${AUTH_COOKIE_NAME}=${encodeURIComponent(createAuthCookieValue(user))}; ${cookieFlags(60 * 60 * 24 * 30)}`);
+  if (user.role === 'admin') {
+    appendSetCookie(res, `${ADMIN_COOKIE_NAME}=${encodeURIComponent(createAdminCookieValue(user))}; ${cookieFlags(60 * 60 * 24 * 30)}`);
+  }
+}
+
+function clearAuthCookie(res) {
+  appendSetCookie(res, `${AUTH_COOKIE_NAME}=; ${cookieFlags(0)}`);
+  appendSetCookie(res, `${ADMIN_COOKIE_NAME}=; ${cookieFlags(0)}`);
+}
+
 function setAdminCookie(res, user) {
-  if (!user || user.role !== 'admin') return;
-  appendSetCookie(res, `${ADMIN_COOKIE_NAME}=${encodeURIComponent(createAdminCookieValue(user))}; ${cookieFlags(60 * 60 * 24 * 7)}`);
+  setAuthCookie(res, user);
 }
 
 function clearAdminCookie(res) {
-  appendSetCookie(res, `${ADMIN_COOKIE_NAME}=; ${cookieFlags(0)}`);
+  clearAuthCookie(res);
+}
+
+function getCookieUser(req) {
+  const cookies = parseCookies(req);
+  return verifyAuthCookieValue(cookies[AUTH_COOKIE_NAME]) || verifyAdminCookieValue(cookies[ADMIN_COOKIE_NAME]);
 }
 
 function getCookieAdminUser(req) {
@@ -1727,7 +1773,7 @@ function getCookieAdminUser(req) {
 }
 
 function getRequestUser(req) {
-  return req.session?.user || getCookieAdminUser(req);
+  return req.session?.user || getCookieUser(req);
 }
 
 function persistCookieUserToSession(req, user) {
@@ -1909,6 +1955,15 @@ async function findUserByToken(token) {
     );
     return rows[0] ? withUserDefaults(rows[0]) : null;
   }
+  if (!useDatabase) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) {
+        writeUsersFile(cloudData);
+        return withUserDefaults(cloudData.users.find((u) => String(u.session_token || '') === cleanToken) || null);
+      }
+    } catch(e) {}
+  }
   const data = readUsersFile();
   return withUserDefaults(data.users.find((u) => String(u.session_token || '') === cleanToken) || null);
 }
@@ -1919,12 +1974,17 @@ async function issueUserToken(user) {
   if (useDatabase) {
     await pool.query('UPDATE users SET session_token = ?, token_created_at = ? WHERE id = ?', [token, now.slice(0, 19).replace('T', ' '), user.id]);
   } else {
-    const data = readUsersFile();
-    const existing = data.users.find((u) => Number(u.id) === Number(user.id));
+    let data = readUsersFile();
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+    } catch(e) {}
+    const existing = data.users.find((u) => Number(u.id) === Number(user.id) || (u.email && u.email === user.email));
     if (existing) {
       existing.session_token = token;
       existing.token_created_at = now;
       writeUsersFile(data);
+      saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
     }
   }
   return token;
@@ -4726,35 +4786,44 @@ async function bootSecurityShoopServer(options = {}) {
   app.post('/api/register', async (req, res) => {
     try {
       if (!(await requirePersistentStorage(req, res, { allowTemporary: true }))) return;
-      const { password, confirmPassword, hwid } = req.body;
+      const { password, confirmPassword, hwid } = req.body || {};
       const username = String(req.body?.username || '').trim();
       const email = normalizeEmail(req.body?.email);
-      if (!username || !email || !password || !confirmPassword) return res.status(400).json({ ok: false, message: 'Tum alanlari doldur.' });
-      if (username.length < 3 || username.length > 32) return res.status(400).json({ ok: false, message: 'Kullanici adi 3 ile 32 karakter arasinda olmali.' });
-      if (!isValidEmail(email)) return res.status(400).json({ ok: false, message: 'Gecerli bir e-posta gir.' });
-      if (String(password).length < 8) return res.status(400).json({ ok: false, message: 'Sifre en az 8 karakter olmali.' });
-      if (password !== confirmPassword) return res.status(400).json({ ok: false, message: 'Sifreler eslesmiyor.' });
+      if (!username || !email || !password || !confirmPassword) return res.status(400).json({ ok: false, message: 'Tüm alanları doldurun.' });
+      if (username.length < 3 || username.length > 32) return res.status(400).json({ ok: false, message: 'Kullanıcı adı 3 ile 32 karakter arasında olmalı.' });
+      if (!isValidEmail(email)) return res.status(400).json({ ok: false, message: 'Geçerli bir e-posta girin.' });
+      if (String(password).length < 6) return res.status(400).json({ ok: false, message: 'Şifre en az 6 karakter olmalı.' });
+      if (password !== confirmPassword) return res.status(400).json({ ok: false, message: 'Şifreler eşleşmiyor.' });
 
-      if (await isHwidBanned(hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanm─▒┼ş.' });
+      if (await isHwidBanned(hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanmış.' });
 
       const existingUser = await findUserByEmail(email);
-      if (existingUser) return res.status(400).json({ ok: false, message: 'Bu e-posta zaten kay─▒tl─▒.' });
+      if (existingUser) return res.status(400).json({ ok: false, message: 'Bu e-posta zaten kayıtlı.' });
+
+      const existingName = await findUserByLogin(username);
+      if (existingName) return res.status(400).json({ ok: false, message: 'Bu kullanıcı adı zaten kullanımda.' });
 
       const referralCode = String(req.body?.referral_code || '').trim().toUpperCase().slice(0, 40);
       if (referralCode && useDatabase) {
         const [referrerRows] = await pool.query('SELECT id FROM users WHERE referral_code = ? LIMIT 1', [referralCode]);
-        if (!referrerRows[0]) return res.status(400).json({ ok: false, message: 'Referans kodu gecersiz.' });
+        if (!referrerRows[0]) return res.status(400).json({ ok: false, message: 'Referans kodu geçersiz.' });
       }
       const user = await createUser({ username, email, password, role: 'user', hwid, referredBy: referralCode });
       if (referralCode && useDatabase) await pool.query('INSERT INTO referral_events (referral_code, referred_user_id, referred_email) VALUES (?, ?, ?)', [referralCode, user.id, user.email]);
       await updateUserHwidIfMissing(user, req.body?.hwid);
-      clearAdminCookie(res);
-      await recordActivityLog({ user, action: 'REGISTER', details: hwid ? `HWID: ${hwid}` : '' });
-      await notifyAdminRegistration(user, { source: 'site', hwid, req });
-      res.json({ ok: true, message: 'Hesap basariyla olusturuldu. Simdi giris yapabilirsiniz!', user: publicUserPayload(user, '') });
+
+      const token = await issueUserToken(user);
+      req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
+      setAuthCookie(res, user);
+
+      // Non-blocking background logs and notifications
+      recordActivityLog({ user, action: 'REGISTER', details: hwid ? `HWID: ${hwid}` : '' }).catch(() => {});
+      notifyAdminRegistration(user, { source: 'site', hwid, req }).catch(() => {});
+
+      res.json({ ok: true, message: 'Hesap başarıyla oluşturuldu!', user: publicUserPayload(user, token) });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ ok: false, message: 'Sunucu hatas─▒ olu┼ştu.' });
+      console.error('Register error:', error);
+      res.status(500).json({ ok: false, message: 'Kayıt işlemi sırasında sunucu hatası oluştu.' });
     }
   });
 
@@ -4762,30 +4831,30 @@ async function bootSecurityShoopServer(options = {}) {
     try {
       if (!(await requirePersistentStorage(req, res, { allowTemporary: true }))) return;
       const login = String(req.body?.email || req.body?.login || req.body?.username || '').trim();
-      const { password } = req.body;
-      if (!login || !password) return res.status(400).json({ ok: false, message: 'E-posta/kullanici adi ve sifre gerekli.' });
-      if (login.includes('@') && !isValidEmail(login)) return res.status(400).json({ ok: false, message: 'Gecerli bir e-posta gir.' });
-      if (String(password).length < 8) return res.status(400).json({ ok: false, message: 'E-posta veya sifre hatali.' });
+      const { password } = req.body || {};
+      if (!login || !password) return res.status(400).json({ ok: false, message: 'Kullanıcı adı/e-posta ve şifre gereklidir.' });
 
       const user = await findUserByLogin(login);
-      if (user && await isHwidBanned(user.hwid || req.body?.hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanm─▒┼ş.' });
-      if (!user) return res.status(400).json({ ok: false, message: 'E-posta veya ┼şifre hatal─▒.' });
-      if (user.is_blocked) return res.status(403).json({ ok: false, message: 'Bu hesap engellenmi┼ş.' });
+      if (!user) return res.status(400).json({ ok: false, message: 'Kullanıcı adı veya şifre hatalı.' });
+      if (user && await isHwidBanned(user.hwid || req.body?.hwid)) return res.status(403).json({ ok: false, blocked: true, message: 'Bu bilgisayar banlanmış.' });
+      if (user.is_blocked) return res.status(403).json({ ok: false, message: 'Bu hesap engellenmiş.' });
 
       const isValid = await bcrypt.compare(password, user.password_hash);
-      if (!isValid) return res.status(400).json({ ok: false, message: 'E-posta veya ┼şifre hatal─▒.' });
+      if (!isValid) return res.status(400).json({ ok: false, message: 'Kullanıcı adı veya şifre hatalı.' });
       if (!isUserApproved(user)) return res.status(403).json(approvalBlockedBody(user));
 
       await updateUserHwidIfMissing(user, req.body?.hwid);
       const token = await issueUserToken(user);
       req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
-      if (req.session.user.role === 'admin') setAdminCookie(res, req.session.user);
-      else clearAdminCookie(res);
-      await recordActivityLog({ user, action: 'LOGIN', details: req.body?.hwid ? `HWID: ${req.body.hwid}` : '' });
-      res.json({ ok: true, message: 'Giris basarili.', user: publicUserPayload({ ...user, ...req.session.user }, token) });
+      setAuthCookie(res, user);
+
+      // Non-blocking background log
+      recordActivityLog({ user, action: 'LOGIN', details: req.body?.hwid ? `HWID: ${req.body.hwid}` : '' }).catch(() => {});
+
+      res.json({ ok: true, message: 'Giriş başarılı.', user: publicUserPayload({ ...user, ...req.session.user }, token) });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ ok: false, message: 'Sunucu hatas─▒ olu┼ştu.' });
+      console.error('Login error:', error);
+      res.status(500).json({ ok: false, message: 'Giriş yapılırken sunucu hatası oluştu.' });
     }
   });
 
@@ -5044,24 +5113,20 @@ async function bootSecurityShoopServer(options = {}) {
   });
 
   app.post('/api/logout', (req, res) => {
-    const session = req.session;
-    if (session) session.user = null;
-    res.clearCookie('securityshoop.sid');
-    clearAdminCookie(res);
-    res.json({ ok: true, message: 'Cikis yapildi.' });
-    res.on('finish', () => {
-      if (session && typeof session.destroy === 'function') {
-        session.destroy(() => {});
+    try {
+      if (req.session) {
+        req.session.user = null;
+        if (typeof req.session.destroy === 'function') {
+          req.session.destroy(() => {});
+        }
       }
-    });
-  });
-
-  app.post('/api/logout', (req, res) => {
-    req.session.destroy(() => {
       res.clearCookie('securityshoop.sid');
-      clearAdminCookie(res);
-      res.json({ ok: true, message: '├ç─▒k─▒┼ş yap─▒ld─▒.' });
-    });
+      clearAuthCookie(res);
+      res.json({ ok: true, message: 'Çıkış yapıldı.' });
+    } catch (e) {
+      clearAuthCookie(res);
+      res.json({ ok: true, message: 'Çıkış yapıldı.' });
+    }
   });
 
   app.post('/api/log-action', async (req, res) => {

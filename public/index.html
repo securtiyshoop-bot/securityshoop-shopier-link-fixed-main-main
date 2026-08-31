@@ -1922,21 +1922,47 @@
     }
 
     authForm.addEventListener('submit',async e=>{
-      e.preventDefault();submitBtn.disabled=true;submitBtn.textContent='Yükleniyor...';
+      e.preventDefault();
+      authMsg.textContent='';
+      submitBtn.disabled=true;
+      submitBtn.textContent='Lütfen bekleyin...';
       try{
-        const p={email:document.getElementById('email').value.trim(),password:document.getElementById('password').value};
+        const loginVal=document.getElementById('email').value.trim();
+        const passVal=document.getElementById('password').value;
+        let p={email:loginVal,login:loginVal,username:loginVal,password:passVal};
         let ep='/api/login';
-        if(authMode==='register'){p.username=document.getElementById('registerName').value.trim();p.confirmPassword=document.getElementById('confirmPassword').value;p.referral_code=document.getElementById('registerReferral').value.trim();ep='/api/register';}
-        const r=await fastFetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p),timeout:12000});
-        const d=await readJsonSafe(r);
-        if(!d.ok){authMsg.textContent=d.message||'Hata oluştu.';return;}
-        if(d.pending_approval){authMsg.textContent=d.message||'Hesap admin onayı bekliyor.';toast('Admin onayı bekliyor');return;}
-        closeModal();loadMarifetStoreConfig();
-    refreshSession();toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap oluşturuldu');
+        if(authMode==='register'){
+          const regName=document.getElementById('registerName').value.trim();
+          const confPass=document.getElementById('confirmPassword').value;
+          const refCode=(document.getElementById('registerReferral')?.value||'').trim();
+          p={username:regName,email:loginVal,password:passVal,confirmPassword:confPass,referral_code:refCode};
+          ep='/api/register';
+        }
+        const r=await fetch(ep,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(p),
+          credentials:'include'
+        });
+        const d=await r.json().catch(()=>({ok:false,message:'Sunucu geçersiz yanıt verdi.'}));
+        if(!d.ok){
+          authMsg.textContent=d.message||'İşlem başarısız oldu.';
+          return;
+        }
+        if(d.pending_approval){
+          authMsg.textContent=d.message||'Hesap admin onayı bekliyor.';
+          toast('Admin onayı bekliyor');
+          return;
+        }
+        closeModal();
+        toast(authMode==='login'?'✓ Giriş başarılı':'✓ Hesap başarıyla oluşturuldu');
+        await refreshSession();
+        loadMarifetStoreConfig();
       }catch(_err){
-        authMsg.textContent='Sunucu geç cevap verdi. Birazdan tekrar dene.';
+        authMsg.textContent='Bağlantı hatası oluştu. Lütfen tekrar deneyin.';
       }finally{
-        submitBtn.disabled=false;submitBtn.textContent=authMode==='login'?'Giriş Yap':'Hesap Oluştur';
+        submitBtn.disabled=false;
+        submitBtn.textContent=authMode==='login'?'Giriş Yap':'Hesap Oluştur';
       }
     });
 
