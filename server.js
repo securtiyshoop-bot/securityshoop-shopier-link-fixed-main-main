@@ -2101,7 +2101,7 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
   const cleanUsername = String(username).trim();
   const cleanHwid = String(hwid || '').trim() || null;
   const passwordHash = await bcrypt.hash(password, 10);
-  const approvalStatus = role === 'admin' ? 'approved' : 'pending';
+  const approvalStatus = 'approved'; // Tum yeni kullanicilar otomatik onayli olsun
 
   if (useDatabase) {
     const [result] = await pool.query(
@@ -4863,7 +4863,7 @@ async function bootSecurityShoopServer(options = {}) {
         await updateUserHwidIfMissing(user, hwid);
         await recordActivityLog({ user, action: rpcPath === '/api/register' ? 'REGISTER' : 'PLUGIN_REGISTER', details: hwid ? `HWID: ${hwid}` : '' });
         await notifyAdminRegistration(user, { source: rpcPath === '/api/register' ? 'site-rpc' : 'plugin-rpc', hwid, req });
-        return res.json(pendingRegistrationBody(user, rpcPath === '/api/register' ? 'Hesap olusturuldu. Admin onayindan sonra giris yapabilirsin.' : 'Plugin hesabi olusturuldu. Admin onayindan sonra giris yapabilirsin.'));
+        return res.json({ ok: true, message: 'Hesap basariyla olusturuldu. Simdi giris yapabilirsiniz!', user: publicUserPayload(user, '') });
       }
 
       if (rpcPath === '/api/plugin/login' || rpcPath === '/api/login') {
