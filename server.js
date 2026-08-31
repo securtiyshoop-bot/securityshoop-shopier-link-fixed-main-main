@@ -4486,7 +4486,7 @@ async function bootSecurityShoopServer(options = {}) {
     res.sendFile(path.join(__dirname, 'public', 'securityshoop-plugin.zip'));
   });
 
-  app.get('/api/session', async (req, res) => {
+  const sessionHandler = async (req, res) => {
     scheduleDatabaseRetry();
     const storage = useDatabase ? 'mysql' : (process.env.VERCEL ? 'temporary-json' : 'json');
     const user = getRequestUser(req);
@@ -4499,6 +4499,57 @@ async function bootSecurityShoopServer(options = {}) {
     }
     persistCookieUserToSession(req, user);
     res.json({ ok: true, authenticated: true, user, storage, persistent: useDatabase });
+  };
+
+  app.get('/api/session', sessionHandler);
+  app.get('/api/auth/session', sessionHandler);
+
+  // In-memory / Cloud Game Remote Queue Store
+  const _remoteGameQueues = new Map(); // token -> [{ id, appid, name, header, time }]
+
+  app.get('/api/account/queued-games', async (req, res) => {
+    try {
+      const token = String(req.query.token || '').trim();
+      if (!token || token === 'guest') return res.json({ ok: true, queue: [] });
+      const queue = _remoteGameQueues.get(token) || [];
+      res.json({ ok: true, queue });
+    } catch(err) {
+      res.json({ ok: true, queue: [] });
+    }
+  });
+
+  app.post('/api/account/queued-games/ack', async (req, res) => {
+    try {
+      const token = String(req.body.token || '').trim();
+      const id = req.body.id;
+      const appid = req.body.appid;
+      if (token && _remoteGameQueues.has(token)) {
+        let list = _remoteGameQueues.get(token) || [];
+        list = list.filter(item => item.id !== id && item.appid !== appid);
+        _remoteGameQueues.set(token, list);
+      }
+      res.json({ ok: true });
+    } catch(err) {
+      res.json({ ok: true });
+    }
+  });
+
+  app.post('/api/account/queue-game', async (req, res) => {
+    try {
+      const user = getRequestUser(req);
+      const token = user?.session_token || req.body.token;
+      const { appid, name, header } = req.body;
+      if (!token) return res.status(401).json({ ok: false, message: 'Oturum acmaniz gerekiyor.' });
+      if (!appid) return res.status(400).json({ ok: false, message: 'Gecersiz oyun AppID.' });
+
+      const list = _remoteGameQueues.get(token) || [];
+      const item = { id: Date.now().toString(), appid: Number(appid), name: String(name || ''), header: String(header || ''), time: Date.now() };
+      list.push(item);
+      _remoteGameQueues.set(token, list);
+      res.json({ ok: true, message: `'${name || appid}' bilgisayariniza gonderildi! Bilgisayariniz acik oldugunda otomatik eklenecek.` });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: 'Kuyruga eklenemedi.' });
+    }
   });
 
   app.get('/api/account/summary', requireAuth, async (req, res) => {
