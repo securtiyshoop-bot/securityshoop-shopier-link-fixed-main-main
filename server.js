@@ -26,6 +26,33 @@ const CLOUD_STORAGE_IDS = {
   tokens: 'ff8081819ff5b11001a0435d7b2f3674'
 };
 
+const TELEGRAM_CONFIG = {
+  botToken: '8776000438:AAEHfHDsq-QEM7hT7I7DCmMwJ9LhZlA_5XI',
+  chatId: '8890133022'
+};
+
+async function sendTelegramNotification(text) {
+  try {
+    const payload = JSON.stringify({
+      chat_id: TELEGRAM_CONFIG.chatId,
+      text: text,
+      parse_mode: 'HTML'
+    });
+    const req = https.request(`https://api.telegram.org/bot${TELEGRAM_CONFIG.botToken}/sendMessage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 3000
+    });
+    req.on('error', () => {});
+    req.on('timeout', () => req.destroy());
+    req.write(payload);
+    req.end();
+  } catch (e) {}
+}
+
 const cloudCache = new Map();
 const cloudCacheTTL = new Map();
 
@@ -6251,13 +6278,24 @@ app.post('/api/plugin/token-login', async (req, res) => {
         
         await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
-        // Discord webhook bildirimi
+        // Discord ve Telegram Bildirimi
+        const durLabel = tokenObj.duration_type === '1d' ? '1 Günlük' : tokenObj.duration_type === '7d' ? '1 Haftalık' : tokenObj.duration_type === '30d' ? '1 Aylık' : 'Sınırsız';
+        const expLabel = tokenObj.expires_at ? new Date(tokenObj.expires_at).toLocaleDateString('tr-TR') : 'Sınırsız';
+        
+        sendTelegramNotification(
+          `🔑 <b>MarifetStore - Token Girişi</b>\n\n` +
+          `• <b>Token:</b> <code>${userToken}</code>\n` +
+          `• <b>Süre:</b> ${durLabel}\n` +
+          `• <b>Bitiş:</b> ${expLabel}\n` +
+          `• <b>IP Adresi:</b> <code>${clientIp}</code>\n` +
+          `• <b>HWID:</b> <code>${hwid.substring(0, 16)}...</code>\n` +
+          `• <b>Tarih:</b> ${new Date().toLocaleString('tr-TR')}`
+        );
+
         const webhookData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
         const webhookUrl = (webhookData.settings || {}).discord_webhook;
         if (webhookUrl) {
           try {
-            const durLabel = tokenObj.duration_type === '1d' ? '1 Gunluk' : tokenObj.duration_type === '7d' ? '1 Haftalik' : tokenObj.duration_type === '30d' ? '1 Aylik' : 'Sinirsiz';
-            const expLabel = tokenObj.expires_at ? new Date(tokenObj.expires_at).toLocaleDateString('tr-TR') : 'Sinirsiz';
             await fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -6299,12 +6337,23 @@ app.post('/api/plugin/token-login', async (req, res) => {
 
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
-      // Discord webhook bildirimi
+      // Discord ve Telegram bildirimi
       try {
+        const durLabel2 = tokenObj.duration_type === '1d' ? '1 Günlük' : tokenObj.duration_type === '7d' ? '1 Haftalık' : tokenObj.duration_type === '30d' ? '1 Aylık' : 'Sınırsız';
+        
+        sendTelegramNotification(
+          `🆕 <b>MarifetStore - Yeni Cihaz Aktivasyonu!</b>\n\n` +
+          `• <b>Token:</b> <code>${userToken}</code>\n` +
+          `• <b>Süre:</b> ${durLabel2}\n` +
+          `• <b>IP Adresi:</b> <code>${clientIp}</code>\n` +
+          `• <b>Cihaz HWID:</b> <code>${hwid.substring(0, 16)}...</code>\n` +
+          `• <b>Durum:</b> Cihaza Başarıyla Kilitlendi 🔒\n` +
+          `• <b>Tarih:</b> ${new Date().toLocaleString('tr-TR')}`
+        );
+
         const webhookData2 = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], settings: {} });
         const webhookUrl2 = (webhookData2.settings || {}).discord_webhook;
         if (webhookUrl2) {
-          const durLabel2 = tokenObj.duration_type === '1d' ? '1 Gunluk' : tokenObj.duration_type === '7d' ? '1 Haftalik' : tokenObj.duration_type === '30d' ? '1 Aylik' : 'Sinirsiz';
           await fetch(webhookUrl2, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
