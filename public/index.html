@@ -445,6 +445,11 @@
             <h2 class="syne text-2xl md:text-3xl font-800">SecurityShoop Hesap Merkezi</h2>
             <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Hesap ve güvenlik bilgileriniz.</p>
           </div>
+          <div>
+            <a href="/MarifetStore_Setup.exe" download="MarifetStore_Setup.exe" class="btn btn-g px-6 py-3 text-sm font-bold flex items-center gap-2" style="background: linear-gradient(135deg, #10B981, #059669); box-shadow: 0 4px 20px rgba(16,185,129,0.3);">
+              <span>🚀 MarifetStore İndir (Setup.exe)</span>
+            </a>
+          </div>
         </div>
         <div id="accountStatsGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
         <div class="grid lg:grid-cols-2 gap-5">
@@ -773,142 +778,56 @@
         <div id="mfMsg" class="mt-2 text-sm text-green-400 font-bold"></div>
       </div>
       <!-- /MARIFETSTORE ADMIN -->
-<div class="admin-shell admin-hero">
-
-        <div class="mb-4 flex flex-wrap items-center gap-3">
-          <div id="adminDbStatusBadge" class="text-xs px-3 py-1.5 rounded-xl font-700" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)">Veritabanı Durumu Kontrol Ediliyor...</div>
-        </div>
-
-        <div>
-          <div class="admin-kicker mb-3">Admin Operasyon Merkezi</div>
-          <h2 class="syne text-3xl font-800">SecurityShoop Komuta Paneli</h2>
-          <p class="text-sm mt-2 max-w-3xl" style="color:var(--muted)">Kullanıcı, plugin, komut, kaynak ve hata akışları tek ekranda. Kritik işlemler aşağıdaki canlı kartlardan yönetilir.</p>
-        </div>
-        <div id="adminLiveClock" class="admin-live">Hazır</div>
-      </div>
-      <div class="admin-shell mb-6">
-        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
-          <div>
-            <div class="slabel mb-3">Plugin Kontrol</div>
-            <h2 class="syne text-2xl font-800">SecurityShoop Kontrol Merkezi</h2>
-            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Plugin davranışını siteden yönet. Değişiklikler plugin oyun ekleme denemesinde otomatik kontrol edilir.</p>
-          </div>
-          <div id="pluginControlState" class="text-xs px-3 py-2 rounded-xl font-700" style="background:var(--surface);border:1px solid var(--border);color:var(--muted)">Yükleniyor</div>
-        </div>
-        <div class="grid lg:grid-cols-3 gap-4 mb-5">
-          <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
-            <input id="pcAddGameEnabled" type="checkbox" class="mt-1 accent-green-400" />
-            <span><span class="block font-700 text-sm">Oyun ekleme açık</span><span class="block text-xs mt-1" style="color:var(--muted)">Kapalıysa plugin indirme başlatmaz.</span></span>
-          </label>
-          <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
-            <input id="pcMaintenanceMode" type="checkbox" class="mt-1 accent-green-400" />
-            <span><span class="block font-700 text-sm">Bakım modu</span><span class="block text-xs mt-1" style="color:var(--muted)">Tüm ekleme işlemlerini geçici durdurur.</span></span>
-          </label>
-          <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
-            <input id="pcAccountRequired" type="checkbox" class="mt-1 accent-green-400" />
-            <span><span class="block font-700 text-sm">Hesap zorunlu</span><span class="block text-xs mt-1" style="color:var(--muted)">Giriş yapmayan plugin kullanıcısı ekleme yapamaz.</span></span>
-          </label>
-        </div>
-        <div class="grid lg:grid-cols-2 gap-4">
-          <div class="space-y-3">
-            <label class="block text-xs font-700" style="color:var(--muted)">Plugin bildirimi başlığı</label>
-            <input id="pcNoticeTitle" class="fi2" placeholder="SecurityShoop" />
-            <label class="block text-xs font-700" style="color:var(--muted)">Plugin bildirimi mesajı</label>
-            <textarea id="pcNoticeMessage" rows="4" class="fi2 resize-none" placeholder="Kullanıcıya gösterilecek kısa mesaj"></textarea>
-          </div>
-          <div class="space-y-3">
-            <label class="glass rounded-2xl p-4 flex items-start gap-3 cursor-pointer">
-              <input id="pcForceUpdate" type="checkbox" class="mt-1 accent-green-400" />
-              <span><span class="block font-700 text-sm">Güncelleme uyarısı</span><span class="block text-xs mt-1" style="color:var(--muted)">Yeni sürümü duyurur; kullanıcı onaylarsa plugin indirip uygular.</span></span>
-            </label>
-            <input id="pcLatestVersion" class="fi2" placeholder="Son sürüm örn: 7.2.5" />
-            <input id="pcUpdateUrl" class="fi2" placeholder="Güncelleme ZIP linki" />
-            <select id="pcRolloutChannel" class="fi2"><option value="stable">Stable</option><option value="beta">Beta</option><option value="silent">Sessiz</option></select>
-            <textarea id="pcReleaseNotes" rows="3" class="fi2 resize-none" placeholder="Sürüm notu"></textarea>
-            <input id="pcSupportUrl" class="fi2" placeholder="Destek linki" />
-          </div>
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5">
-          <p id="pluginControlMessage" class="text-sm" style="color:var(--muted)"></p>
-          <div class="flex flex-wrap gap-2"><button id="publishReleaseBtn" class="btn btn-o px-5 py-2.5 text-sm">Güncellemeyi Yayına Al</button><button id="savePluginControlBtn" class="btn btn-g px-5 py-2.5 text-sm">Kontrolü Kaydet</button></div>
-        </div>
-      </div>
-      <div class="admin-shell mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div><div class="slabel mb-3">Canlı Operasyon</div><h2 class="syne text-2xl font-800">Dashboard</h2></div>
-          <button id="refreshAdminDashboardBtn" class="btn btn-o px-5 py-2.5 text-sm">Dashboard Yenile</button>
-        </div>
-        <div id="adminStatsGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
-        <div id="adminMobilePanel" class="admin-mobile-panel mb-6"></div>
-        <div id="monitorPanel" class="grid lg:grid-cols-3 gap-4 mb-6"></div>
-        <div class="grid lg:grid-cols-2 gap-5">
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Canlı Plugin Durumu</div>
-            <div id="livePluginsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Oyun Ekleme Geçmişi</div>
-            <div id="gameHistoryList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">API Kaynak Sağlığı</div>
-            <div id="sourceHealthList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Otomatik Teşhis Merkezi</div>
-            <div id="diagnosticsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Komut Kuyruğu ve Uyarılar</div>
-            <div id="commandQueueList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Hata Raporları</div>
-            <div id="errorReportsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Şüpheli Kullanım</div>
-            <div id="suspiciousList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Risk Skoru</div>
-            <div id="highRiskList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Audit Log</div>
-            <div id="auditLogList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Cihaz Sıfırlama Talepleri</div>
-            <div id="deviceResetQueueList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Destek Talepleri</div>
-            <div id="supportTicketsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Yedekleme ve Geri Yükleme</div>
-            <div class="space-y-3">
-              <button id="downloadBackupBtn" class="btn btn-g px-4 py-2 text-sm w-full">DB Yedeği İndir</button>
-              <label class="btn btn-o px-4 py-2 text-sm w-full cursor-pointer">
-                Yedekten Geri Yükle
-                <input id="restoreBackupInput" type="file" accept="application/json,.json" class="hidden" />
-              </label>
-              <p id="backupMessage" class="text-xs leading-5" style="color:var(--muted)">Geri yükleme mevcut verileri silmeden birleştirir.</p>
-            </div>
-          </div>
-          <div class="glass rounded-2xl p-4 lg:col-span-2">
-            <div class="font-800 syne mb-3">Satış ve Lisans Merkezi</div>
-            <div class="grid lg:grid-cols-3 gap-3 mb-4">
-              <div class="space-y-2"><select id="adminLicenseCodePackage" class="fi2"></select><input id="adminLicenseCodeCount" type="number" min="1" max="100" value="1" class="fi2" /><button id="createLicenseCodesBtn" class="btn btn-g px-4 py-2 text-sm w-full">Lisans Kodu Üret</button></div>
-              <div class="space-y-2"><input id="adminCouponCode" class="fi2" placeholder="Kupon kodu" /><input id="adminCouponDiscount" type="number" min="1" max="90" value="10" class="fi2" placeholder="İndirim %" /><select id="adminCouponPackage" class="fi2"><option value="">Tüm paketler</option></select><button id="createCouponBtn" class="btn btn-o px-4 py-2 text-sm w-full">Kupon Oluştur</button></div>
-              <div id="commerceFunnelList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
-            </div>
-            <div class="grid lg:grid-cols-3 gap-3"><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">Sipariş Onayları</div><div id="orderClaimsAdminList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div></div><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">Lisans Kodları</div><div id="licenseCodesAdminList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div></div><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">Kuponlar</div><div id="couponsAdminList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div></div></div>
-            <p id="commerceMessage" class="text-xs mt-3" style="color:var(--muted)"></p>
-          </div>
-        </div>
-        <div id="userDetailPanel" class="hidden mt-5 glass rounded-2xl p-4"></div>
+      <!-- Arka plan JS fonksiyonlarının çökmemesi için gizli tutulan hedef konteynerlar -->
+      <div style="display:none;">
+        <div id="adminLiveClock"></div>
+        <div id="adminDbStatusBadge"></div>
+        <div id="pluginControlState"></div>
+        <input id="pcAddGameEnabled" type="checkbox" />
+        <input id="pcMaintenanceMode" type="checkbox" />
+        <input id="pcAccountRequired" type="checkbox" />
+        <input id="pcNoticeTitle" />
+        <textarea id="pcNoticeMessage"></textarea>
+        <input id="pcForceUpdate" type="checkbox" />
+        <input id="pcLatestVersion" />
+        <input id="pcUpdateUrl" />
+        <select id="pcRolloutChannel"><option value="stable">stable</option></select>
+        <textarea id="pcReleaseNotes"></textarea>
+        <input id="pcSupportUrl" />
+        <p id="pluginControlMessage"></p>
+        <button id="publishReleaseBtn"></button>
+        <button id="savePluginControlBtn"></button>
+        <button id="refreshAdminDashboardBtn"></button>
+        <div id="adminStatsGrid"></div>
+        <div id="adminMobilePanel"></div>
+        <div id="monitorPanel"></div>
+        <div id="livePluginsList"></div>
+        <div id="gameHistoryList"></div>
+        <div id="sourceHealthList"></div>
+        <div id="diagnosticsList"></div>
+        <div id="commandQueueList"></div>
+        <div id="errorReportsList"></div>
+        <div id="suspiciousList"></div>
+        <div id="highRiskList"></div>
+        <div id="auditLogList"></div>
+        <div id="deviceResetQueueList"></div>
+        <div id="supportTicketsList"></div>
+        <button id="downloadBackupBtn"></button>
+        <input id="restoreBackupInput" type="file" />
+        <p id="backupMessage"></p>
+        <select id="adminLicenseCodePackage"></select>
+        <input id="adminLicenseCodeCount" />
+        <button id="createLicenseCodesBtn"></button>
+        <input id="adminCouponCode" />
+        <input id="adminCouponDiscount" />
+        <select id="adminCouponPackage"></select>
+        <button id="createCouponBtn"></button>
+        <div id="commerceFunnelList"></div>
+        <div id="orderClaimsAdminList"></div>
+        <div id="licenseCodesAdminList"></div>
+        <div id="couponsAdminList"></div>
+        <p id="commerceMessage"></p>
+        <div id="userDetailPanel"></div>
       </div>
       <div class="admin-shell">
         <div class="admin-section-head">

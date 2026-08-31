@@ -2288,7 +2288,12 @@ async function listUsers() {
     `);
     return mergePluginOnlyUsers(rows.map(attachRisk));
   }
-  const data = readUsersFile();
+  let data = readUsersFile();
+  try {
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+    if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+  } catch(e) {}
+
   const bans = readHwidBansFile();
   const bannedHwids = new Set(bans.bans.map((ban) => normalizeHwid(ban.hwid)).filter(Boolean));
   const fileUsers = [...data.users].sort((a, b) => Number(b.id) - Number(a.id)).map(({ password_hash, ...rest }) => attachRisk({
@@ -2304,13 +2309,19 @@ async function listUsers() {
 async function updateUserBlock(id, blocked) {
   if (useDatabase) {
     await pool.query('UPDATE users SET is_blocked = ? WHERE id = ?', [blocked ? 1 : 0, id]);
-    return;
+    return true;
   }
-  const data = readUsersFile();
+  let data = readUsersFile();
+  try {
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+    if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+  } catch(e) {}
+
   const user = data.users.find((u) => Number(u.id) === Number(id));
   if (!user) return false;
   user.is_blocked = blocked ? 1 : 0;
   writeUsersFile(data);
+  await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
   return true;
 }
 
@@ -2328,7 +2339,12 @@ async function updateUserApprovalStatus(id, status) {
     );
     return true;
   }
-  const data = readUsersFile();
+  let data = readUsersFile();
+  try {
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+    if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+  } catch(e) {}
+
   const user = data.users.find((u) => Number(u.id) === Number(id));
   if (!user || user.role === 'admin') return false;
   user.approval_status = cleanStatus;
@@ -2337,6 +2353,7 @@ async function updateUserApprovalStatus(id, status) {
     user.token_created_at = '';
   }
   writeUsersFile(data);
+  await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
   return true;
 }
 
@@ -2348,12 +2365,18 @@ async function updateUserReviewMode(id, enabled, note = '', adminUser = null) {
   if (useDatabase) {
     await pool.query('UPDATE users SET review_mode = ?, review_note = ? WHERE id = ? AND role <> "admin"', [enabled ? 1 : 0, enabled ? cleanNote : null, cleanId]);
   } else {
-    const data = readUsersFile();
+    let data = readUsersFile();
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+      if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+    } catch(e) {}
+
     const existing = data.users.find((item) => Number(item.id) === cleanId);
     if (!existing || existing.role === 'admin') return false;
     existing.review_mode = enabled ? 1 : 0;
     existing.review_note = enabled ? cleanNote : '';
     writeUsersFile(data);
+    await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
   }
   await recordActivityLog({
     user: adminUser,
@@ -2368,11 +2391,17 @@ async function deleteUserById(id) {
     await pool.query('DELETE FROM users WHERE id = ?', [id]);
     return true;
   }
-  const data = readUsersFile();
+  let data = readUsersFile();
+  try {
+    const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.users, null);
+    if (cloudData && Array.isArray(cloudData.users)) data = cloudData;
+  } catch(e) {}
+
   const index = data.users.findIndex((u) => Number(u.id) === Number(id));
   if (index === -1) return false;
   data.users.splice(index, 1);
   writeUsersFile(data);
+  await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
   return true;
 }
 
