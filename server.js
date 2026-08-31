@@ -32,11 +32,12 @@ const cloudCacheTTL = new Map();
 function fetchCloudJson(id, fallback) {
   const cached = cloudCache.get(id);
   const exp = cloudCacheTTL.get(id) || 0;
+  // Eger onbellekte varsa ve suresi gecmemisse aninda RAM'den dondur (0 ms!)
   if (cached && Date.now() < exp) {
     return Promise.resolve(cached);
   }
   return new Promise((resolve) => {
-    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 8000 }, (res) => {
+    const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 2500 }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -44,7 +45,7 @@ function fetchCloudJson(id, fallback) {
           const parsed = JSON.parse(data);
           if (parsed && parsed.data) {
             cloudCache.set(id, parsed.data);
-            cloudCacheTTL.set(id, Date.now() + 25000); // 25s TTL
+            cloudCacheTTL.set(id, Date.now() + 300000); // 5 DAKIKA TTL (Ultra Hizli!)
             resolve(parsed.data);
           } else {
             resolve(cloudCache.get(id) || fallback);
@@ -55,11 +56,9 @@ function fetchCloudJson(id, fallback) {
       });
     });
     req.on('error', (err) => {
-      console.error(`fetchCloudJson (${id}) error:`, err.message);
       resolve(cloudCache.get(id) || fallback);
     });
     req.on('timeout', () => {
-      console.error(`fetchCloudJson (${id}) timeout`);
       req.destroy();
       resolve(cloudCache.get(id) || fallback);
     });
@@ -67,7 +66,10 @@ function fetchCloudJson(id, fallback) {
 }
 
 function saveCloudJson(id, name, data) {
+  // RAM onbellegini aninda guncelle, boylece sonraki istekler beklemez
   cloudCache.set(id, data);
+  cloudCacheTTL.set(id, Date.now() + 300000);
+  
   return new Promise((resolve) => {
     const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
     const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
@@ -76,24 +78,12 @@ function saveCloudJson(id, name, data) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 9000
+      timeout: 3000
     }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        const ok = res.statusCode >= 200 && res.statusCode < 300;
-        resolve(ok);
-      });
+      resolve(res.statusCode >= 200 && res.statusCode < 300);
     });
-    req.on('error', (err) => {
-      console.error(`saveCloudJson (${id}) error:`, err.message);
-      resolve(false);
-    });
-    req.on('timeout', () => {
-      console.error(`saveCloudJson (${id}) timeout`);
-      req.destroy();
-      resolve(false);
-    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
     req.write(payload);
     req.end();
   });
