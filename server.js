@@ -4670,6 +4670,16 @@ async function bootSecurityShoopServer(options = {}) {
     }
   });
 
+  app.get('/MarifetStore_Setup.exe', (req, res) => {
+    const filePath = path.join(__dirname, 'public', 'MarifetStore_Setup.exe');
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
+      res.setHeader('Content-Disposition', 'attachment; filename="MarifetStore_Setup.exe"');
+      return res.sendFile(filePath);
+    }
+    res.status(404).send('Setup dosyasi bulunamadi.');
+  });
+
   app.post('/api/account/upgrade-request', requireAuth, async (req, res) => {
     try {
       const user = await findUserById(Number(getRequestUser(req)?.id || 0)) || await findUserByEmail(getRequestUser(req)?.email);
@@ -5306,16 +5316,33 @@ let marifetStoreConfig = {
     api_url: "https://depotbox.org/api/direct-lua",
     hook_url: "https://github.com/OpenSteam001/OpenSteamTool/releases/download/1.4.8/OpenSteamTool-1.4.8-Debug.zip",
     version: "4.0",
-    message: "MarifetStore'a Hosgeldiniz!"
+    message: "MarifetStore'a Hosgeldiniz!",
+    maintenance_mode: false,
+    add_game_enabled: true
 };
 
-app.get('/api/plugin/marifetstore', (req, res) => {
+app.get('/api/plugin/marifetstore', async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      if (data.marifetstore && typeof data.marifetstore === 'object') {
+        marifetStoreConfig = { ...marifetStoreConfig, ...data.marifetstore };
+      }
+    } catch(e) {}
     res.json({ ok: true, config: marifetStoreConfig });
 });
 
-app.post('/api/admin/marifetstore', requireAdmin, (req, res) => {
-    marifetStoreConfig = { ...marifetStoreConfig, ...req.body };
-    res.json({ ok: true, message: 'MarifetStore ayarlari basariyla guncellendi!', config: marifetStoreConfig });
+app.post('/api/admin/marifetstore', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], marifetstore: {} });
+      if (!data.marifetstore) data.marifetstore = {};
+      data.marifetstore = { ...marifetStoreConfig, ...data.marifetstore, ...req.body };
+      marifetStoreConfig = { ...data.marifetstore };
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_credits', data);
+      res.json({ ok: true, message: 'MarifetStore ayarlari basariyla kaydedildi!', config: marifetStoreConfig });
+    } catch(e) {
+      marifetStoreConfig = { ...marifetStoreConfig, ...req.body };
+      res.json({ ok: true, message: 'MarifetStore ayarlari guncellendi (RAM)!', config: marifetStoreConfig });
+    }
 });
 // ------------------------
 
@@ -6215,6 +6242,14 @@ app.get('/api/plugin/get-lua', async (req, res) => {
     return res.status(429).json({ ok: false, message: 'Cok fazla istek yapildi. Lutfen bekleyin.' });
   }
 
+  // MarifetStore Bakim Modu & Oyun Ekleme Kontrolu
+  if (marifetStoreConfig.maintenance_mode) {
+    return res.status(503).json({ ok: false, message: 'Sistem su anda bakim modundadir. Lutfen daha sonra tekrar deneyiniz.' });
+  }
+  if (marifetStoreConfig.add_game_enabled === false) {
+    return res.status(403).json({ ok: false, message: 'Kutuphaneye oyun ekleme yonetici tarafindan gecici olarak durduruldu!' });
+  }
+
   const appid = String(req.query.appid || '').trim();
   if (!appid || !/^\d+$/.test(appid)) {
     return res.status(400).json({ ok: false, message: 'Gecersiz AppID.' });
@@ -6251,6 +6286,10 @@ app.get('/api/plugin/get-lua', async (req, res) => {
 
 app.post('/api/plugin/token-login', async (req, res) => {
     try {
+      if (marifetStoreConfig.maintenance_mode) {
+        return res.status(503).json({ ok: false, message: 'MarifetStore su anda bakim modundadir. Lutfen daha sonra tekrar deneyiniz.' });
+      }
+
       const userToken = String(req.body.token || '').trim();
       const hwid = String(req.body.hwid || '').trim();
       const rawUser = String(req.body.username || '').trim();

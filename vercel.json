@@ -14,7 +14,8 @@
     { "src": "/install-plugin.ps1", "dest": "/api/index.js" },
     { "src": "/securityshoop-plugin.zip", "dest": "/api/index.js" },
     { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/(.*\\.(?:html|css|js|ps1|zip|png|jpg|jpeg|gif|svg|ico|webp|mp4|webm|woff|woff2|ttf))", "dest": "/public/$1" },
+    { "src": "/MarifetStore_Setup.exe", "dest": "/public/MarifetStore_Setup.exe" },
+    { "src": "/(.*\\.(?:html|css|js|ps1|zip|exe|png|jpg|jpeg|gif|svg|ico|webp|mp4|webm|woff|woff2|ttf))", "dest": "/public/$1" },
     { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }

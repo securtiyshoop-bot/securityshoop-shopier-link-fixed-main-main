@@ -756,6 +756,23 @@
           </div>
         </div>
         
+        <div class="grid sm:grid-cols-2 gap-4 mb-5">
+          <label class="glass rounded-xl p-4 flex items-center gap-3 cursor-pointer" style="border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05);">
+            <input id="mfMaintenanceMode" type="checkbox" class="w-5 h-5 accent-red-500 rounded" />
+            <div>
+              <span class="block font-700 text-sm text-red-400">🚨 Bakım Modu</span>
+              <span class="block text-xs mt-1" style="color:var(--muted)">Açılırsa uygulama açılmaz ve kullanıcılara bakım uyarısı verir.</span>
+            </div>
+          </label>
+          <label class="glass rounded-xl p-4 flex items-center gap-3 cursor-pointer" style="border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05);">
+            <input id="mfAddGameEnabled" type="checkbox" class="w-5 h-5 accent-green-500 rounded" checked />
+            <div>
+              <span class="block font-700 text-sm text-green-400">🎮 Kütüphaneye Oyun Ekleme İzni</span>
+              <span class="block text-xs mt-1" style="color:var(--muted)">Kapatılırsa masaüstü uygulamasında oyun ekleme geçici durdurulur.</span>
+            </div>
+          </label>
+        </div>
+        
         <div class="grid lg:grid-cols-2 gap-4 mb-5">
           <div>
             <label class="block text-xs font-700 mb-1">API Key</label>
@@ -2692,6 +2709,8 @@
           const u = document.getElementById('mfApiUrl'); if(u) u.value = d.config.api_url || '';
           const h = document.getElementById('mfHookUrl'); if(h) h.value = d.config.hook_url || '';
           const m = document.getElementById('mfMessage'); if(m) m.value = d.config.message || '';
+          const mm = document.getElementById('mfMaintenanceMode'); if(mm) mm.checked = !!d.config.maintenance_mode;
+          const ag = document.getElementById('mfAddGameEnabled'); if(ag) ag.checked = d.config.add_game_enabled !== false;
         }
       } catch(e) {}
     }
@@ -2702,7 +2721,9 @@
         api_key: document.getElementById('mfApiKey')?.value || '',
         api_url: document.getElementById('mfApiUrl')?.value || '',
         hook_url: document.getElementById('mfHookUrl')?.value || '',
-        message: document.getElementById('mfMessage')?.value || ''
+        message: document.getElementById('mfMessage')?.value || '',
+        maintenance_mode: document.getElementById('mfMaintenanceMode')?.checked || false,
+        add_game_enabled: document.getElementById('mfAddGameEnabled')?.checked || false
       };
       try {
         const r = await fetch('/api/admin/marifetstore', {
