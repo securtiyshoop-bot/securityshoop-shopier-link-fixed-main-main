@@ -437,103 +437,46 @@
     </section>
 
     <!-- ACCOUNT -->
-    <section id="accountPanel" class="hidden mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
-      
-        <div class="admin-shell mb-6">
+    <section id="accountPanel" class="hidden mx-auto max-w-5xl px-5 sm:px-8 pb-20 rv">
+      <div class="admin-shell mb-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
             <div class="slabel mb-3">Hesabım</div>
             <h2 class="syne text-2xl md:text-3xl font-800">SecurityShoop Hesap Merkezi</h2>
-            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Lisans, cihaz, sipariş ve plugin erişim bilgilerin burada.</p>
+            <p class="text-sm mt-2 max-w-2xl" style="color:var(--muted)">Hesap ve güvenlik bilgileriniz.</p>
           </div>
-          <a id="accountDownloadBtn" href="/securityshoop-plugin.zip" class="btn btn-g px-5 py-2.5 text-sm">Plugin İndir</a>
         </div>
         <div id="accountStatsGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
         <div class="grid lg:grid-cols-2 gap-5">
           <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Siparişler</div>
-            <div id="accountOrdersList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Cihaz / HWID</div>
+            <div class="font-800 syne mb-3">Cihaz & HWID Durumu</div>
             <div id="accountDeviceBox" class="space-y-3"></div>
-            <textarea id="deviceResetReason" rows="3" class="fi2 resize-none mt-3" placeholder="PC değiştirdim, yeni cihazı bağlamak istiyorum."></textarea>
-            <button id="requestDeviceResetBtn" class="btn btn-o px-4 py-2 text-sm mt-3">Cihaz Sıfırlama Talebi Gönder</button>
-            <p id="deviceResetMessage" class="text-xs mt-3" style="color:var(--muted)"></p>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Plugin Cihazları</div>
-            <div id="accountPluginList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Eklenmiş Oyunlar</div>
-            <div id="accountInstalledGamesList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Cihaz Talepleri</div>
-            <div id="accountResetList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4 lg:col-span-2">
-            <div class="font-800 syne mb-3">Destek Talebi</div>
-            <div class="grid lg:grid-cols-2 gap-3">
-              <div class="space-y-3">
-                <input id="supportSubject" class="fi2" placeholder="Konu" />
-                <textarea id="supportMessage" rows="4" class="fi2 resize-none" placeholder="Sorunu veya talebini yaz"></textarea>
-                <button id="sendSupportTicketBtn" class="btn btn-g px-4 py-2 text-sm">Talep Gönder</button>
-                <p id="supportTicketMessage" class="text-xs" style="color:var(--muted)"></p>
-              </div>
-              <div id="accountSupportTicketsList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-            </div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Sipariş Doğrula</div>
-            <div class="space-y-3">
-              <input id="orderClaimId" class="fi2" placeholder="Shopier sipariş numarası" />
-              <select id="orderClaimPackage" class="fi2"></select>
-              <button id="sendOrderClaimBtn" class="btn btn-g px-4 py-2 text-sm">Onaya Gönder</button>
-              <p id="orderClaimMessage" class="text-xs" style="color:var(--muted)"></p>
-              <div id="accountOrderClaimsList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
-            </div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Lisans Kodu Aktivasyonu</div>
-            <div class="space-y-3">
-              <input id="licenseCodeInput" class="fi2" placeholder="SS-XXXXXXXX-XXXXXXXX" />
-              <button id="redeemLicenseCodeBtn" class="btn btn-g px-4 py-2 text-sm">Kodu Kullan</button>
-              <p id="licenseCodeMessage" class="text-xs" style="color:var(--muted)"></p>
-              <div class="text-xs leading-5" style="color:var(--muted)">Tek kullanımlık kod, bağlı paketi doğrudan hesabına tanımlar.</div>
-            </div>
           </div>
           <div class="glass rounded-2xl p-4">
             <div class="font-800 syne mb-3">Güvenlik Merkezi</div>
             <div class="space-y-3">
               <input id="currentPasswordInput" type="password" class="fi2" placeholder="Mevcut şifre" />
               <input id="newPasswordInput" type="password" class="fi2" placeholder="Yeni şifre, en az 8 karakter" />
-              <div class="flex flex-wrap gap-2"><button id="changePasswordBtn" class="btn btn-o px-4 py-2 text-sm">Şifreyi Değiştir</button><button id="logoutAllBtn" class="btn btn-o px-4 py-2 text-sm">Plugin Oturumlarını Kapat</button></div>
+              <div class="flex flex-wrap gap-2">
+                <button id="changePasswordBtn" class="btn btn-o px-4 py-2 text-sm">Şifreyi Değiştir</button>
+              </div>
               <p id="securityMessage" class="text-xs" style="color:var(--muted)"></p>
             </div>
           </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Giriş ve Güvenlik Geçmişi</div>
-            <div id="accountSecurityActivity" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-          </div>
-          <div class="glass rounded-2xl p-4 lg:col-span-2">
-            <div class="font-800 syne mb-3">Oyun Kataloğu ve İstek Listesi</div>
-            <div class="grid lg:grid-cols-2 gap-4"><div><div class="flex gap-2"><input id="catalogSearchInput" class="fi2" placeholder="Oyun adı ara" /><button id="catalogSearchBtn" class="btn btn-g px-4 py-2 text-sm">Ara</button></div><div id="catalogResults" class="space-y-2 max-h-72 overflow-y-auto mt-3 pr-1"></div></div><div><div class="text-xs font-800 mb-2" style="color:var(--muted)">İstek listen</div><div id="accountWishlist" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div></div></div>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Referans Programı</div>
-            <div id="referralCodeBox" class="text-sm mb-3" style="color:var(--muted)">Kod hazırlanıyor</div>
-            <button id="copyReferralBtn" class="btn btn-o px-4 py-2 text-sm">Davet Linkini Kopyala</button>
-          </div>
-          <div class="glass rounded-2xl p-4">
-            <div class="font-800 syne mb-3">Lisans Hediye Et</div>
-            <div class="space-y-2"><input id="giftLicenseCode" class="fi2" placeholder="Aktif lisans kodu" /><input id="giftRecipientEmail" type="email" class="fi2" placeholder="Alıcı e-posta" /><button id="giftLicenseBtn" class="btn btn-o px-4 py-2 text-sm">Alıcıya Ayır</button><p id="giftLicenseMessage" class="text-xs" style="color:var(--muted)"></p></div>
-          </div>
-          <div class="glass rounded-2xl p-4 lg:col-span-2">
-            <div class="font-800 syne mb-3">Paket Yükseltme Seçenekleri</div>
-            <div id="accountUpgradeOptions" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-          </div>
+        </div>
+        <!-- Arka plan JS fonksiyonlarının çökmemesi için gizli tutulan hedef konteynerlar -->
+        <div style="display:none;">
+          <div id="accountOrdersList"></div>
+          <div id="accountPluginList"></div>
+          <div id="accountInstalledGamesList"></div>
+          <div id="accountResetList"></div>
+          <div id="accountSupportTicketsList"></div>
+          <div id="accountOrderClaimsList"></div>
+          <div id="accountSecurityActivity"></div>
+          <div id="catalogResults"></div>
+          <div id="accountWishlist"></div>
+          <div id="referralCodeBox"></div>
+          <div id="accountUpgradeOptions"></div>
         </div>
       </div>
     </section>

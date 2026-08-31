@@ -1771,7 +1771,7 @@ function normalizeApprovalStatus(value, role = 'user') {
   if (role === 'admin') return 'approved';
   const status = String(value || '').trim().toLowerCase();
   if (['pending', 'approved', 'rejected'].includes(status)) return status;
-  return 'pending';
+  return 'approved'; // Yeni kayit olan kullanicilar aninda onayli giris yapabilsin
 }
 
 function withUserDefaults(user) {
