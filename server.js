@@ -6224,6 +6224,7 @@ app.post('/api/plugin/token-login', async (req, res) => {
     try {
       const userToken = String(req.body.token || '').trim();
       const hwid = String(req.body.hwid || '').trim();
+      const rawUser = String(req.body.username || '').trim();
       if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
       if (!hwid) return res.status(400).json({ ok: false, message: 'HWID eksik.' });
 
@@ -6270,6 +6271,14 @@ app.post('/api/plugin/token-login', async (req, res) => {
         if (tokenObj.used_by_hwid !== hwid) {
           return res.status(403).json({ ok: false, message: 'Bu token baska bir cihaza kilitlenmis!' });
         }
+
+        // Kullanıcı Adı Kilidi Kontrolü: Kayıtlı kullanıcı adından farklıysa reddet
+        if (tokenObj.username && rawUser && tokenObj.username.toLowerCase() !== rawUser.toLowerCase()) {
+          return res.status(403).json({ 
+            ok: false, 
+            message: `Bu lisans "${tokenObj.username}" kullanıcı adına kilitlidir! Lütfen doğru kullanıcı adını girin.` 
+          });
+        }
         
         // Suresi dolmus mu kontrol et
         if (tokenObj.expires_at && new Date(tokenObj.expires_at) < now) {
@@ -6281,9 +6290,11 @@ app.post('/api/plugin/token-login', async (req, res) => {
         // Discord ve Telegram Bildirimi
         const durLabel = tokenObj.duration_type === '1d' ? '1 Günlük' : tokenObj.duration_type === '7d' ? '1 Haftalık' : tokenObj.duration_type === '30d' ? '1 Aylık' : 'Sınırsız';
         const expLabel = tokenObj.expires_at ? new Date(tokenObj.expires_at).toLocaleDateString('tr-TR') : 'Sınırsız';
-        
+        const displayUsername = tokenObj.username || rawUser || 'Belirtilmedi';
+
         sendTelegramNotification(
           `🔑 <b>MarifetStore - Token Girişi</b>\n\n` +
+          `• <b>Kullanıcı Adı:</b> <code>${displayUsername}</code>\n` +
           `• <b>Token:</b> <code>${userToken}</code>\n` +
           `• <b>Süre:</b> ${durLabel}\n` +
           `• <b>Bitiş:</b> ${expLabel}\n` +
@@ -6324,6 +6335,9 @@ app.post('/api/plugin/token-login', async (req, res) => {
       tokenObj.used = true;
       tokenObj.first_used_at = now.toISOString();
       tokenObj.used_by_hwid = hwid;
+      if (rawUser) {
+        tokenObj.username = rawUser; // Kullanıcı adını kalıcı olarak bu tokene mühürle
+      }
       
       if (tokenObj.duration_type === '1d') {
         tokenObj.expires_at = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString();
@@ -6340,14 +6354,16 @@ app.post('/api/plugin/token-login', async (req, res) => {
       // Discord ve Telegram bildirimi
       try {
         const durLabel2 = tokenObj.duration_type === '1d' ? '1 Günlük' : tokenObj.duration_type === '7d' ? '1 Haftalık' : tokenObj.duration_type === '30d' ? '1 Aylık' : 'Sınırsız';
-        
+        const displayUsername2 = tokenObj.username || rawUser || 'Belirtilmedi';
+
         sendTelegramNotification(
           `🆕 <b>MarifetStore - Yeni Cihaz Aktivasyonu!</b>\n\n` +
+          `• <b>Kullanıcı Adı:</b> <code>${displayUsername2}</code>\n` +
           `• <b>Token:</b> <code>${userToken}</code>\n` +
           `• <b>Süre:</b> ${durLabel2}\n` +
           `• <b>IP Adresi:</b> <code>${clientIp}</code>\n` +
           `• <b>Cihaz HWID:</b> <code>${hwid.substring(0, 16)}...</code>\n` +
-          `• <b>Durum:</b> Cihaza Başarıyla Kilitlendi 🔒\n` +
+          `• <b>Durum:</b> Cihaza ve Kullanıcıya Mühürlendi 🔒\n` +
           `• <b>Tarih:</b> ${new Date().toLocaleString('tr-TR')}`
         );
 
