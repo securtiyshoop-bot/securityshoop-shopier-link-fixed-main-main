@@ -259,30 +259,43 @@ function fetchCloudJson(id, fallback) {
   });
 }
 
-function saveCloudJson(id, name, data) {
-  if (!data) return Promise.resolve(false);
+function saveCloudJson(id, name, partialData) {
+  if (!partialData || typeof partialData !== 'object') return Promise.resolve(false);
   
-  // GUVENLIK KORUMASI: Eger bulutta kullanicilar veya tokenler varsa bos diziyle ezmeyi engelle
-  const existing = cloudCache.get(id);
-  if (id === CLOUD_STORAGE_IDS.users && existing && Array.isArray(existing.users) && existing.users.length > 0) {
-    if (!data.users || !Array.isArray(data.users) || data.users.length === 0) {
-      console.warn('[KORUMA] Bos kullanici listesi ile bulut verisini ezme engellendi!');
-      return Promise.resolve(true);
+  // 1. Mevcut bulut verisini al ve yeni veriyi içine DERİNLEMESİNE BİRLEŞTİR (Hiçbir alan silinmez!)
+  const existing = cloudCache.get(id) || {};
+  const mergedData = { ...existing, ...partialData };
+
+  // Tokens Koruması & Birleştirmesi:
+  if (id === CLOUD_STORAGE_IDS.tokens) {
+    if (!partialData.tokens && existing.tokens) {
+      mergedData.tokens = existing.tokens;
+    } else if (Array.isArray(partialData.tokens)) {
+      const tokenMap = new Map();
+      (existing.tokens || []).forEach(t => { if (t && t.token) tokenMap.set(String(t.token).toLowerCase().trim(), t); });
+      (partialData.tokens || []).forEach(t => { if (t && t.token) tokenMap.set(String(t.token).toLowerCase().trim(), t); });
+      mergedData.tokens = Array.from(tokenMap.values());
     }
   }
-  if (id === CLOUD_STORAGE_IDS.tokens && existing && Array.isArray(existing.tokens) && existing.tokens.length > 0) {
-    if (!data.tokens || !Array.isArray(data.tokens) || data.tokens.length === 0) {
-      console.warn('[KORUMA] Bos token listesi ile bulut verisini ezme engellendi!');
-      return Promise.resolve(true);
+
+  // Users Koruması & Birleştirmesi:
+  if (id === CLOUD_STORAGE_IDS.users) {
+    if (!partialData.users && existing.users) {
+      mergedData.users = existing.users;
+    } else if (Array.isArray(partialData.users)) {
+      const userMap = new Map();
+      (existing.users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+      (partialData.users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+      mergedData.users = Array.from(userMap.values());
     }
   }
 
   // RAM onbellegini aninda guncelle
-  cloudCache.set(id, data);
+  cloudCache.set(id, mergedData);
   cloudCacheTTL.set(id, Date.now() + 600000);
   
   return new Promise((resolve) => {
-    const payload = JSON.stringify({ name: `securityshoop_${name}`, data });
+    const payload = JSON.stringify({ name: `marifetstore_${name}`, data: mergedData });
     const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
       method: 'PATCH',
       headers: {
