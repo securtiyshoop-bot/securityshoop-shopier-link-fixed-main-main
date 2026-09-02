@@ -7839,10 +7839,11 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   app.get('/api/plugin/version-check', (req, res) => {
     res.json({
       ok: true,
-      latest_version: '9.0.0-ULTIMATE',
+      latest_version: '10.0.0',
       min_supported_version: '8.0.0',
+      download_url: 'https://www.marifetstore.tech/MarifetStore_Setup.exe',
       update_required: false,
-      changelog: 'v9.0.0: Profil ve Kullanıcı Adı Sistemi, AI Evren Rehberi, FPS Tahmincisi, Dijital Garanti Belgesi.'
+      changelog: 'v10.0.0: Otomatik DLC & Season Pass açıcı, 120 FPS GPU hızlandırma, Web Audio ses motoru ve tek tıkla otomatik güncelleyici.'
     });
   });
 
