@@ -6777,8 +6777,8 @@ app.post('/api/plugin/token-login', async (req, res) => {
         const expLabel = tokenObj.expires_at ? new Date(tokenObj.expires_at).toLocaleDateString('tr-TR') : 'Sınırsız';
         const displayUsername = tokenObj.username || rawUser || 'Belirtilmedi';
 
-        sendTelegramNotification(
-          `🔑 <b>MarifetStore - Token Girişi</b>\n\n` +
+        await sendTelegramNotification(
+          `🔑 <b>MarifetStore - Token Girişi!</b>\n\n` +
           `• <b>Kullanıcı Adı:</b> <code>${displayUsername}</code>\n` +
           `• <b>Token:</b> <code>${userToken}</code>\n` +
           `• <b>Süre:</b> ${durLabel}\n` +
@@ -6841,7 +6841,7 @@ app.post('/api/plugin/token-login', async (req, res) => {
         const durLabel2 = tokenObj.duration_type === '1d' ? '1 Günlük' : tokenObj.duration_type === '7d' ? '1 Haftalık' : tokenObj.duration_type === '30d' ? '1 Aylık' : 'Sınırsız';
         const displayUsername2 = tokenObj.username || rawUser || 'Belirtilmedi';
 
-        sendTelegramNotification(
+        await sendTelegramNotification(
           `🆕 <b>MarifetStore - Yeni Cihaz Aktivasyonu!</b>\n\n` +
           `• <b>Kullanıcı Adı:</b> <code>${displayUsername2}</code>\n` +
           `• <b>Token:</b> <code>${userToken}</code>\n` +
