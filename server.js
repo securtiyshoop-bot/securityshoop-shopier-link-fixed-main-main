@@ -38,24 +38,232 @@ async function sendTelegramNotification(text, targetChatId = null) {
       text: text,
       parse_mode: 'HTML'
     });
-    const req = https.request(`https://api.telegram.org/bot${TELEGRAM_CONFIG.botToken}/sendMessage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      },
-      timeout: 3000
-    });
-    req.on('error', () => {});
-    req.on('timeout', () => req.destroy());
-    req.write(payload);
-    req.end();
-  } catch (e) {}
+    const url = `https://api.telegram.org/bot${TELEGRAM_CONFIG.botToken}/sendMessage`;
+    if (typeof fetch === 'function') {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      });
+    } else {
+      const req = https.request(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 5000
+      });
+      req.on('error', () => {});
+      req.write(payload);
+      req.end();
+    }
+  } catch (e) {
+    console.error('Telegram notification error:', e);
+  }
 }
 
 // ==========================================
-// TELEGRAM INTERACTIVE ADMIN BOT LISTENER
+// TELEGRAM REAL-TIME COMMAND PROCESSOR
 // ==========================================
+async function processTelegramMessage(msg) {
+  if (!msg || !msg.text) return;
+  const chatId = String(msg.chat.id);
+  const text = msg.text.trim();
+
+  // Only authorized admin can execute management commands
+  if (chatId !== String(TELEGRAM_CONFIG.chatId)) {
+    await sendTelegramNotification("⛔ <i>Yetkisiz erişim: Bu bot yalnızca MarifetStore yöneticisi için yetkilendirilmiştir.</i>", chatId);
+    return;
+  }
+
+  // Command Routing
+  if (text.startsWith('/start') || text.startsWith('/yardim') || text.startsWith('/help')) {
+    const helpMsg = `🤖 <b>MarifetStore Admin Botuna Hoş Geldiniz!</b>\n\n` +
+      `Kullanabileceğiniz Komutlar:\n\n` +
+      `🔑 <b>/uret [sure]</b> — Yeni lisans anahtarı üretir\n` +
+      `<i>Örnekler:</i> <code>/uret 30</code>, <code>/uret 7</code>, <code>/uret sinirsiz</code>\n\n` +
+      `📢 <b>/duyuru [mesaj]</b> — Tüm kullanıcılara canlı masaüstü duyurusu gönderir\n` +
+      `<i>Örnek:</i> <code>/duyuru Yeni oyunlar ve DLC paketleri eklendi!</code>\n\n` +
+      `📊 <b>/istatistik</b> — Detaylı kullanıcı, lisans ve sipariş raporu\n` +
+      `🔄 <b>/resethwid [token]</b> — Belirtilen lisansın HWID kilidini sıfırlar\n` +
+      `📦 <b>/stok</b> — Hızlı lisans stok durumu\n` +
+      `❓ <b>/yardim</b> — Bu yardım menüsünü gösterir`;
+    await sendTelegramNotification(helpMsg, chatId);
+  }
+  else if (text.startsWith('/uret') || text.startsWith('/key')) {
+    const parts = text.split(' ');
+    let durationArg = parts[1] ? parts[1].toLowerCase() : '30';
+    let durationType = '30d';
+    let durationLabel = '30 Gün';
+
+    if (durationArg === '1' || durationArg === '1g' || durationArg === '1d' || durationArg === 'gunluk') {
+      durationType = '1d';
+      durationLabel = '1 Günlük Deneme';
+    } else if (durationArg === '7' || durationArg === '7g' || durationArg === '7d' || durationArg === 'haftalik') {
+      durationType = '7d';
+      durationLabel = '7 Günlük';
+    } else if (durationArg === 'sinirsiz' || durationArg === 'omurboyu' || durationArg === 'lifetime' || durationArg === 'vip') {
+      durationType = 'lifetime';
+      durationLabel = '♾️ Ömür Boyu / VIP';
+    } else if (durationArg === '30' || durationArg === '30g' || durationArg === '30d' || durationArg === 'aylik') {
+      durationType = '30d';
+      durationLabel = '30 Günlük VIP';
+    }
+
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let t = 'MS-';
+    for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+    t += '-';
+    for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+
+    const newToken = {
+      token: t,
+      created_at: new Date().toISOString(),
+      duration_type: durationType,
+      expires_at: null,
+      used: false,
+      first_used_at: null,
+      used_by_hwid: null,
+      created_by: 'Telegram Admin'
+    };
+
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      if (!cloudData.tokens) cloudData.tokens = [];
+      cloudData.tokens.push(newToken);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', cloudData);
+
+      const reply = `✨ <b>Yeni MarifetStore Lisansı Üretildi!</b>\n\n` +
+        `🔑 <b>Anahtar:</b> <code>${t}</code>\n` +
+        `⏱️ <b>Süre:</b> ${durationLabel}\n` +
+        `📅 <b>Tarih:</b> ${new Date().toLocaleString('tr-TR')}\n\n` +
+        `<i>Müşterinize iletmek için yukarıdaki koda tıklayarak kolayca kopyalayabilirsiniz.</i>`;
+      await sendTelegramNotification(reply, chatId);
+    } catch (err) {
+      await sendTelegramNotification(`❌ Lisans oluşturulurken hata oluştu: ${err.message}`, chatId);
+    }
+  }
+  else if (text.startsWith('/duyuru') || text.startsWith('/broadcast')) {
+    const announcementText = text.replace(/^\/(?:duyuru|broadcast)\s*/i, '').trim();
+    if (!announcementText) {
+      await sendTelegramNotification('⚠️ <i>Lütfen duyuru metnini yazın. Örn: <code>/duyuru Yeni oyunlar ve DLC paketleri eklendi!</code></i>', chatId);
+      return;
+    }
+    try {
+      const ann = {
+        id: 'ANN-' + Date.now(),
+        title: '📢 Yönetici Duyurusu',
+        summary: announcementText,
+        content: announcementText,
+        created_at: new Date().toISOString()
+      };
+      // 1. Local write
+      try {
+        const data = readAnnouncementsFile();
+        data.announcements.unshift(ann);
+        data.announcements = data.announcements.slice(0, 50);
+        writeAnnouncementsFile(data);
+      } catch(_) {}
+
+      // 2. Cloud write
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { announcements: [] });
+      if (!cloudData.announcements) cloudData.announcements = [];
+      cloudData.announcements.unshift(ann);
+      cloudData.announcements = cloudData.announcements.slice(0, 50);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_announcements', cloudData);
+
+      await sendTelegramNotification(`📢 <b>Canlı Duyuru Başarıyla Yayınlandı!</b>\n\n<i>"${escapeHtml(announcementText)}"</i>\n\n🚀 Tüm aktif MarifetStore uygulamalarına anında iletildi.`, chatId);
+    } catch (err) {
+      await sendTelegramNotification(`❌ Duyuru yayınlanamadı: ${err.message}`, chatId);
+    }
+  }
+  else if (text.startsWith('/istatistik') || text.startsWith('/stats')) {
+    try {
+      const [tokenData, userData, orderData] = await Promise.all([
+        fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] }),
+        fetchCloudJson(CLOUD_STORAGE_IDS.users, { users: [] }),
+        fetchCloudJson(CLOUD_STORAGE_IDS.orders, { orders: [] })
+      ]);
+      const tokens = tokenData.tokens || [];
+      const users = userData.users || [];
+      const orders = orderData.orders || [];
+
+      const totalTokens = tokens.length;
+      const usedTokens = tokens.filter(t => t.used || t.used_by_hwid).length;
+      const freeTokens = totalTokens - usedTokens;
+      const lifetimeTokens = tokens.filter(t => t.duration_type === 'lifetime').length;
+      const totalUsers = users.length;
+      const totalOrders = orders.length;
+
+      const statsMsg = `📊 <b>MarifetStore Canlı Yönetici Raporu</b>\n\n` +
+        `👥 <b>Kayıtlı Kullanıcılar:</b> ${totalUsers} Kişi\n` +
+        `🔑 <b>Toplam Lisans Havuzu:</b> ${totalTokens} Adet\n` +
+        `🟢 <b>Boşta (Kullanılabilir):</b> ${freeTokens} Adet\n` +
+        `🔒 <b>Aktif Kullanılan:</b> ${usedTokens} Adet\n` +
+        `♾️ <b>VIP / Ömür Boyu:</b> ${lifetimeTokens} Adet\n` +
+        `🛒 <b>Tamamlanan Siparişler:</b> ${totalOrders} Adet\n\n` +
+        `🌐 <b>Web:</b> https://marifetstore.tech\n` +
+        `⚡ <b>Sunucu Durumu:</b> %100 Çevrimiçi & Kararlı\n` +
+        `🕒 <b>Rapor Tarihi:</b> ${new Date().toLocaleString('tr-TR')}`;
+
+      await sendTelegramNotification(statsMsg, chatId);
+    } catch (err) {
+      await sendTelegramNotification(`❌ İstatistik alınamadı: ${err.message}`, chatId);
+    }
+  }
+  else if (text.startsWith('/resethwid')) {
+    const parts = text.split(' ');
+    const targetKey = parts[1];
+    if (!targetKey) {
+      await sendTelegramNotification('⚠️ <i>Lütfen sıfırlanacak lisansı belirtin. Örn: <code>/resethwid MS-XXXX-XXXX</code></i>', chatId);
+      return;
+    }
+
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      let tokens = cloudData.tokens || [];
+      let found = false;
+      tokens = tokens.map(t => {
+        if (t.token && t.token.toLowerCase() === targetKey.toLowerCase()) {
+          t.used_by_hwid = null;
+          t.used = false;
+          found = true;
+        }
+        return t;
+      });
+
+      if (found) {
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', { ...cloudData, tokens });
+        await sendTelegramNotification(`✅ <b>HWID Sıfırlandı!</b>\n\n<code>${targetKey}</code> anahtarı artık yeni bir cihazda kullanılabilir.`, chatId);
+      } else {
+        await sendTelegramNotification(`❌ <code>${targetKey}</code> lisansı sistemde bulunamadı.`, chatId);
+      }
+    } catch (err) {
+      await sendTelegramNotification(`❌ Hata: ${err.message}`, chatId);
+    }
+  }
+  else if (text.startsWith('/stok') || text.startsWith('/durum')) {
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokens = cloudData.tokens || [];
+      const total = tokens.length;
+      const used = tokens.filter(t => t.used || t.used_by_hwid).length;
+      const available = total - used;
+
+      const statusMsg = `📊 <b>MarifetStore Lisans & Sistem Durumu</b>\n\n` +
+        `📦 <b>Toplam Üretilen Lisans:</b> ${total}\n` +
+        `🟢 <b>Aktif / Boşta Lisans:</b> ${available}\n` +
+        `🔒 <b>Kullanılan (Kilitli) Lisans:</b> ${used}\n` +
+        `🌐 <b>Domain:</b> https://marifetstore.tech\n` +
+        `⚡ <b>Sistem Durumu:</b> Sorunsuz / Çevrimiçi`;
+      await sendTelegramNotification(statusMsg, chatId);
+    } catch (err) {
+      await sendTelegramNotification(`❌ İstatistik alınamadı: ${err.message}`, chatId);
+    }
+  }
+}
+
 let lastTelegramUpdateId = 0;
 let isTelegramPolling = false;
 
@@ -73,201 +281,8 @@ async function pollTelegramBot() {
           if (json.ok && Array.isArray(json.result)) {
             for (const update of json.result) {
               lastTelegramUpdateId = update.update_id;
-              const msg = update.message;
-              if (!msg || !msg.text) continue;
-
-              const chatId = String(msg.chat.id);
-              const text = msg.text.trim();
-
-              // Only authorized admin can execute management commands
-              if (chatId !== String(TELEGRAM_CONFIG.chatId)) {
-                sendTelegramNotification("⛔ <i>Yetkisiz erişim: Bu bot yalnızca MarifetStore yöneticisi için yetkilendirilmiştir.</i>", chatId);
-                continue;
-              }
-
-              // Command Routing
-              if (text.startsWith('/start') || text.startsWith('/yardim') || text.startsWith('/help')) {
-                const helpMsg = `🤖 <b>MarifetStore Admin Botuna Hoş Geldiniz!</b>\n\n` +
-                  `Kullanabileceğiniz Komutlar:\n\n` +
-                  `🔑 <b>/uret [sure]</b> — Yeni lisans anahtarı üretir\n` +
-                  `<i>Örnekler:</i> <code>/uret 30</code>, <code>/uret 7</code>, <code>/uret sinirsiz</code>\n\n` +
-                  `📢 <b>/duyuru [mesaj]</b> — Tüm kullanıcılara canlı masaüstü duyurusu gönderir\n` +
-                  `<i>Örnek:</i> <code>/duyuru Yeni oyunlar eklendi!</code>\n\n` +
-                  `📊 <b>/istatistik</b> — Detaylı kullanıcı, lisans ve sipariş raporu\n` +
-                  `🔄 <b>/resethwid [token]</b> — Belirtilen lisansın HWID kilidini sıfırlar\n` +
-                  `📦 <b>/stok</b> — Hızlı lisans stok durumu\n` +
-                  `❓ <b>/yardim</b> — Bu yardım menüsünü gösterir`;
-                sendTelegramNotification(helpMsg, chatId);
-              }
-              else if (text.startsWith('/uret') || text.startsWith('/key')) {
-                const parts = text.split(' ');
-                let durationArg = parts[1] ? parts[1].toLowerCase() : '30';
-                let durationType = '30d';
-                let durationLabel = '30 Gün';
-
-                if (durationArg === '1' || durationArg === '1g' || durationArg === '1d' || durationArg === 'gunluk') {
-                  durationType = '1d';
-                  durationLabel = '1 Günlük Deneme';
-                } else if (durationArg === '7' || durationArg === '7g' || durationArg === '7d' || durationArg === 'haftalik') {
-                  durationType = '7d';
-                  durationLabel = '7 Günlük';
-                } else if (durationArg === 'sinirsiz' || durationArg === 'omurboyu' || durationArg === 'lifetime' || durationArg === 'vip') {
-                  durationType = 'lifetime';
-                  durationLabel = '♾️ Ömür Boyu / VIP';
-                } else if (durationArg === '30' || durationArg === '30g' || durationArg === '30d' || durationArg === 'aylik') {
-                  durationType = '30d';
-                  durationLabel = '30 Günlük VIP';
-                }
-
-                // Generate Clean MarifetStore License Key
-                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                let t = 'MS-';
-                for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-                t += '-';
-                for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-
-                const newToken = {
-                  token: t,
-                  created_at: new Date().toISOString(),
-                  duration_type: durationType,
-                  expires_at: null,
-                  used: false,
-                  first_used_at: null,
-                  used_by_hwid: null,
-                  created_by: 'Telegram Admin'
-                };
-
-                try {
-                  const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-                  if (!cloudData.tokens) cloudData.tokens = [];
-                  cloudData.tokens.push(newToken);
-                  await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', cloudData);
-
-                  const reply = `✨ <b>Yeni MarifetStore Lisansı Üretildi!</b>\n\n` +
-                    `🔑 <b>Anahtar:</b> <code>${t}</code>\n` +
-                    `⏱️ <b>Süre:</b> ${durationLabel}\n` +
-                    `📅 <b>Tarih:</b> ${new Date().toLocaleString('tr-TR')}\n\n` +
-                    `<i>Müşterinize iletmek için yukarıdaki koda tıklayarak kolayca kopyalayabilirsiniz.</i>`;
-                  sendTelegramNotification(reply, chatId);
-                } catch (err) {
-                  sendTelegramNotification(`❌ Lisans oluşturulurken hata oluştu: ${err.message}`, chatId);
-                }
-              }
-              else if (text.startsWith('/duyuru') || text.startsWith('/broadcast')) {
-                const announcementText = text.replace(/^\/(?:duyuru|broadcast)\s*/i, '').trim();
-                if (!announcementText) {
-                  sendTelegramNotification('⚠️ <i>Lütfen duyuru metnini yazın. Örn: <code>/duyuru Yeni oyunlar ve DLC paketleri eklendi!</code></i>', chatId);
-                  continue;
-                }
-                try {
-                  const ann = {
-                    id: 'ANN-' + Date.now(),
-                    title: '📢 Yönetici Duyurusu',
-                    summary: announcementText,
-                    content: announcementText,
-                    created_at: new Date().toISOString()
-                  };
-                  // 1. Write local announcements
-                  const data = readAnnouncementsFile();
-                  data.announcements.unshift(ann);
-                  data.announcements = data.announcements.slice(0, 50);
-                  writeAnnouncementsFile(data);
-
-                  // 2. Write cloud announcements
-                  const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { announcements: [] });
-                  if (!cloudData.announcements) cloudData.announcements = [];
-                  cloudData.announcements.unshift(ann);
-                  cloudData.announcements = cloudData.announcements.slice(0, 50);
-                  await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens_and_announcements', cloudData);
-
-                  sendTelegramNotification(`📢 <b>Canlı Duyuru Başarıyla Yayınlandı!</b>\n\n<i>"${escapeHtml(announcementText)}"</i>\n\n🚀 Tüm aktif MarifetStore uygulamalarına iletildi.`, chatId);
-                } catch (err) {
-                  sendTelegramNotification(`❌ Duyuru yayınlanamadı: ${err.message}`, chatId);
-                }
-              }
-              else if (text.startsWith('/istatistik') || text.startsWith('/stats')) {
-                try {
-                  const [tokenData, userData, orderData] = await Promise.all([
-                    fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] }),
-                    fetchCloudJson(CLOUD_STORAGE_IDS.users, { users: [] }),
-                    fetchCloudJson(CLOUD_STORAGE_IDS.orders, { orders: [] })
-                  ]);
-                  const tokens = tokenData.tokens || [];
-                  const users = userData.users || [];
-                  const orders = orderData.orders || [];
-
-                  const totalTokens = tokens.length;
-                  const usedTokens = tokens.filter(t => t.used || t.used_by_hwid).length;
-                  const freeTokens = totalTokens - usedTokens;
-                  const lifetimeTokens = tokens.filter(t => t.duration_type === 'lifetime').length;
-                  const totalUsers = users.length;
-                  const totalOrders = orders.length;
-
-                  const statsMsg = `📊 <b>MarifetStore Canlı Yönetici Raporu</b>\n\n` +
-                    `👥 <b>Kayıtlı Kullanıcılar:</b> ${totalUsers} Kişi\n` +
-                    `🔑 <b>Toplam Lisans Havuzu:</b> ${totalTokens} Adet\n` +
-                    `🟢 <b>Boşta (Kullanılabilir):</b> ${freeTokens} Adet\n` +
-                    `🔒 <b>Aktif Kullanılan:</b> ${usedTokens} Adet\n` +
-                    `♾️ <b>VIP / Ömür Boyu:</b> ${lifetimeTokens} Adet\n` +
-                    `🛒 <b>Tamamlanan Siparişler:</b> ${totalOrders} Adet\n\n` +
-                    `🌐 <b>Web:</b> https://marifetstore.tech\n` +
-                    `⚡ <b>Sunucu Durumu:</b> %100 Çevrimiçi & Kararlı\n` +
-                    `🕒 <b>Rapor Tarihi:</b> ${new Date().toLocaleString('tr-TR')}`;
-
-                  sendTelegramNotification(statsMsg, chatId);
-                } catch (err) {
-                  sendTelegramNotification(`❌ İstatistik alınamadı: ${err.message}`, chatId);
-                }
-              }
-              else if (text.startsWith('/resethwid')) {
-                const parts = text.split(' ');
-                const targetKey = parts[1];
-                if (!targetKey) {
-                  sendTelegramNotification('⚠️ <i>Lütfen sıfırlanacak lisansı belirtin. Örn: <code>/resethwid MS-XXXX-XXXX</code></i>', chatId);
-                  continue;
-                }
-
-                try {
-                  const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-                  let tokens = cloudData.tokens || [];
-                  let found = false;
-                  tokens = tokens.map(t => {
-                    if (t.token && t.token.toLowerCase() === targetKey.toLowerCase()) {
-                      t.used_by_hwid = null;
-                      t.used = false;
-                      found = true;
-                    }
-                    return t;
-                  });
-
-                  if (found) {
-                    await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', { ...cloudData, tokens });
-                    sendTelegramNotification(`✅ <b>HWID Sıfırlandı!</b>\n\n<code>${targetKey}</code> anahtarı artık yeni bir cihazda kullanılabilir.`, chatId);
-                  } else {
-                    sendTelegramNotification(`❌ <code>${targetKey}</code> lisansı sistemde bulunamadı.`, chatId);
-                  }
-                } catch (err) {
-                  sendTelegramNotification(`❌ Hata: ${err.message}`, chatId);
-                }
-              }
-              else if (text.startsWith('/stok') || text.startsWith('/durum')) {
-                try {
-                  const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-                  const tokens = cloudData.tokens || [];
-                  const total = tokens.length;
-                  const used = tokens.filter(t => t.used || t.used_by_hwid).length;
-                  const available = total - used;
-
-                  const statusMsg = `📊 <b>MarifetStore Lisans & Sistem Durumu</b>\n\n` +
-                    `📦 <b>Toplam Üretilen Lisans:</b> ${total}\n` +
-                    `🟢 <b>Aktif / Boşta Lisans:</b> ${available}\n` +
-                    `🔒 <b>Kullanılan (Kilitli) Lisans:</b> ${used}\n` +
-                    `🌐 <b>Domain:</b> https://marifetstore.tech\n` +
-                    `⚡ <b>Sistem Durumu:</b> Sorunsuz / Çevrimiçi`;
-                  sendTelegramNotification(statusMsg, chatId);
-                } catch (err) {
-                  sendTelegramNotification(`❌ İstatistik alınamadı: ${err.message}`, chatId);
-                }
+              if (update.message) {
+                await processTelegramMessage(update.message);
               }
             }
           }
@@ -282,7 +297,6 @@ async function pollTelegramBot() {
   }
 }
 
-// Start interactive Telegram Bot loop
 setInterval(pollTelegramBot, 4000);
 setTimeout(pollTelegramBot, 1000);
 
@@ -5516,19 +5530,31 @@ async function bootSecurityShoopServer(options = {}) {
     }
   });
 
+  app.post('/api/telegram-webhook', async (req, res) => {
+    try {
+      const update = req.body;
+      if (update && update.message) {
+        await processTelegramMessage(update.message);
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('Telegram webhook error:', err);
+      res.json({ ok: false });
+    }
+  });
+
   app.get('/api/plugin/announcements', async (_req, res) => {
     try {
-      const data = readAnnouncementsFile();
-      const now = Date.now();
-      const announcements = data.announcements
-        .filter((item) => item && item.active !== false)
-        .filter((item) => !item.expires_at || new Date(item.expires_at).getTime() > now)
-        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-        .slice(0, 5);
-      res.json({ ok: true, announcements });
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { announcements: [] });
+      let announcements = Array.isArray(cloudData.announcements) ? cloudData.announcements : [];
+      if (announcements.length === 0) {
+        const local = readAnnouncementsFile();
+        announcements = local.announcements || [];
+      }
+      res.json({ ok: true, announcements: announcements.slice(0, 10) });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ ok: false, message: 'Duyurular al─▒namad─▒.' });
+      res.status(500).json({ ok: false, message: 'Duyurular alınamadı.' });
     }
   });
 
