@@ -6751,6 +6751,10 @@ app.post('/api/plugin/token-login', async (req, res) => {
         tokenObj.ref_code = rc;
       }
 
+      if (tokenObj.frozen) {
+        return res.status(403).json({ ok: false, message: 'Bu lisans yönetici tarafından dondurulmuştur / askıya alınmıştır!' });
+      }
+
       if (tokenObj.used) {
         // Zaten kullanilmis, HWID kontrol et
         if (tokenObj.used_by_hwid !== hwid) {
