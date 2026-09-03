@@ -5551,7 +5551,17 @@ async function bootSecurityShoopServer(options = {}) {
         const local = readAnnouncementsFile();
         announcements = local.announcements || [];
       }
-      res.json({ ok: true, announcements: announcements.slice(0, 10) });
+      
+      // Auto-expire announcements older than 7 days (1 week)
+      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const validAnnouncements = announcements.filter(item => {
+        if (!item.created_at) return true;
+        const diff = now - new Date(item.created_at).getTime();
+        return diff <= oneWeekMs;
+      });
+
+      res.json({ ok: true, announcements: validAnnouncements.slice(0, 15) });
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Duyurular alınamadı.' });
@@ -6139,20 +6149,40 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     try {
       const title = String(req.body?.title || '').trim().slice(0, 120);
       const message = String(req.body?.message || '').trim().slice(0, 1000);
-      if (!title || !message) return res.status(400).json({ ok: false, message: 'Ba┼şl─▒k ve mesaj gerekli.' });
-      const data = readAnnouncementsFile();
+      if (!title || !message) return res.status(400).json({ ok: false, message: 'Başlık ve mesaj gerekli.' });
+      
+      const nowIso = new Date().toISOString();
       const item = {
-        id: Date.now(),
+        id: 'ANN-' + Date.now(),
         title,
         message,
+        content: message,
+        summary: message,
+        tag: 'YÖNETİCİ',
         active: true,
-        created_at: new Date().toISOString(),
-        expires_at: String(req.body?.expires_at || '').trim()
+        created_at: nowIso,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
+
+      // 1. Local file
+      const data = readAnnouncementsFile();
+      if (!data.announcements) data.announcements = [];
       data.announcements.unshift(item);
       data.announcements = data.announcements.slice(0, 100);
       writeAnnouncementsFile(data);
-      res.json({ ok: true, announcement: item });
+
+      // 2. Cloud Storage (for Desktop App live delivery)
+      try {
+        const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { announcements: [] });
+        if (!cloudData.announcements) cloudData.announcements = [];
+        cloudData.announcements.unshift(item);
+        cloudData.announcements = cloudData.announcements.slice(0, 50);
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', cloudData);
+      } catch (ce) {
+        console.error('Cloud sync error for announcement:', ce);
+      }
+
+      res.json({ ok: true, announcement: item, message: 'Duyuru masaüstü uygulamasına ve siteye yayınlandı.' });
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Duyuru kaydedilemedi.' });
