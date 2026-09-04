@@ -31,8 +31,35 @@ function isExpired(value) {
   return Number.isFinite(time) && time <= Date.now();
 }
 
-function createAppKeyCode() {
+function createAppKeyCode(type, allowedAppid) {
+  if (type === 'single_game' && allowedAppid) {
+    const aid = String(allowedAppid).replace(/[^0-9]/g, '').slice(0, 12);
+    return `MS-GAME-${aid}-${crypto.randomBytes(2).toString('hex').toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+  }
   return `SSAPP-${crypto.randomBytes(4).toString('hex').toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+}
+
+const CLOUD_STORAGE_TOKEN_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a0435d7b2f3674';
+
+async function syncTokenToCloud(tokenObj) {
+  try {
+    const res = await fetch(CLOUD_STORAGE_TOKEN_URL);
+    let cloudData = {};
+    if (res.ok) {
+      const json = await res.json();
+      cloudData = json.data || {};
+    }
+    if (!cloudData.tokens) cloudData.tokens = [];
+    cloudData.tokens = cloudData.tokens.filter(t => (t.token || t.code || '').toLowerCase() !== (tokenObj.token || tokenObj.code || '').toLowerCase());
+    cloudData.tokens.push(tokenObj);
+    await fetch(CLOUD_STORAGE_TOKEN_URL, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: cloudData })
+    });
+  } catch (err) {
+    console.error('syncTokenToCloud error:', err);
+  }
 }
 
 function createSessionToken() {
@@ -98,6 +125,10 @@ function publicKeyPayload(key, sessions = []) {
     created_at: key.created_at || '',
     note: key.note || '',
     role: key.role || 'user',
+    type: key.type || 'vip',
+    allowed_appid: key.allowed_appid || '',
+    game_name: key.game_name || '',
+    duration_type: key.duration_type || '',
     online: keyIsOnline(key, related),
     session_count: related.length
   };
@@ -160,28 +191,59 @@ async function ensureDatabase(pool) {
   `);
 }
 
-async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, role }) {
+async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, role, type, allowed_appid, game_name, duration_type }) {
   const codes = [];
+  const licType = type === 'single_game' ? 'single_game' : 'vip';
+  const appId = String(allowed_appid || '').trim();
+  const gName = String(game_name || '').trim();
+  const durType = String(duration_type || (expiresAt ? 'custom' : 'lifetime')).trim();
+
   for (let i = 0; i < count; i += 1) {
-    const code = createAppKeyCode();
+    const code = createAppKeyCode(licType, appId);
+    const finalNote = note || (licType === 'single_game' ? `Tek Oyun: ${gName || appId}` : 'Tüm Oyunlar VIP');
     await pool.query(
       'INSERT INTO app_keys (code, label, expires_at, created_by, note, role) VALUES (?, ?, ?, ?, ?, ?)',
-      [code, label || null, toSqlDate(expiresAt), createdBy || null, note || null, role || 'user']
+      [code, label || null, toSqlDate(expiresAt), createdBy || null, finalNote, role || 'user']
     );
     codes.push(code);
+
+    syncTokenToCloud({
+      token: code,
+      code,
+      type: licType,
+      allowed_appid: appId,
+      game_name: gName,
+      duration_type: durType,
+      duration: durType,
+      expires_at: expiresAt || null,
+      created_at: nowIso(),
+      used: false,
+      frozen: false,
+      is_blocked: false,
+      used_by_hwid: null,
+      note: finalNote,
+      role: role || 'user'
+    }).catch(() => {});
   }
   return codes;
 }
 
-function createKeysJson(file, { count, label, expiresAt, createdBy, note, role }) {
+function createKeysJson(file, { count, label, expiresAt, createdBy, note, role, type, allowed_appid, game_name, duration_type }) {
   const data = readJsonStore(file);
   const maxId = data.keys.reduce((max, key) => Math.max(max, Number(key.id) || 0), 0);
   const codes = [];
+  const licType = type === 'single_game' ? 'single_game' : 'vip';
+  const appId = String(allowed_appid || '').trim();
+  const gName = String(game_name || '').trim();
+  const durType = String(duration_type || (expiresAt ? 'custom' : 'lifetime')).trim();
+
   for (let i = 0; i < count; i += 1) {
-    const code = createAppKeyCode();
-    data.keys.push({
+    const code = createAppKeyCode(licType, appId);
+    const finalNote = note || (licType === 'single_game' ? `Tek Oyun: ${gName || appId}` : 'Tüm Oyunlar VIP');
+    const newKey = {
       id: maxId + i + 1,
       code,
+      token: code,
       label,
       status: 'active',
       assigned_hwid: '',
@@ -191,11 +253,34 @@ function createKeysJson(file, { count, label, expiresAt, createdBy, note, role }
       last_seen_at: '',
       expires_at: expiresAt || '',
       created_by: createdBy || '',
-      note: note || '',
+      note: finalNote,
       role: role || 'user',
+      type: licType,
+      allowed_appid: appId,
+      game_name: gName,
+      duration_type: durType,
       created_at: nowIso()
-    });
+    };
+    data.keys.push(newKey);
     codes.push(code);
+
+    syncTokenToCloud({
+      token: code,
+      code,
+      type: licType,
+      allowed_appid: appId,
+      game_name: gName,
+      duration_type: durType,
+      duration: durType,
+      expires_at: expiresAt || null,
+      created_at: newKey.created_at,
+      used: false,
+      frozen: false,
+      is_blocked: false,
+      used_by_hwid: null,
+      note: finalNote,
+      role: newKey.role
+    }).catch(() => {});
   }
   writeJsonStore(file, data);
   return codes;
@@ -351,10 +436,48 @@ async function listKeysDb(pool) {
   };
 }
 
-function listKeysJson(file) {
+async function listKeysJson(file) {
   const data = readJsonStore(file);
+  try {
+    const res = await fetch(CLOUD_STORAGE_TOKEN_URL, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const cjson = await res.json();
+      const cloudTokens = cjson.data?.tokens || [];
+      for (const ct of cloudTokens) {
+        const ctCode = String(ct.token || ct.code || '').trim();
+        if (!ctCode) continue;
+        const exists = data.keys.some(k => (k.code || '').toLowerCase() === ctCode.toLowerCase());
+        if (!exists) {
+          data.keys.push({
+            id: 'c_' + (data.keys.length + 1),
+            code: ctCode,
+            token: ctCode,
+            label: ct.note || (ct.type === 'single_game' ? `Tek Oyun: ${ct.game_name || ct.allowed_appid}` : 'VIP'),
+            status: ct.frozen ? 'blocked' : (ct.used || ct.used_by_hwid ? 'used' : 'active'),
+            assigned_hwid: ct.used_by_hwid || ct.hwid || '',
+            device_name: ct.username || '',
+            app_version: '',
+            first_ip: ct.last_ip || '',
+            last_ip: ct.last_ip || '',
+            first_used_at: ct.first_used_at || '',
+            last_seen_at: ct.last_login || '',
+            expires_at: ct.expires_at || '',
+            created_by: ct.created_by || 'Cloud / Bot',
+            note: ct.note || '',
+            role: ct.role || 'user',
+            type: ct.type || 'vip',
+            allowed_appid: ct.allowed_appid || '',
+            game_name: ct.game_name || '',
+            duration_type: ct.duration_type || ct.duration || '',
+            created_at: ct.created_at || nowIso()
+          });
+        }
+      }
+    }
+  } catch (_) {}
+
   return {
-    keys: data.keys.slice().sort((a, b) => Number(b.id || 0) - Number(a.id || 0)).map((key) => publicKeyPayload(key, data.sessions)),
+    keys: data.keys.slice().sort((a, b) => (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())).map((key) => publicKeyPayload(key, data.sessions)),
     sessions: data.sessions.slice().sort((a, b) => new Date(b.last_seen_at || 0) - new Date(a.last_seen_at || 0)).map(publicSessionPayload)
   };
 }
@@ -445,7 +568,7 @@ function registerRoutes(app, deps) {
   app.get('/api/admin/app-keys', deps.requireAdmin, async (req, res) => {
     try {
       if (!(await deps.requirePersistentStorage(req, res))) return;
-      const data = deps.useDatabase() ? await listKeysDb(deps.pool()) : listKeysJson(deps.dataFile);
+      const data = deps.useDatabase() ? await listKeysDb(deps.pool()) : await listKeysJson(deps.dataFile);
       res.json({ ok: true, storage: deps.useDatabase() ? 'mysql' : 'json', ...data });
     } catch (error) {
       console.error(error);
@@ -463,7 +586,11 @@ function registerRoutes(app, deps) {
         expiresAt: cleanText(req.body?.expires_at || req.body?.expiresAt, 40),
         createdBy: cleanText(deps.getAdminUser(req)?.email || 'admin', 190),
         note: cleanText(req.body?.note, 1000),
-        role: req.body?.role === 'admin' ? 'admin' : 'user'
+        role: req.body?.role === 'admin' ? 'admin' : 'user',
+        type: req.body?.type === 'single_game' ? 'single_game' : 'vip',
+        allowed_appid: cleanText(req.body?.allowed_appid, 50),
+        game_name: cleanText(req.body?.game_name, 120),
+        duration_type: cleanText(req.body?.duration_type, 30)
       };
       const codes = deps.useDatabase()
         ? await createKeysDb(deps.pool(), payload)

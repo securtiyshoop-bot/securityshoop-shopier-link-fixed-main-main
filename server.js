@@ -81,8 +81,9 @@ async function processTelegramMessage(msg) {
   if (text.startsWith('/start') || text.startsWith('/yardim') || text.startsWith('/help')) {
     const helpMsg = `🤖 <b>MarifetStore Admin Botuna Hoş Geldiniz!</b>\n\n` +
       `Kullanabileceğiniz Komutlar:\n\n` +
-      `🔑 <b>/uret [sure]</b> — Yeni lisans anahtarı üretir\n` +
-      `<i>Örnekler:</i> <code>/uret 30</code>, <code>/uret 7</code>, <code>/uret sinirsiz</code>\n\n` +
+      `🔑 <b>/uret [sure]</b> — Yeni VIP lisans anahtarı üretir <i>(/uret 30, /uret 7, /uret sinirsiz)</i>\n` +
+      `🎮 <b>/tekoyun [appid] [sure] [oyun_adi]</b> — Belirli tek oyun için lisans üretir\n` +
+      `<i>Örnek:</i> <code>/tekoyun 1091500 30 Cyberpunk 2077</code>\n\n` +
       `📢 <b>/duyuru [mesaj]</b> — Tüm kullanıcılara canlı masaüstü duyurusu gönderir\n` +
       `<i>Örnek:</i> <code>/duyuru Yeni oyunlar ve DLC paketleri eklendi!</code>\n\n` +
       `📊 <b>/istatistik</b> — Detaylı kullanıcı, lisans ve sipariş raporu\n` +
@@ -90,6 +91,82 @@ async function processTelegramMessage(msg) {
       `📦 <b>/stok</b> — Hızlı lisans stok durumu\n` +
       `❓ <b>/yardim</b> — Bu yardım menüsünü gösterir`;
     await sendTelegramNotification(helpMsg, chatId);
+  }
+  else if (text.startsWith('/tekoyun') || text.startsWith('/singlegame')) {
+    const parts = text.split(' ');
+    if (parts.length < 2) {
+      await sendTelegramNotification('⚠️ <i>Kullanım: <code>/tekoyun [APPID] [SURE] [OYUN ADI]</code>\nÖrn: <code>/tekoyun 1091500 30 Cyberpunk 2077</code>\nÖrn: <code>/tekoyun 271590 sinirsiz GTA V</code></i>', chatId);
+      return;
+    }
+    const appId = String(parts[1]).replace(/[^0-9]/g, '');
+    if (!appId) {
+      await sendTelegramNotification('❌ Geçersiz AppID. Lütfen geçerli bir sayı girin. Örn: <code>1091500</code>', chatId);
+      return;
+    }
+    let durationArg = parts[2] ? parts[2].toLowerCase() : '30';
+    let gameName = parts.slice(3).join(' ').trim() || `Steam AppID ${appId}`;
+
+    let durationType = '30d';
+    let durationLabel = '30 Günlük';
+
+    if (durationArg === '1' || durationArg === '1g' || durationArg === '1d' || durationArg === 'gunluk') {
+      durationType = '1d';
+      durationLabel = '1 Günlük';
+    } else if (durationArg === '7' || durationArg === '7g' || durationArg === '7d' || durationArg === 'haftalik') {
+      durationType = '7d';
+      durationLabel = '7 Günlük';
+    } else if (durationArg === '15' || durationArg === '15g' || durationArg === '15d') {
+      durationType = '15d';
+      durationLabel = '15 Günlük';
+    } else if (durationArg === 'sinirsiz' || durationArg === 'omurboyu' || durationArg === 'lifetime' || durationArg === 'vip') {
+      durationType = 'lifetime';
+      durationLabel = '♾️ Sınırsız / Ömür Boyu';
+    } else if (durationArg === '30' || durationArg === '30g' || durationArg === '30d' || durationArg === 'aylik') {
+      durationType = '30d';
+      durationLabel = '30 Günlük';
+    }
+
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let t = `MS-GAME-${appId}-`;
+    for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+    t += '-';
+    for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+
+    const newToken = {
+      token: t,
+      code: t,
+      created_at: new Date().toISOString(),
+      duration_type: durationType,
+      duration: durationType,
+      expires_at: null,
+      used: false,
+      frozen: false,
+      is_blocked: false,
+      first_used_at: null,
+      used_by_hwid: null,
+      created_by: 'Telegram Admin',
+      type: 'single_game',
+      allowed_appid: appId,
+      game_name: gameName,
+      note: `Tek Oyun: ${gameName} (${appId})`
+    };
+
+    try {
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      if (!cloudData.tokens) cloudData.tokens = [];
+      cloudData.tokens.push(newToken);
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', cloudData);
+
+      const reply = `🎮 <b>Yeni Tek Oyun Lisansı Üretildi!</b>\n\n` +
+        `🕹️ <b>Oyun:</b> <b>${escapeHtml(gameName)}</b> (AppID: <code>${appId}</code>)\n` +
+        `🔑 <b>Anahtar:</b> <code>${t}</code>\n` +
+        `⏱️ <b>Süre:</b> ${durationLabel}\n` +
+        `📅 <b>Tarih:</b> ${new Date().toLocaleString('tr-TR')}\n\n` +
+        `<i>Müşteriniz bu tokenle giriş yaptığında uygulamada yalnızca ${escapeHtml(gameName)} açılacaktır.</i>`;
+      await sendTelegramNotification(reply, chatId);
+    } catch (err) {
+      await sendTelegramNotification(`❌ Tek oyun lisansı oluşturulurken hata oluştu: ${err.message}`, chatId);
+    }
   }
   else if (text.startsWith('/uret') || text.startsWith('/key')) {
     const parts = text.split(' ');
@@ -6847,7 +6924,17 @@ app.post('/api/plugin/token-login', async (req, res) => {
           } catch(e) { /* webhook hatasi sessizce gec */ }
         }
 
-        return res.json({ ok: true, message: 'Tekrar giris basarili!', role: 'user', session_token: userToken, expires_at: tokenObj.expires_at || null, ref_code: tokenObj.ref_code });
+        return res.json({
+          ok: true,
+          message: 'Tekrar giris basarili!',
+          role: 'user',
+          session_token: userToken,
+          expires_at: tokenObj.expires_at || null,
+          ref_code: tokenObj.ref_code,
+          license_type: tokenObj.type || 'vip',
+          allowed_appid: tokenObj.allowed_appid || '',
+          allowed_game_name: tokenObj.game_name || ''
+        });
       }
 
       // Ilk kullanim (Kilitlenme ve Sure Baslatma)
@@ -6919,6 +7006,9 @@ app.post('/api/plugin/token-login', async (req, res) => {
         session_token: tokenObj.token,
         expires_at: tokenObj.expires_at || null,
         ref_code: tokenObj.ref_code || '',
+        license_type: tokenObj.type || 'vip',
+        allowed_appid: tokenObj.allowed_appid || '',
+        allowed_game_name: tokenObj.game_name || '',
         _sign: sign
       });
     } catch (err) {

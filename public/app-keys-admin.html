@@ -114,18 +114,74 @@
   </div>
   <div id="adminKeyBox" class="codes" hidden></div>
 </section>
-<section class="panel">
+    <!-- LİSANS ÜRETİM PANELİ (VIP & TEK OYUN) -->
+    <section class="panel" style="border-color:rgba(92,184,255,0.3);background:linear-gradient(180deg,#111821,#0e151f)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <h2 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px">
+          🔑 Lisans & Key Oluşturucu
+        </h2>
+        <!-- Lisans Modu Toggleri -->
+        <div style="display:flex;gap:6px;background:rgba(0,0,0,0.4);padding:4px;border-radius:8px;border:1px solid var(--line)">
+          <button type="button" id="btnTypeVip" class="pill" style="cursor:pointer;border:none;background:var(--amber);color:#080b0f;padding:6px 14px">👑 Tüm Oyunlar (VIP)</button>
+          <button type="button" id="btnTypeSingle" class="pill" style="cursor:pointer;border:none;background:transparent;color:var(--muted);padding:6px 14px">🎮 Tek Oyun Lisansı</button>
+        </div>
+      </div>
+
+      <!-- TEK OYUN SEÇİM ALANI (Varsayılan olarak gizli, Tek Oyun seçilince açılır) -->
+      <div id="singleGameSection" style="display:none;background:rgba(92,184,255,0.06);border:1px dashed rgba(92,184,255,0.35);padding:14px;border-radius:8px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:700;color:var(--blue);font-size:13px">🎮 Tek Oyun Ayarları</span>
+          <span class="muted" style="font-size:11px">Müşteri uygulamada yalnızca bu oyunu görebilir ve oynayabilir</span>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1.5fr auto;margin-bottom:10px">
+          <label>Steam App ID *
+            <input id="singleAppIdInput" type="number" placeholder="Örn: 1091500" style="border-color:rgba(92,184,255,0.4)">
+          </label>
+          <label>Oyun Adı (Görünen Başlık)
+            <input id="singleGameNameInput" placeholder="Örn: Cyberpunk 2077" style="border-color:rgba(92,184,255,0.4)">
+          </label>
+          <div style="display:flex;align-items:flex-end">
+            <button type="button" id="btnFetchSteamInfo" class="plain" style="padding:11px 14px;border-color:var(--blue);color:var(--blue);white-space:nowrap">🌐 Steam'den Çek</button>
+          </div>
+        </div>
+        <!-- Popüler Oyun Hızlı Presetleri -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span class="muted" style="font-size:11px;font-weight:700">Hızlı Presetler:</span>
+          <button type="button" class="preset-game-btn pill" data-id="1091500" data-name="Cyberpunk 2077" style="cursor:pointer;background:rgba(255,255,255,0.05)">Cyberpunk 2077</button>
+          <button type="button" class="preset-game-btn pill" data-id="271590" data-name="Grand Theft Auto V" style="cursor:pointer;background:rgba(255,255,255,0.05)">GTA V</button>
+          <button type="button" class="preset-game-btn pill" data-id="730" data-name="Counter-Strike 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">CS2</button>
+          <button type="button" class="preset-game-btn pill" data-id="1174180" data-name="Red Dead Redemption 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">RDR2</button>
+          <button type="button" class="preset-game-btn pill" data-id="1245620" data-name="ELDEN RING" style="cursor:pointer;background:rgba(255,255,255,0.05)">Elden Ring</button>
+          <button type="button" class="preset-game-btn pill" data-id="2195250" data-name="EA SPORTS FC 24" style="cursor:pointer;background:rgba(255,255,255,0.05)">FC 24</button>
+          <button type="button" class="preset-game-btn pill" data-id="1593500" data-name="God of War" style="cursor:pointer;background:rgba(255,255,255,0.05)">God of War</button>
+          <button type="button" class="preset-game-btn pill" data-id="1817070" data-name="Marvel’s Spider-Man Remastered" style="cursor:pointer;background:rgba(255,255,255,0.05)">Spider-Man</button>
+          <button type="button" class="preset-game-btn pill" data-id="1551360" data-name="Forza Horizon 5" style="cursor:pointer;background:rgba(255,255,255,0.05)">Forza Horizon 5</button>
+          <button type="button" class="preset-game-btn pill" data-id="534380" data-name="Dying Light 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">Dying Light 2</button>
+        </div>
+      </div>
+
+      <!-- SÜRE HIZLI SEÇİCİ -->
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <span class="muted" style="font-size:12px;font-weight:700">Süre Seçimi:</span>
+        <button type="button" class="duration-btn pill" data-days="1" data-label="1d" style="cursor:pointer;background:rgba(255,255,255,0.05)">1 Gün</button>
+        <button type="button" class="duration-btn pill" data-days="7" data-label="7d" style="cursor:pointer;background:rgba(255,255,255,0.05)">7 Gün</button>
+        <button type="button" class="duration-btn pill" data-days="15" data-label="15d" style="cursor:pointer;background:rgba(255,255,255,0.05)">15 Gün</button>
+        <button type="button" class="duration-btn pill" data-days="30" data-label="30d" style="cursor:pointer;background:rgba(49,233,129,0.15);border-color:var(--green);color:var(--green)">30 Gün</button>
+        <button type="button" class="duration-btn pill" data-days="90" data-label="90d" style="cursor:pointer;background:rgba(255,255,255,0.05)">90 Gün</button>
+        <button type="button" class="duration-btn pill" data-days="0" data-label="lifetime" style="cursor:pointer;background:rgba(255,202,85,0.1);border-color:var(--amber);color:var(--amber)">♾️ Sınırsız / Lifetime</button>
+      </div>
+
       <div class="grid">
-        <label>Ad / not
-          <input id="labelInput" placeholder="Orn: musteri adi veya siparis no">
+        <label>Müşteri / Not
+          <input id="labelInput" placeholder="Örn: Ahmet Yılmaz veya Sipariş #1042">
         </label>
         <label>Adet
           <input id="countInput" type="number" min="1" max="100" value="1">
         </label>
-        <label>Bitis tarihi
+        <label>Bitiş Tarihi
           <input id="expiresInput" type="datetime-local">
         </label>
-        <button id="createBtn" class="primary">Key Uret</button>
+        <button id="createBtn" class="primary" style="font-size:14px;padding:12px">🚀 Token Oluştur</button>
       </div>
       <p id="message" class="msg"></p>
       <div id="codesBox" class="codes" hidden></div>
@@ -197,21 +253,108 @@
       return allKeys.filter((key) => `${key.code} ${key.label} ${key.assigned_hwid} ${key.device_name} ${key.app_version} ${key.last_ip} ${key.note}`.toLowerCase().includes(query));
     }
 
+    let currentLicenseType = 'vip';
+    let currentDurationType = '30d';
+
+    // Preset & Single Game UI wiring
+    const btnTypeVip = $('btnTypeVip');
+    const btnTypeSingle = $('btnTypeSingle');
+    const singleGameSection = $('singleGameSection');
+
+    btnTypeVip?.addEventListener('click', () => {
+      currentLicenseType = 'vip';
+      btnTypeVip.style.background = 'var(--amber)';
+      btnTypeVip.style.color = '#080b0f';
+      btnTypeSingle.style.background = 'transparent';
+      btnTypeSingle.style.color = 'var(--muted)';
+      if (singleGameSection) singleGameSection.style.display = 'none';
+    });
+
+    btnTypeSingle?.addEventListener('click', () => {
+      currentLicenseType = 'single_game';
+      btnTypeSingle.style.background = 'var(--blue)';
+      btnTypeSingle.style.color = '#080b0f';
+      btnTypeVip.style.background = 'transparent';
+      btnTypeVip.style.color = 'var(--muted)';
+      if (singleGameSection) singleGameSection.style.display = 'block';
+    });
+
+    // Preset game buttons
+    document.querySelectorAll('.preset-game-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('singleAppIdInput').value = btn.dataset.id;
+        $('singleGameNameInput').value = btn.dataset.name;
+        setMessage(`Seçildi: ${btn.dataset.name} (AppID: ${btn.dataset.id})`);
+      });
+    });
+
+    // Duration selector buttons
+    document.querySelectorAll('.duration-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.duration-btn').forEach(b => {
+          b.style.background = 'rgba(255,255,255,0.05)';
+          b.style.borderColor = 'var(--line)';
+          b.style.color = 'var(--text)';
+        });
+        btn.style.background = 'rgba(49,233,129,0.15)';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.color = 'var(--green)';
+
+        const days = Number(btn.dataset.days);
+        currentDurationType = btn.dataset.label;
+        if (days === 0) {
+          $('expiresInput').value = '';
+          setMessage('Süre: Sınırsız / Ömür Boyu (Lifetime)');
+        } else {
+          const targetDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+          const tzOffset = targetDate.getTimezoneOffset() * 60000;
+          const localISOTime = (new Date(targetDate.getTime() - tzOffset)).toISOString().slice(0, 16);
+          $('expiresInput').value = localISOTime;
+          setMessage(`Süre: ${days} Gün (${targetDate.toLocaleDateString('tr-TR')} bitişli)`);
+        }
+      });
+    });
+
+    // Fetch Steam info helper
+    $('btnFetchSteamInfo')?.addEventListener('click', async () => {
+      const aid = $('singleAppIdInput').value.trim();
+      if (!aid) return alert('Lütfen önce Steam AppID girin.');
+      setMessage('Steam bilgileri çekiliyor...');
+      try {
+        const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${aid}&l=turkish`);
+        const data = await res.json();
+        if (data && data[aid] && data[aid].success && data[aid].data) {
+          const gameData = data[aid].data;
+          $('singleGameNameInput').value = gameData.name || '';
+          setMessage(`✅ Steam'den bulundu: ${gameData.name}`);
+        } else {
+          setMessage('⚠️ Steam üzerinden oyun bulunamadı, manuel olarak isim girebilirsiniz.');
+        }
+      } catch(e) {
+        setMessage('⚠️ Steam bağlantısı yapılamadı. Oyun adını manuel girebilirsiniz.');
+      }
+    });
+
     function render() {
       const keys = filterKeys();
       $('keysBody').innerHTML = keys.length ? keys.map((key) => `
         <tr>
           <td>${statusPill(key)}</td>
-          <td class="mono">${esc(key.code)}</td>
+          <td class="mono">
+            <strong>${esc(key.code)}</strong>
+            ${key.type === 'single_game'
+              ? `<div style="margin-top:4px"><span class="pill" style="color:#5cb8ff;border-color:rgba(92,184,255,0.4);background:rgba(92,184,255,0.1);font-size:11px">🎮 Tek Oyun: ${esc(key.game_name || 'Steam')} (${esc(key.allowed_appid || '-')})</span></div>`
+              : `<div style="margin-top:4px"><span class="pill" style="color:#ffca55;border-color:rgba(255,202,85,0.3);background:rgba(255,202,85,0.08);font-size:11px">👑 VIP (Tüm Oyunlar)</span></div>`}
+          </td>
           <td>${esc(key.label || '-')}<br><span class="muted">${esc(key.note || '')}</span></td>
           <td><span class="mono">${esc(key.assigned_hwid || '-')}</span><br><span class="muted">${esc(key.device_name || '')} ${esc(key.app_version || '')}</span></td>
           <td>${esc(key.last_ip || key.first_ip || '-')}</td>
-          <td>${dateText(key.last_seen_at)}<br><span class="muted">Olusturma: ${dateText(key.created_at)}</span>${key.expires_at ? `<br><span class="muted">Bitis: ${dateText(key.expires_at)}</span>` : ''}</td>
+          <td>${dateText(key.last_seen_at)}<br><span class="muted">Oluşturma: ${dateText(key.created_at)}</span>${key.expires_at ? `<br><span class="muted">Bitiş: ${dateText(key.expires_at)}</span>` : '<br><span style="color:var(--amber)">Sınırsız</span>'}</td>
           <td>${Number(key.session_count || 0)}</td>
           <td>
             <div class="row-actions">
               ${key.status === 'blocked'
-                ? `<button data-action="unblock" data-id="${key.id}" class="plain">Ban Ac</button>`
+                ? `<button data-action="unblock" data-id="${key.id}" class="plain">Ban Aç</button>`
                 : `<button data-action="block" data-id="${key.id}" class="danger">Banla</button>`}
               <button data-action="delete" data-id="${key.id}" class="plain">Sil</button>
             </div>
@@ -221,30 +364,52 @@
     }
 
     async function loadKeys() {
-      setMessage('Yukleniyor...');
+      setMessage('Yükleniyor...');
       const response = await fetch('/api/admin/app-keys', { cache: 'no-store' });
       const data = await readJson(response);
       if (!data.ok) {
-        setMessage(data.message || 'Keyler alinamadi. Admin olarak giris yaptigindan ve veritabaninin bagli oldugundan emin ol.');
+        setMessage(data.message || 'Keyler alınamadı. Admin olarak giriş yaptığından emin ol.');
         allKeys = [];
         render();
         return;
       }
       allKeys = data.keys || [];
-      setMessage(`${allKeys.length} key gosteriliyor. Depolama: ${data.storage || '-'}`);
+      setMessage(`${allKeys.length} key gösteriliyor. Depolama: ${data.storage || '-'}`);
+      
+      // Update top stats
+      const elTotal = $('statTotalTokens');
+      const elActive = $('statActiveTokens');
+      const elLifetime = $('statLifetimeTokens');
+      if (elTotal) elTotal.textContent = allKeys.length;
+      if (elActive) elActive.textContent = allKeys.filter(k => k.status === 'used' || k.online).length;
+      if (elLifetime) elLifetime.textContent = allKeys.filter(k => !k.expires_at).length;
+
       render();
     }
 
     async function createKeys() {
-      setMessage('Key uretiliyor...');
+      const isSingle = currentLicenseType === 'single_game';
+      const singleAppId = $('singleAppIdInput').value.trim();
+      const singleGameName = $('singleGameNameInput').value.trim();
+
+      if (isSingle && !singleAppId) {
+        alert('Lütfen satılacak oyunun Steam AppID değerini girin!');
+        return;
+      }
+
+      setMessage('Key üretiliyor...');
       $('codesBox').hidden = true;
       const response = await fetch('/api/admin/app-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          label: $('labelInput').value,
+          label: $('labelInput').value.trim(),
           count: $('countInput').value,
-          expires_at: $('expiresInput').value
+          expires_at: $('expiresInput').value,
+          type: currentLicenseType,
+          allowed_appid: singleAppId,
+          game_name: singleGameName || (isSingle ? `AppID: ${singleAppId}` : ''),
+          duration_type: currentDurationType
         })
       });
       const data = await readJson(response);
@@ -258,8 +423,8 @@
     }
 
     async function keyAction(id, action) {
-      if (action === 'delete' && !confirm('Bu key ve oturumlari silinsin mi?')) return;
-      if (action === 'block' && !confirm('Bu key banlansin mi? Uygulama tekrar acilmayacak.')) return;
+      if (action === 'delete' && !confirm('Bu key ve oturumları silinsin mi?')) return;
+      if (action === 'block' && !confirm('Bu key banlansın mı? Uygulama tekrar açılmayacak.')) return;
       const response = await fetch(`/api/admin/app-keys/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
       const data = await readJson(response);
       setMessage(data.message || '');
@@ -268,7 +433,7 @@
 
     
     $('adminKeyBtn').addEventListener('click', async () => {
-      setMessage('Admin key uretiliyor...');
+      setMessage('Admin key üretiliyor...');
       const response = await fetch('/api/admin/admin-app-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -278,19 +443,19 @@
       if (data.ok) {
         $('adminKeyBox').hidden = false;
         $('adminKeyBox').textContent = data.code || '';
-        setMessage('Desktop admin key hazir.');
+        setMessage('Desktop admin key hazır.');
       } else {
-        setMessage(data.message || 'Admin key olusturulamadi.');
+        setMessage(data.message || 'Admin key oluşturulamadı.');
       }
     });
     $('copyAdminKeyBtn').addEventListener('click', async () => {
       const code = $('adminKeyBox').textContent.trim();
-      if (!code) return setMessage('Once bir admin key olustur.');
+      if (!code) return setMessage('Önce bir admin key oluştur.');
       await navigator.clipboard.writeText(code).catch(() => {});
-      setMessage('Admin key panoya kopyalandi.');
+      setMessage('Admin key panoya kopyalandı.');
     });
 
-$('createBtn').addEventListener('click', createKeys);
+    $('createBtn').addEventListener('click', createKeys);
     $('refreshBtn').addEventListener('click', loadKeys);
     $('searchInput').addEventListener('input', render);
     $('clearSearchBtn').addEventListener('click', () => { $('searchInput').value = ''; render(); });
