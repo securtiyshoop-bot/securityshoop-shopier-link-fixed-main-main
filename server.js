@@ -6676,10 +6676,14 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '30d', 'lifetime'
+      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '15d', '30d', '90d', 'lifetime'
+      const type = req.body.type || (req.body.allowed_appid ? 'single_game' : 'vip');
+      const allowed_appid = req.body.allowed_appid ? String(req.body.allowed_appid).replace(/[^0-9]/g, '').slice(0, 12) : '';
+      const game_name = req.body.game_name ? String(req.body.game_name).trim().slice(0, 120) : '';
+
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let t = 'MS-';
+      let t = (type === 'single_game' && allowed_appid) ? `MS-GAME-${allowed_appid}-` : 'MS-';
       for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
       t += '-';
       for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -6690,7 +6694,11 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         expires_at: null, // Hesaplanacak (ilk giriste)
         used: false,
         first_used_at: null,
-        used_by_hwid: null
+        used_by_hwid: null,
+        type: type === 'single_game' ? 'single_game' : 'vip',
+        allowed_appid: allowed_appid,
+        game_name: game_name,
+        note: type === 'single_game' ? `Tek Oyun: ${game_name || allowed_appid}` : 'VIP'
       };
       if (!data.tokens) data.tokens = [];
       data.tokens.push(newToken);

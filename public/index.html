@@ -517,15 +517,74 @@
             </div>
             <div class="flex items-center gap-2">
               <select id="token-duration" class="fi2 text-sm" style="padding: 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3);">
-                <option value="lifetime">Sınırsız (Ömür Boyu)</option>
-                <option value="1d">1 Gün</option>
-                <option value="7d">1 Hafta</option>
-                <option value="30d">1 Ay</option>
+                <option value="lifetime">Sınırsız (Ömür Boyu VIP)</option>
+                <option value="1d">1 Günlük VIP</option>
+                <option value="7d">1 Haftalık VIP</option>
+                <option value="30d">1 Aylık VIP</option>
               </select>
-              <button id="generateTokenBtn" class="btn btn-g px-5 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">✨ Yeni Token Oluştur</button>
+              <button id="generateTokenBtn" class="btn btn-g px-5 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded">✨ VIP Token Oluştur</button>
               <button id="refreshTokensBtn" onclick="loadTokens()" class="btn btn-o px-4 py-2 text-sm border border-green-500/40 text-green-400 hover:bg-green-500/10 rounded">🔄 Yenile</button>
             </div>
           </div>
+
+          <!-- TEK OYUN LİSANSI OLUŞTURMA ALANI -->
+          <div class="mb-5 p-4 rounded-xl" style="background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(99,102,241,0.06)); border: 1px dashed rgba(56,189,248,0.4);">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">🎮</span>
+                <span class="font-800 text-sm text-sky-400">Tek Tek Oyun Satışı (Özel Oyun Lisansı)</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">YENİ</span>
+              </div>
+              <span class="text-xs text-gray-400">Girdiğiniz Steam AppID'ye özel token üretir; müşteri sadece o oyunu oynayabilir.</span>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3">
+              <div class="sm:col-span-3">
+                <label class="block text-xs font-700 mb-1 text-sky-300">Steam App ID *</label>
+                <div class="flex gap-1.5">
+                  <input id="singleGameAppId" type="number" class="fi2 w-full text-sm" placeholder="Örn: 1091500" style="border-color: rgba(56,189,248,0.4);" />
+                  <button type="button" id="btnSteamLookup" class="btn btn-o px-2.5 py-1 text-xs border border-sky-500/50 text-sky-300 hover:bg-sky-500/20 rounded whitespace-nowrap" title="Steam'den oyun adını çek">🌐 Çek</button>
+                </div>
+              </div>
+              <div class="sm:col-span-4">
+                <label class="block text-xs font-700 mb-1 text-sky-300">Oyun Adı</label>
+                <input id="singleGameName" type="text" class="fi2 w-full text-sm" placeholder="Örn: Cyberpunk 2077" style="border-color: rgba(56,189,248,0.4);" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-700 mb-1 text-sky-300">Süre</label>
+                <select id="singleGameDuration" class="fi2 w-full text-sm" style="padding: 8px; border-radius: 6px; background: rgba(56,189,248,0.1); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4);">
+                  <option value="1d">1 Gün</option>
+                  <option value="7d">7 Gün</option>
+                  <option value="15d">15 Gün</option>
+                  <option value="30d" selected>30 Gün</option>
+                  <option value="90d">90 Gün</option>
+                  <option value="lifetime">Sınırsız</option>
+                </select>
+              </div>
+              <div class="sm:col-span-3 flex items-end">
+                <button type="button" id="generateSingleGameTokenBtn" class="btn btn-g w-full py-2.5 bg-sky-500 hover:bg-sky-600 text-black font-extrabold rounded-lg shadow-lg flex items-center justify-center gap-1.5 text-sm">
+                  🚀 Tek Oyun Tokeni Oluştur
+                </button>
+              </div>
+            </div>
+
+            <!-- Hızlı Seçim Butonları -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+              <span class="text-[11px] font-700 text-gray-400 mr-1">Popüler:</span>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="1091500" data-name="Cyberpunk 2077">Cyberpunk 2077</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="271590" data-name="Grand Theft Auto V">GTA V</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="730" data-name="Counter-Strike 2">CS2</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="1174180" data-name="Red Dead Redemption 2">RDR2</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="1245620" data-name="ELDEN RING">Elden Ring</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="2195250" data-name="EA SPORTS FC 24">FC 24</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="1593500" data-name="God of War">God of War</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="1817070" data-name="Marvel’s Spider-Man Remastered">Spider-Man</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="1551360" data-name="Forza Horizon 5">Forza Horizon 5</button>
+              <button type="button" class="quick-game-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-sky-900/60 border border-gray-700 text-gray-300 hover:text-sky-200" data-id="534380" data-name="Dying Light 2">Dying Light 2</button>
+            </div>
+            <div id="singleGameMsg" class="mt-2 text-xs font-bold text-sky-400"></div>
+          </div>
+          <!-- /TEK OYUN LİSANSI OLUŞTURMA ALANI -->
           
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -2411,8 +2470,13 @@
               ? `<button onclick="unfreezeToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-blue-900/70 hover:bg-blue-800 text-blue-300 transition-colors">Çöz</button>`
               : `<button onclick="freezeToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-blue-900/70 hover:bg-blue-800 text-blue-300 transition-colors">Dondur</button>`;
 
+            const isSingle = t.type === 'single_game' || t.allowed_appid || (t.token && t.token.startsWith('MS-GAME-'));
+            const gameBadge = isSingle
+              ? `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-sky-900/60 text-sky-300 border border-sky-500/40">🎮 Tek Oyun: ${esc(t.game_name || t.allowed_appid)} (${esc(t.allowed_appid || '')})</span></div>`
+              : `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-900/40 text-amber-300 border border-amber-500/30">👑 VIP</span></div>`;
+
             tr.innerHTML = `
-              <td class="px-3 py-3 font-mono text-xs font-bold text-green-400 select-all">${esc(t.token)}</td>
+              <td class="px-3 py-3 font-mono text-xs font-bold text-green-400 select-all">${esc(t.token)}${gameBadge}</td>
               <td class="px-3 py-3 text-xs text-gray-300">${durationName}<br><span class="text-gray-500 text-[11px]">${expiryStr}</span></td>
               <td class="px-3 py-3 text-xs text-gray-400 font-mono">${lastIp}</td>
               <td class="px-3 py-3 text-xs font-mono text-cyan-400">${refCode}</td>
@@ -2506,7 +2570,100 @@
       } catch(e) { 
         alert('İşlem Hatası: ' + e); 
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '✨ Yeni Token Oluştur'; }
+        if (btn) { btn.disabled = false; btn.textContent = '✨ VIP Token Oluştur'; }
+      }
+    });
+
+    // ======================================================
+    // TEK OYUN LİSANSI (TOKEN) ETKİLEŞİMLERİ
+    // ======================================================
+    document.querySelectorAll('.quick-game-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idInput = document.getElementById('singleGameAppId');
+        const nameInput = document.getElementById('singleGameName');
+        if (idInput) idInput.value = btn.dataset.id || '';
+        if (nameInput) nameInput.value = btn.dataset.name || '';
+        const msg = document.getElementById('singleGameMsg');
+        if (msg) msg.textContent = '✓ Seçildi: ' + (btn.dataset.name || '') + ' (AppID: ' + (btn.dataset.id || '') + ')';
+      });
+    });
+
+    document.getElementById('btnSteamLookup')?.addEventListener('click', async () => {
+      const idInput = document.getElementById('singleGameAppId');
+      const nameInput = document.getElementById('singleGameName');
+      const msg = document.getElementById('singleGameMsg');
+      const aid = (idInput?.value || '').trim();
+      if (!aid) {
+        if (msg) msg.textContent = '⚠️ Lütfen önce bir Steam AppID girin.';
+        return;
+      }
+      if (msg) msg.textContent = '⏳ Steam bilgileri çekiliyor...';
+      try {
+        const r = await fetch(`https://store.steampowered.com/api/appdetails?appids=${aid}&l=turkish`);
+        const data = await r.json();
+        if (data && data[aid] && data[aid].success && data[aid].data) {
+          if (nameInput) nameInput.value = data[aid].data.name || '';
+          if (msg) msg.textContent = '✅ Steam üzerinden bulundu: ' + data[aid].data.name;
+        } else {
+          if (msg) msg.textContent = '⚠️ Steam API oyunu bulamadı. Oyun adını elle girebilirsiniz.';
+        }
+      } catch (err) {
+        if (msg) msg.textContent = '⚠️ Steam bağlantısı kurulamadı. Oyun adını elle yazabilirsiniz.';
+      }
+    });
+
+    document.getElementById('generateSingleGameTokenBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('generateSingleGameTokenBtn');
+      const idInput = document.getElementById('singleGameAppId');
+      const nameInput = document.getElementById('singleGameName');
+      const durSelect = document.getElementById('singleGameDuration');
+      const msg = document.getElementById('singleGameMsg');
+
+      const aid = (idInput?.value || '').trim().replace(/[^0-9]/g, '');
+      const gname = (nameInput?.value || '').trim() || ('Steam AppID ' + aid);
+      const dur = durSelect ? durSelect.value : '30d';
+
+      if (!aid) {
+        alert('Lütfen geçerli bir Steam AppID giriniz (Örn: 1091500).');
+        if (idInput) idInput.focus();
+        return;
+      }
+
+      try {
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Oluşturuluyor...'; }
+        if (msg) msg.textContent = 'Token oluşturuluyor...';
+
+        const r = await fastFetch('/api/admin/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            duration: dur,
+            type: 'single_game',
+            allowed_appid: aid,
+            game_name: gname
+          })
+        });
+        const d = await readJsonSafe(r);
+        if (d.ok && d.token) {
+          const tokenCode = d.token.token;
+          try { await navigator.clipboard.writeText(tokenCode); } catch(_) {}
+          if (msg) msg.textContent = '✅ Token hazır ve kopyalandı: ' + tokenCode;
+          alert('🎮 YENİ TEK OYUN LİSANSI OLUŞTURULDU! 🎮\n\n' +
+                '🕹️ Oyun: ' + gname + ' (AppID: ' + aid + ')\n' +
+                '🔑 Token: ' + tokenCode + '\n' +
+                '⏱️ Süre: ' + dur + '\n\n' +
+                'Bu token panoya kopyalandı. Müşteriniz uygulamaya bu tokenle girdiğinde yalnızca ' + gname + ' açılacaktır!');
+          await loadTokens();
+          if (typeof loadTokenStats === 'function') loadTokenStats();
+        } else {
+          alert('Hata: ' + (d.message || 'Token oluşturulamadı.'));
+          if (msg) msg.textContent = '❌ ' + (d.message || 'Hata');
+        }
+      } catch (err) {
+        alert('İşlem Hatası: ' + err);
+        if (msg) msg.textContent = '❌ ' + err;
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Tek Oyun Tokeni Oluştur'; }
       }
     });
 
