@@ -3,6 +3,37 @@ const crypto = require('crypto');
 
 const ONLINE_WINDOW_MS = 1000 * 90;
 
+const failedAttemptsMap = new Map(); // identifier -> { count, lockedUntil }
+
+function checkBruteForce(identifier) {
+  if (!identifier) return { blocked: false };
+  const entry = failedAttemptsMap.get(identifier);
+  if (entry && entry.lockedUntil && entry.lockedUntil > Date.now()) {
+    const remainingSec = Math.ceil((entry.lockedUntil - Date.now()) / 1000);
+    return { blocked: true, remainingSec };
+  }
+  return { blocked: false };
+}
+
+function recordFailedAttempt(identifier) {
+  if (!identifier) return;
+  const now = Date.now();
+  let entry = failedAttemptsMap.get(identifier);
+  if (!entry || (entry.lockedUntil && entry.lockedUntil <= now)) {
+    entry = { count: 0, lockedUntil: 0 };
+  }
+  entry.count += 1;
+  if (entry.count >= 5) {
+    entry.lockedUntil = now + (5 * 60 * 1000); // 5 min lockout
+  }
+  failedAttemptsMap.set(identifier, entry);
+}
+
+function clearFailedAttempt(identifier) {
+  if (identifier) failedAttemptsMap.delete(identifier);
+}
+
+
 function normalizeKeyCode(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 100);
 }
@@ -312,6 +343,9 @@ async function activateDb(pool, { code, hwid, deviceName, appVersion, ip }) {
       return { status: 403, body: { ok: false, blocked: true, message: 'Bu key baska bir cihaza bagli.' } };
     }
 
+    // Feature 46: Terminate existing online sessions for this key (Eşzamanlı Giriş Engeli)
+    await connection.query('UPDATE app_sessions SET status = "terminated" WHERE key_id = ? AND status = "online"', [key.id]);
+
     await connection.query(
       `UPDATE app_keys
        SET status = 'used',
@@ -355,6 +389,13 @@ function activateJson(file, { code, hwid, deviceName, appVersion, ip }) {
     return { status: 403, body: { ok: false, blocked: true, message: 'Bu key baska bir cihaza bagli.' } };
   }
 
+  // Feature 46: Terminate previous online sessions for this key (Eşzamanlı Giriş Engeli)
+  for (const s of data.sessions) {
+    if (Number(s.key_id || 0) === Number(key.id || 0) && s.status === 'online') {
+      s.status = 'terminated';
+    }
+  }
+
   const token = createSessionToken();
   const now = nowIso();
   key.status = 'used';
@@ -392,6 +433,9 @@ async function heartbeatDb(pool, { token, hwid, appVersion, ip }) {
   );
   const session = rows[0];
   if (!session) return { status: 401, body: { ok: false, message: 'Oturum bulunamadi.' } };
+  if (session.status === 'terminated') {
+    return { status: 403, body: { ok: false, blocked: true, session_terminated: true, message: 'Bu lisans ile başka bir cihazdan oturum açıldı. Oturumunuz sonlandırıldı.' } };
+  }
   if (session.key_status === 'blocked' || session.status === 'blocked') {
     return { status: 403, body: { ok: false, blocked: true, message: 'Bu key banlanmis.' } };
   }
@@ -411,6 +455,9 @@ function heartbeatJson(file, { token, hwid, appVersion, ip }) {
   const data = readJsonStore(file);
   const session = data.sessions.find((item) => item.token_hash === hashToken(token));
   if (!session) return { status: 401, body: { ok: false, message: 'Oturum bulunamadi.' } };
+  if (session.status === 'terminated') {
+    return { status: 403, body: { ok: false, blocked: true, session_terminated: true, message: 'Bu lisans ile başka bir cihazdan oturum açıldı. Oturumunuz sonlandırıldı.' } };
+  }
   const key = data.keys.find((item) => Number(item.id || 0) === Number(session.key_id || 0));
   if (!key) return { status: 401, body: { ok: false, message: 'Key bulunamadi.' } };
   if (key.status === 'blocked' || session.status === 'blocked') return { status: 403, body: { ok: false, blocked: true, message: 'Bu key banlanmis.' } };
@@ -522,25 +569,46 @@ function registerRoutes(app, deps) {
   app.post('/api/desktop/activate', async (req, res) => {
     try {
       if (!(await deps.requirePersistentStorage(req, res))) return;
-      const code = normalizeKeyCode(req.body?.key || req.body?.code);
+      const ip = deps.getRequestIp(req);
       const hwid = normalizeHwid(req.body?.hwid);
+
+      // Feature 45: Brute-Force Rate Limiting
+      const bruteCheck = checkBruteForce(ip) || checkBruteForce(hwid);
+      if (bruteCheck.blocked) {
+        return res.status(429).json({
+          ok: false,
+          rate_limited: true,
+          remainingSec: bruteCheck.remainingSec,
+          message: `Çok fazla hatalı token denemesi! Güvenlik kilidi devrede. Kalan süre: ${bruteCheck.remainingSec} saniye.`
+        });
+      }
+
+      const code = normalizeKeyCode(req.body?.key || req.body?.code);
       if (!code || !hwid) return res.status(400).json({ ok: false, message: 'Key ve cihaz bilgisi gerekli.' });
       const payload = {
         code,
         hwid,
         deviceName: cleanText(req.body?.device_name || req.body?.deviceName, 190),
         appVersion: cleanText(req.body?.app_version || req.body?.appVersion, 80),
-        ip: deps.getRequestIp(req)
+        ip
       };
       const result = deps.useDatabase()
         ? await activateDb(deps.pool(), payload)
         : activateJson(deps.dataFile, payload);
-      if (result.body?.ok && deps.recordActivityLog) {
-        await deps.recordActivityLog({
-          user: { username: 'desktop-app', email: result.body.key?.code || code },
-          action: 'DESKTOP_APP_LOGIN',
-          details: `HWID: ${hwid}, device=${payload.deviceName || '-'}`
-        }).catch(() => {});
+
+      if (result.status === 200 && result.body?.ok) {
+        clearFailedAttempt(ip);
+        clearFailedAttempt(hwid);
+        if (deps.recordActivityLog) {
+          await deps.recordActivityLog({
+            user: { username: 'desktop-app', email: result.body.key?.code || code },
+            action: 'DESKTOP_APP_LOGIN',
+            details: `HWID: ${hwid}, device=${payload.deviceName || '-'}`
+          }).catch(() => {});
+        }
+      } else {
+        recordFailedAttempt(ip);
+        recordFailedAttempt(hwid);
       }
       res.status(result.status).json(result.body);
     } catch (error) {

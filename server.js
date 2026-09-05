@@ -6816,19 +6816,57 @@ app.get('/api/plugin/get-lua', async (req, res) => {
   }
 });
 
+// Feature 45: Token Login Brute-Force Rate Limiter
+const tokenLoginFailedMap = new Map();
+function checkTokenLoginBrute(identifier) {
+  if (!identifier) return { blocked: false };
+  const entry = tokenLoginFailedMap.get(identifier);
+  if (entry && entry.lockedUntil && entry.lockedUntil > Date.now()) {
+    return { blocked: true, remainingSec: Math.ceil((entry.lockedUntil - Date.now()) / 1000) };
+  }
+  return { blocked: false };
+}
+function recordTokenLoginFailed(identifier) {
+  if (!identifier) return;
+  const now = Date.now();
+  let entry = tokenLoginFailedMap.get(identifier);
+  if (!entry || (entry.lockedUntil && entry.lockedUntil <= now)) {
+    entry = { count: 0, lockedUntil: 0 };
+  }
+  entry.count += 1;
+  if (entry.count >= 5) {
+    entry.lockedUntil = now + (5 * 60 * 1000); // 5 min lockout
+  }
+  tokenLoginFailedMap.set(identifier, entry);
+}
+function clearTokenLoginFailed(identifier) {
+  if (identifier) tokenLoginFailedMap.delete(identifier);
+}
+
 app.post('/api/plugin/token-login', async (req, res) => {
     try {
       if (marifetStoreConfig.maintenance_mode) {
         return res.status(503).json({ ok: false, message: 'MarifetStore su anda bakim modundadir. Lutfen daha sonra tekrar deneyiniz.' });
       }
 
-      const userToken = String(req.body.token || '').trim();
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
       const hwid = String(req.body.hwid || '').trim();
+
+      // Feature 45: Brute-Force Check
+      const brute = checkTokenLoginBrute(clientIp) || checkTokenLoginBrute(hwid);
+      if (brute.blocked) {
+        return res.status(429).json({
+          ok: false,
+          rate_limited: true,
+          remainingSec: brute.remainingSec,
+          message: `Çok fazla hatalı giriş denemesi! Güvenlik kilidi devrede. Kalan süre: ${brute.remainingSec} saniye.`
+        });
+      }
+
+      const userToken = String(req.body.token || '').trim();
       const rawUser = String(req.body.username || '').trim();
       if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
       if (!hwid) return res.status(400).json({ ok: false, message: 'HWID eksik.' });
-
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'bilinmiyor';
 
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
@@ -6842,7 +6880,11 @@ app.post('/api/plugin/token-login', async (req, res) => {
         return res.status(403).json({ ok: false, message: 'IP Adresiniz kalici olarak yasaklanmistir.' });
       }
 
-      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Gecersiz token.' });
+      if (!tokenObj) {
+        recordTokenLoginFailed(clientIp);
+        recordTokenLoginFailed(hwid);
+        return res.status(404).json({ ok: false, message: 'Gecersiz token.' });
+      }
 
       // Frozen (dondurulmus) kontrol
       if (tokenObj.frozen) {
@@ -6932,11 +6974,19 @@ app.post('/api/plugin/token-login', async (req, res) => {
           } catch(e) { /* webhook hatasi sessizce gec */ }
         }
 
+        clearTokenLoginFailed(clientIp);
+        clearTokenLoginFailed(hwid);
+        const crypto = require('crypto');
+        const activeSessionId = crypto.randomBytes(16).toString('hex');
+        tokenObj.active_session_id = activeSessionId;
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+
         return res.json({
           ok: true,
           message: 'Tekrar giris basarili!',
           role: 'user',
           session_token: userToken,
+          session_id: activeSessionId,
           expires_at: tokenObj.expires_at || null,
           ref_code: tokenObj.ref_code,
           license_type: tokenObj.type || 'vip',
@@ -6962,6 +7012,12 @@ app.post('/api/plugin/token-login', async (req, res) => {
       } else {
         tokenObj.expires_at = null; // lifetime
       }
+
+      clearTokenLoginFailed(clientIp);
+      clearTokenLoginFailed(hwid);
+      const crypto = require('crypto');
+      const activeSessionId = crypto.randomBytes(16).toString('hex');
+      tokenObj.active_session_id = activeSessionId;
 
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
@@ -7003,7 +7059,6 @@ app.post('/api/plugin/token-login', async (req, res) => {
         }
       } catch(e) {}
 
-            const crypto = require('crypto');
       const payloadStr = `${tokenObj.token}:${tokenObj.role || 'user'}:${tokenObj.expires_at || 'lifetime'}`;
       const sign = crypto.createHmac('sha256', 'MarifetStoreSecureSecretKey2026').update(payloadStr).digest('hex');
       res.setHeader('X-Marifet-Sign', sign);
@@ -7012,6 +7067,7 @@ app.post('/api/plugin/token-login', async (req, res) => {
         message: 'Cihaz kilitlendi ve giris basarili!',
         role: tokenObj.role || 'user',
         session_token: tokenObj.token,
+        session_id: activeSessionId,
         expires_at: tokenObj.expires_at || null,
         ref_code: tokenObj.ref_code || '',
         license_type: tokenObj.type || 'vip',
@@ -7022,6 +7078,50 @@ app.post('/api/plugin/token-login', async (req, res) => {
     } catch (err) {
       console.error('token-login error:', err);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi.' });
+    }
+  });
+
+  // Feature 46: Live Heartbeat & Concurrent Session Killer
+  app.post('/api/plugin/token-heartbeat', async (req, res) => {
+    try {
+      const userToken = String(req.body.token || '').trim();
+      const sessionId = String(req.body.session_id || '').trim();
+      const hwid = String(req.body.hwid || '').trim();
+      if (!userToken) return res.status(400).json({ ok: false, message: 'Token eksik.' });
+
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+      const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Geçersiz token.' });
+
+      if (tokenObj.frozen) {
+        return res.status(403).json({ ok: false, blocked: true, message: 'Hesabınız yönetici tarafından dondurulmuştur.' });
+      }
+      if (tokenObj.expires_at && new Date(tokenObj.expires_at) < new Date()) {
+        return res.status(403).json({ ok: false, expired: true, message: 'Token süresi dolmuş!' });
+      }
+
+      // Concurrent session check! If another session was started for this token, invalidate previous
+      if (tokenObj.active_session_id && sessionId && tokenObj.active_session_id !== sessionId) {
+        return res.status(403).json({
+          ok: false,
+          session_terminated: true,
+          message: 'Bu lisans ile başka bir cihazdan oturum açıldı! Oturumunuz sonlandırıldı.'
+        });
+      }
+
+      // HWID check
+      if (tokenObj.used_by_hwid && hwid && tokenObj.used_by_hwid !== hwid) {
+        return res.status(403).json({
+          ok: false,
+          session_terminated: true,
+          message: 'Farklı bir cihaz tespiti nedeniyle oturumunuz kapatıldı.'
+        });
+      }
+
+      return res.json({ ok: true, active: true });
+    } catch (err) {
+      console.error('token-heartbeat error:', err);
+      return res.status(500).json({ ok: false, message: 'Heartbeat kontrol hatası.' });
     }
   });
 
