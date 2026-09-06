@@ -1,5 +1,8 @@
 const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
+
+const SEED_TOKENS_FILE = path.join(__dirname, 'tokens.json');
 
 const ONLINE_WINDOW_MS = 1000 * 90;
 
@@ -81,6 +84,36 @@ function createAppKeyCode(type, allowedAppid, role) {
 const CLOUD_STORAGE_TOKEN_URL = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a0435d7b2f3674';
 
 async function syncTokenToCloud(tokenObj) {
+  // 1. Persist to local seed tokens.json immediately
+  try {
+    if (fs.existsSync(SEED_TOKENS_FILE)) {
+      const fraw = fs.readFileSync(SEED_TOKENS_FILE, 'utf8');
+      const fparsed = JSON.parse(fraw);
+      let ftoks = Array.isArray(fparsed) ? fparsed : (fparsed.tokens || []);
+      ftoks = ftoks.filter(t => (t.token || t.code || '').toLowerCase() !== (tokenObj.token || tokenObj.code || '').toLowerCase());
+      ftoks.push(tokenObj);
+      fs.writeFileSync(SEED_TOKENS_FILE, JSON.stringify({ tokens: ftoks }, null, 2), 'utf8');
+    }
+  } catch (_) {}
+
+  // 2. Persist to LocalAppData MarifetStore tokens_store.json if available
+  try {
+    const localAppData = process.env.LOCALAPPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Local') : null);
+    if (localAppData) {
+      const storePath = path.join(localAppData, 'MarifetStore', 'tokens_store.json');
+      if (fs.existsSync(storePath)) {
+        const lraw = fs.readFileSync(storePath, 'utf8');
+        let ltoks = JSON.parse(lraw);
+        if (Array.isArray(ltoks)) {
+          ltoks = ltoks.filter(t => (t.token || t.code || '').toLowerCase() !== (tokenObj.token || tokenObj.code || '').toLowerCase());
+          ltoks.push(tokenObj);
+          fs.writeFileSync(storePath, JSON.stringify(ltoks, null, 2), 'utf8');
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 3. Attempt cloud sync
   try {
     const res = await fetch(CLOUD_STORAGE_TOKEN_URL);
     let cloudData = {};
@@ -417,7 +450,44 @@ async function activateDb(pool, { code, hwid, deviceName, appVersion, ip }) {
 
 function activateJson(file, { code, hwid, deviceName, appVersion, ip }) {
   const data = readJsonStore(file);
-  const key = data.keys.find((item) => normalizeKeyCode(item.code) === code);
+  let key = data.keys.find((item) => normalizeKeyCode(item.code) === code);
+  if (!key) {
+    try {
+      if (fs.existsSync(SEED_TOKENS_FILE)) {
+        const tdata = JSON.parse(fs.readFileSync(SEED_TOKENS_FILE, 'utf8'));
+        const tlist = Array.isArray(tdata) ? tdata : (tdata.tokens || []);
+        const matched = tlist.find(t => normalizeKeyCode(t.token || t.code) === code);
+        if (matched) {
+          key = {
+            id: 'tok_' + Date.now(),
+            code: matched.token || matched.code,
+            token: matched.token || matched.code,
+            label: matched.note || 'Token',
+            status: matched.frozen ? 'blocked' : (matched.used ? 'used' : 'active'),
+            assigned_hwid: matched.used_by_hwid || '',
+            device_name: matched.username || '',
+            app_version: '',
+            first_ip: matched.last_ip || '',
+            last_ip: matched.last_ip || '',
+            first_used_at: matched.first_used_at || '',
+            last_seen_at: matched.last_login || '',
+            expires_at: matched.expires_at || '',
+            created_by: matched.created_by || 'Admin',
+            note: matched.note || '',
+            role: matched.role || (String(matched.token || '').toUpperCase().startsWith('MS-ADMIN-') ? 'admin' : 'user'),
+            type: matched.type || 'vip',
+            allowed_appid: matched.allowed_appid || '',
+            allowed_appids: matched.allowed_appids || [],
+            game_name: matched.game_name || '',
+            game_names: matched.game_names || [],
+            duration_type: matched.duration_type || matched.duration || '',
+            created_at: matched.created_at || nowIso()
+          };
+          data.keys.push(key);
+        }
+      }
+    } catch (_) {}
+  }
   if (!key) return { status: 404, body: { ok: false, message: 'Key bulunamadi.' } };
   if (key.status === 'blocked') return { status: 403, body: { ok: false, blocked: true, message: 'Bu key banlanmis.' } };
   if (isExpired(key.expires_at)) return { status: 403, body: { ok: false, blocked: true, message: 'Bu keyin suresi dolmus.' } };
@@ -554,6 +624,54 @@ async function listKeysJson(file) {
             duration_type: ct.duration_type || ct.duration || '',
             created_at: ct.created_at || nowIso()
           });
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Disk / Seed / Local AppData fallback
+  try {
+    const seedFiles = [SEED_TOKENS_FILE];
+    const localAppData = process.env.LOCALAPPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Local') : null);
+    if (localAppData) {
+      seedFiles.push(path.join(localAppData, 'MarifetStore', 'tokens_store.json'));
+    }
+    for (const sf of seedFiles) {
+      if (fs.existsSync(sf)) {
+        const raw = fs.readFileSync(sf, 'utf8');
+        const parsed = JSON.parse(raw);
+        const toks = Array.isArray(parsed) ? parsed : (parsed.tokens || []);
+        for (const ct of toks) {
+          const ctCode = String(ct.token || ct.code || '').trim();
+          if (!ctCode) continue;
+          const exists = data.keys.some(k => (k.code || '').toLowerCase() === ctCode.toLowerCase());
+          if (!exists) {
+            data.keys.push({
+              id: 's_' + (data.keys.length + 1),
+              code: ctCode,
+              token: ctCode,
+              label: ct.note || (ct.type === 'single_game' ? `Tek Oyun: ${ct.game_name || ct.allowed_appid}` : (ct.type === 'multi_game' ? `Çoklu Paket: ${ct.game_name}` : 'VIP')),
+              status: ct.frozen ? 'blocked' : (ct.used || ct.used_by_hwid ? 'used' : 'active'),
+              assigned_hwid: ct.used_by_hwid || ct.hwid || '',
+              device_name: ct.username || '',
+              app_version: '',
+              first_ip: ct.last_ip || '',
+              last_ip: ct.last_ip || '',
+              first_used_at: ct.first_used_at || '',
+              last_seen_at: ct.last_login || '',
+              expires_at: ct.expires_at || '',
+              created_by: ct.created_by || 'Seed / Local',
+              note: ct.note || '',
+              role: ct.role || (String(ctCode).toUpperCase().startsWith('MS-ADMIN-') ? 'admin' : 'user'),
+              type: ct.type || 'vip',
+              allowed_appid: ct.allowed_appid || '',
+              allowed_appids: ct.allowed_appids || [],
+              game_name: ct.game_name || '',
+              game_names: ct.game_names || [],
+              duration_type: ct.duration_type || ct.duration || '',
+              created_at: ct.created_at || nowIso()
+            });
+          }
         }
       }
     }

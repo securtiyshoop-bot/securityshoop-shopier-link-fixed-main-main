@@ -294,7 +294,6 @@
         <a href="#iletisim" class="nl">İletişim</a>
         <a href="#accountPanel" id="accountMenuLink" class="nl hidden" style="color:rgba(125,255,192,.85)">Hesabım</a>
         <a href="#adminPanel" id="adminMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">Admin</a>
-        <a href="/app-keys-admin.html" id="appKeysMenuLink" class="nl hidden" style="color:rgba(0,230,118,.8)">App Key / Admin Key</a>
       </nav>
 
       <div class="flex items-center gap-2">
@@ -527,6 +526,41 @@
             </div>
           </div>
 
+          <!-- ADMİN TOKENİ (YÖNETİCİ HESABI) OLUŞTURMA ALANI -->
+          <div class="mb-5 p-4 rounded-xl" style="background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.06)); border: 1px dashed rgba(245,158,11,0.5);">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">👑</span>
+                <span class="font-800 text-sm text-amber-400">Masaüstü Admin Yetkili Token (Yönetici Hesabı)</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">YÖNETİCİ ÖZEL</span>
+              </div>
+              <span class="text-xs text-gray-400">Bu token ile masaüstü uygulamasında <strong>Admin Yetkisi</strong> ve <strong>Çoklu Lisans Üretici</strong> sekmesi açılır.</span>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+              <div class="sm:col-span-3">
+                <label class="block text-xs font-700 mb-1 text-amber-300">Süre</label>
+                <select id="adminTokenDuration" class="fi2 w-full text-sm" style="padding: 8px; border-radius: 6px; background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4);">
+                  <option value="lifetime" selected>Sınırsız (Ömür Boyu)</option>
+                  <option value="30d">30 Gün</option>
+                  <option value="90d">90 Gün</option>
+                  <option value="365d">1 Yıl</option>
+                </select>
+              </div>
+              <div class="sm:col-span-5">
+                <label class="block text-xs font-700 mb-1 text-amber-300">Yönetici Cihaz / Not (Opsiyonel)</label>
+                <input id="adminTokenNote" type="text" class="fi2 w-full text-sm" placeholder="Örn: Ana Yönetici - Laptop" style="border-color: rgba(245,158,11,0.4);" />
+              </div>
+              <div class="sm:col-span-4">
+                <button type="button" id="generateAdminTokenBtn" class="btn btn-g w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg flex items-center justify-center gap-1.5 text-sm">
+                  👑 Admin Tokeni Oluştur
+                </button>
+              </div>
+            </div>
+            <div id="adminTokenMsg" class="mt-2 text-xs font-bold text-amber-400"></div>
+          </div>
+          <!-- /ADMİN TOKENİ OLUŞTURMA ALANI -->
+
           <!-- TEK OYUN LİSANSI OLUŞTURMA ALANI -->
           <div class="mb-5 p-4 rounded-xl" style="background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(99,102,241,0.06)); border: 1px dashed rgba(56,189,248,0.4);">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
@@ -585,6 +619,97 @@
             <div id="singleGameMsg" class="mt-2 text-xs font-bold text-sky-400"></div>
           </div>
           <!-- /TEK OYUN LİSANSI OLUŞTURMA ALANI -->
+
+          <!-- ÇOKLU OYUN PAKETİ LİSANSI OLUŞTURMA ALANI -->
+          <div class="mb-5 p-4 sm:p-5 rounded-xl" style="background: linear-gradient(135deg, rgba(168,85,247,0.12), rgba(99,102,241,0.07)); border: 1px dashed rgba(168,85,247,0.5);">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">📦</span>
+                <span class="font-800 text-sm text-purple-400">Çoklu Oyun Paketi Lisans Üretici (Özel Oyun Paketi)</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">YENİ</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="multiSelectedBadge" class="text-xs px-2.5 py-1 rounded-full font-bold bg-purple-900/60 text-purple-300 border border-purple-500/40">0 Oyun Seçildi</span>
+                <button type="button" id="btnClearMultiGames" class="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-300">Temizle</button>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mb-3">Pakete dilediğiniz kadar oyun ekleyin. Bu lisansla giriş yapan müşteri masaüstü uygulamasında <strong>yalnızca seçtiğiniz bu oyunlara</strong> erişebilir.</p>
+
+            <!-- Arama & Ekleme Çubuğu -->
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3">
+              <div class="sm:col-span-6 relative">
+                <label class="block text-xs font-700 mb-1 text-purple-300">🔍 Oyun Ara (Katalog & Steam)</label>
+                <input id="multiGameSearchInput" type="text" class="fi2 w-full text-sm" placeholder="Oyun adı veya AppID yazın (Örn: GTA, Cyberpunk, 730)..." style="border-color: rgba(168,85,247,0.4);" autocomplete="off" />
+                <div id="multiGameSearchResults" class="hidden absolute top-full left-0 right-0 max-h-64 overflow-y-auto bg-gray-900 border border-purple-500/40 rounded-lg z-50 shadow-2xl p-2 mt-1"></div>
+              </div>
+              <div class="sm:col-span-3">
+                <label class="block text-xs font-700 mb-1 text-purple-300">Manuel Steam AppID</label>
+                <input id="multiManualAppId" type="number" class="fi2 w-full text-sm" placeholder="Örn: 730" style="border-color: rgba(168,85,247,0.4);" />
+              </div>
+              <div class="sm:col-span-3 flex items-end">
+                <button type="button" id="btnAddManualMulti" class="btn btn-o w-full py-2.5 text-xs border border-purple-500/50 text-purple-300 hover:bg-purple-500/20 rounded-lg font-bold">
+                  ➕ Pakete Ekle
+                </button>
+              </div>
+            </div>
+
+            <!-- Popüler Hızlı Ekleme Butonları -->
+            <div class="mb-3">
+              <div class="text-[11px] font-700 text-gray-400 mb-1.5 flex items-center gap-1">
+                <span>⚡ Hızlı Ekle:</span>
+                <span class="text-gray-500 text-[10px]">(Tıklayarak listeye dahil edin)</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1091500" data-name="Cyberpunk 2077">+ Cyberpunk 2077</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="271590" data-name="Grand Theft Auto V">+ GTA V</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="730" data-name="Counter-Strike 2">+ CS2</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1174180" data-name="Red Dead Redemption 2">+ RDR2</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1245620" data-name="ELDEN RING">+ Elden Ring</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="2195250" data-name="EA SPORTS FC 24">+ FC 24</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1593500" data-name="God of War">+ God of War</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1817070" data-name="Marvel’s Spider-Man Remastered">+ Spider-Man</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1551360" data-name="Forza Horizon 5">+ Forza 5</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="534380" data-name="Dying Light 2">+ Dying Light 2</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="990080" data-name="Hogwarts Legacy">+ Hogwarts Legacy</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="1086940" data-name="Baldur's Gate 3">+ Baldur's Gate 3</button>
+                <button type="button" class="quick-multi-btn text-[11px] px-2 py-0.5 rounded bg-gray-800/80 hover:bg-purple-900/60 border border-gray-700 text-gray-300 hover:text-purple-200" data-id="2358720" data-name="Black Myth: Wukong">+ Black Myth: Wukong</button>
+              </div>
+            </div>
+
+            <!-- Seçili Oyunlar Kutusu (Chips) -->
+            <div class="mb-3">
+              <label class="block text-xs font-700 mb-1.5 text-purple-300">📋 Pakete Dahil Edilen Oyunlar:</label>
+              <div id="selectedMultiGamesList" class="flex flex-wrap gap-1.5 min-h-[44px] p-2.5 rounded-lg bg-gray-950/70 border border-purple-500/20 items-center">
+                <span class="text-xs text-gray-500 italic">Henüz oyun eklenmedi. Yukarıdaki arama kutusundan arayarak veya hızlı butonlara tıklayarak ekleyin.</span>
+              </div>
+            </div>
+
+            <!-- Süre & Oluşturma Satırı -->
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-1">
+              <div class="sm:col-span-3">
+                <label class="block text-xs font-700 mb-1 text-purple-300">Paket Süresi</label>
+                <select id="multiGameDuration" class="fi2 w-full text-sm" style="padding: 8px; border-radius: 6px; background: rgba(168,85,247,0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.4);">
+                  <option value="1d">1 Gün</option>
+                  <option value="7d">7 Gün</option>
+                  <option value="15d">15 Gün</option>
+                  <option value="30d" selected>30 Gün</option>
+                  <option value="90d">90 Gün</option>
+                  <option value="lifetime">Sınırsız (Ömür Boyu)</option>
+                </select>
+              </div>
+              <div class="sm:col-span-5">
+                <label class="block text-xs font-700 mb-1 text-purple-300">Müşteri Adı / Sipariş Notu (Opsiyonel)</label>
+                <input id="multiGameNote" type="text" class="fi2 w-full text-sm" placeholder="Örn: 2'li Oyun Paketi - Sipariş #1042" style="border-color: rgba(168,85,247,0.4);" />
+              </div>
+              <div class="sm:col-span-4">
+                <button type="button" id="generateMultiGameTokenBtn" class="btn btn-g w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold rounded-lg shadow-lg flex items-center justify-center gap-1.5 text-sm">
+                  🚀 Çoklu Oyun Paketi Tokeni Oluştur
+                </button>
+              </div>
+            </div>
+            <div id="multiGameMsg" class="mt-2 text-xs font-bold text-purple-400"></div>
+          </div>
+          <!-- /ÇOKLU OYUN PAKETİ LİSANSI OLUŞTURMA ALANI -->
           
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -1385,7 +1510,7 @@
     const nameWrap=document.getElementById('nameWrap'),confWrap=document.getElementById('confirmWrap');
     const authForm=document.getElementById('authForm'),authMsg=document.getElementById('authMessage'),submitBtn=document.getElementById('submitBtn');
     const welcomeUser=document.getElementById('welcomeUser'),logoutBtn=document.getElementById('logoutBtn');
-    const adminPanel=document.getElementById('adminPanel'),adminLink=document.getElementById('adminMenuLink'),appKeysLink=document.getElementById('appKeysMenuLink');
+    const adminPanel=document.getElementById('adminPanel'),adminLink=document.getElementById('adminMenuLink');
     const accountPanel=document.getElementById('accountPanel'),accountLink=document.getElementById('accountMenuLink'),accountLinkMobile=document.getElementById('accountMenuLinkMobile');
     const accountStatsGrid=document.getElementById('accountStatsGrid'),accountOrdersList=document.getElementById('accountOrdersList'),accountDeviceBox=document.getElementById('accountDeviceBox'),accountPluginList=document.getElementById('accountPluginList'),accountInstalledGamesList=document.getElementById('accountInstalledGamesList'),accountResetList=document.getElementById('accountResetList'),accountSupportTicketsList=document.getElementById('accountSupportTicketsList'),accountOrderClaimsList=document.getElementById('accountOrderClaimsList'),accountSecurityActivity=document.getElementById('accountSecurityActivity');
     const deviceResetMessage=document.getElementById('deviceResetMessage'),supportTicketMessage=document.getElementById('supportTicketMessage');
@@ -1982,7 +2107,7 @@
         accountPanel.classList.remove('hidden');accountLink.classList.remove('hidden');accountLinkMobile.classList.remove('hidden');
         loadAccountSummary();
         const isAdmin=d.user.role==='admin';
-        adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);appKeysLink?.classList.toggle('hidden',!isAdmin);
+        adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);
         if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
@@ -1991,7 +2116,7 @@
         welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
         document.getElementById('loginOpenBtn').classList.remove('hidden');
         document.getElementById('registerOpenBtn').classList.remove('hidden');
-        adminPanel.classList.add('hidden');adminLink.classList.add('hidden');appKeysLink?.classList.add('hidden');
+        adminPanel.classList.add('hidden');adminLink.classList.add('hidden');
         accountPanel.classList.add('hidden');accountLink.classList.add('hidden');accountLinkMobile.classList.add('hidden');
         rvText.disabled=true;rvBtn.disabled=true;rvBtn.classList.add('opacity-50');
         rvGate.textContent='Yorum yazmak için giriş yapman gerekir.';
@@ -2470,10 +2595,33 @@
               ? `<button onclick="unfreezeToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-blue-900/70 hover:bg-blue-800 text-blue-300 transition-colors">Çöz</button>`
               : `<button onclick="freezeToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-blue-900/70 hover:bg-blue-800 text-blue-300 transition-colors">Dondur</button>`;
 
-            const isSingle = t.type === 'single_game' || t.allowed_appid || (t.token && t.token.startsWith('MS-GAME-'));
-            const gameBadge = isSingle
-              ? `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-sky-900/60 text-sky-300 border border-sky-500/40">🎮 Tek Oyun: ${esc(t.game_name || t.allowed_appid)} (${esc(t.allowed_appid || '')})</span></div>`
-              : `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-900/40 text-amber-300 border border-amber-500/30">👑 VIP</span></div>`;
+            const isAdmin = t.role === 'admin' || (t.token && t.token.startsWith('MS-ADMIN-'));
+            const isMulti = t.type === 'multi_game' || (t.token && t.token.startsWith('MS-PKG-')) || (Array.isArray(t.allowed_appids) && t.allowed_appids.length > 1);
+            const isSingle = !isAdmin && !isMulti && (t.type === 'single_game' || t.allowed_appid || (t.token && t.token.startsWith('MS-GAME-')));
+
+            let gameBadge = '';
+            if (isAdmin) {
+              const noteText = t.note ? ` - ${esc(t.note)}` : '';
+              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm">👑 Admin (Yönetici)${noteText}</span></div>`;
+            } else if (isMulti) {
+              const count = Array.isArray(t.allowed_appids) ? t.allowed_appids.length : (t.allowed_appid ? String(t.allowed_appid).split(',').filter(Boolean).length : 1);
+              let names = '';
+              if (Array.isArray(t.game_names) && t.game_names.length) {
+                names = t.game_names.slice(0, 3).join(', ') + (t.game_names.length > 3 ? '...' : '');
+              } else if (t.game_name) {
+                names = t.game_name;
+              }
+              const displayInfo = names ? `: ${names}` : '';
+              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-purple-900/60 text-purple-300 border border-purple-500/40">📦 Çoklu Paket${esc(displayInfo)} (${count} Oyun)</span></div>`;
+            } else if (isSingle) {
+              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-sky-900/60 text-sky-300 border border-sky-500/40">🎮 Tek Oyun: ${esc(t.game_name || t.allowed_appid)} (${esc(t.allowed_appid || '')})</span></div>`;
+            } else {
+              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-900/40 text-amber-300 border border-amber-500/30">👑 VIP</span></div>`;
+            }
+
+            const hwidBtn = t.used_by_hwid
+              ? `<button onclick="resetTokenHwid('${esc(t.token)}')" class="text-xs px-2 py-1 rounded font-700 bg-amber-900/70 hover:bg-amber-800 text-amber-300 transition-colors" title="HWID Cihaz Kilidini Sıfırla">🔓 HWID</button>`
+              : '';
 
             tr.innerHTML = `
               <td class="px-3 py-3 font-mono text-xs font-bold text-green-400 select-all">${esc(t.token)}${gameBadge}</td>
@@ -2484,6 +2632,7 @@
               <td class="px-3 py-3">
                 <div class="flex gap-1.5 flex-wrap items-center">
                   <button onclick="copyTokenText('${esc(t.token)}')" class="text-xs px-2 py-1 rounded font-700 bg-gray-800 hover:bg-gray-700 text-gray-200" title="Kopyala">📋 Kopyala</button>
+                  ${hwidBtn}
                   ${freezeBtn}
                   <button onclick="deleteToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-red-900/70 hover:bg-red-800 text-red-300 transition-colors">Sil</button>
                 </div>
@@ -2529,6 +2678,24 @@
         await loadTokens(); 
         if (typeof loadTokenStats === 'function') loadTokenStats();
       } catch(e) { alert('Hata: ' + e); }
+    };
+
+    window.resetTokenHwid = async function(token) {
+      if (!confirm(`"${token}" için HWID cihaz kilidi sıfırlansın mı? Müşteri yeni bir cihazda giriş yapabilir.`)) return;
+      try {
+        const r = await fastFetch('/api/admin/tokens/reset-hwid', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+        const d = await readJsonSafe(r);
+        if (typeof toast === 'function') toast(d.ok ? '✓ HWID kilidi sıfırlandı' : '❌ ' + (d.message || 'Hata'));
+        else alert(d.ok ? '✓ HWID kilidi sıfırlandı' : 'Hata: ' + (d.message || 'Hata'));
+        await loadTokens();
+        if (typeof loadTokenStats === 'function') loadTokenStats();
+      } catch (e) {
+        alert('Hata: ' + e);
+      }
     };
 
     async function loadTokenStats() {
@@ -2664,6 +2831,259 @@
         if (msg) msg.textContent = '❌ ' + err;
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = '🚀 Tek Oyun Tokeni Oluştur'; }
+      }
+    });
+
+    // ======================================================
+    // MASAÜSTÜ ADMİN YETKİLİ TOKEN OLUŞTURMA
+    // ======================================================
+    document.getElementById('generateAdminTokenBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('generateAdminTokenBtn');
+      const durSelect = document.getElementById('adminTokenDuration');
+      const noteInput = document.getElementById('adminTokenNote');
+      const msg = document.getElementById('adminTokenMsg');
+
+      const dur = durSelect ? durSelect.value : 'lifetime';
+      const note = (noteInput?.value || '').trim();
+
+      try {
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Oluşturuluyor...'; }
+        if (msg) msg.textContent = 'Admin tokeni üretiliyor...';
+
+        const r = await fastFetch('/api/admin/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: 'admin',
+            type: 'admin',
+            duration: dur,
+            note: note || 'Yönetici Hesabı'
+          })
+        });
+        const d = await readJsonSafe(r);
+        if (d.ok && d.token) {
+          const tokenCode = d.token.token;
+          try { await navigator.clipboard.writeText(tokenCode); } catch(_) {}
+          if (msg) msg.textContent = '✅ Admin tokeni hazır ve panoya kopyalandı: ' + tokenCode;
+          alert('👑 YENİ ADMİN YETKİLİ TOKEN OLUŞTURULDU! 👑\n\n' +
+                '🔑 Token: ' + tokenCode + '\n' +
+                '⏱️ Süre: ' + dur + '\n' +
+                '📝 Not: ' + (note || 'Yönetici Hesabı') + '\n\n' +
+                'Bu token panoya kopyalandı. Masaüstü uygulamasında bu token ile giriş yapıldığında Admin Yetkisi ve Çoklu Lisans Üretici sekmesi açılır!');
+          await loadTokens();
+          if (typeof loadTokenStats === 'function') loadTokenStats();
+        } else {
+          alert('Hata: ' + (d.message || 'Token oluşturulamadı.'));
+          if (msg) msg.textContent = '❌ ' + (d.message || 'Hata');
+        }
+      } catch (err) {
+        alert('İşlem Hatası: ' + err);
+        if (msg) msg.textContent = '❌ ' + err;
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '👑 Admin Tokeni Oluştur'; }
+      }
+    });
+
+    // ======================================================
+    // ÇOKLU OYUN PAKETİ LİSANSI (TOKEN) ETKİLEŞİMLERİ
+    // ======================================================
+    let selectedMultiGames = [];
+
+    function renderSelectedMultiGames() {
+      const container = document.getElementById('selectedMultiGamesList');
+      const badge = document.getElementById('multiSelectedBadge');
+      if (badge) badge.textContent = `${selectedMultiGames.length} Oyun Seçildi`;
+
+      if (!container) return;
+      if (selectedMultiGames.length === 0) {
+        container.innerHTML = '<span class="text-xs text-gray-500 italic">Henüz oyun eklenmedi. Yukarıdaki arama kutusundan arayarak veya hızlı butonlara tıklayarak ekleyin.</span>';
+        return;
+      }
+
+      container.innerHTML = selectedMultiGames.map(g => `
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-900/50 border border-purple-500/40 text-xs text-purple-200">
+          <span class="font-bold text-white">${esc(g.name)}</span>
+          <span class="text-[10px] text-purple-400 font-mono">(${esc(g.appid)})</span>
+          <button type="button" onclick="removeMultiGame('${esc(g.appid)}')" class="text-purple-400 hover:text-red-400 font-bold ml-1 transition-colors" title="Kaldır">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function addMultiGame(appid, name) {
+      if (!appid) return;
+      const aid = String(appid).trim().replace(/[^0-9]/g, '');
+      if (!aid) return;
+      const cleanName = (name || 'Steam Oyunu #' + aid).trim();
+
+      const exists = selectedMultiGames.some(g => g.appid === aid);
+      if (exists) {
+        if (typeof toast === 'function') toast('Bu oyun zaten pakete eklenmiş: ' + cleanName);
+        return;
+      }
+
+      selectedMultiGames.push({ appid: aid, name: cleanName });
+      renderSelectedMultiGames();
+      const msg = document.getElementById('multiGameMsg');
+      if (msg) msg.textContent = `✓ Pakete eklendi: ${cleanName} (AppID: ${aid}) [Toplam: ${selectedMultiGames.length}]`;
+    }
+    window.addMultiGame = addMultiGame;
+
+    function removeMultiGame(appid) {
+      selectedMultiGames = selectedMultiGames.filter(g => g.appid !== String(appid));
+      renderSelectedMultiGames();
+      const msg = document.getElementById('multiGameMsg');
+      if (msg) msg.textContent = `✓ Oyun paketten çıkarıldı. [Kalan: ${selectedMultiGames.length}]`;
+    }
+    window.removeMultiGame = removeMultiGame;
+
+    // Temizle Butonu
+    document.getElementById('btnClearMultiGames')?.addEventListener('click', () => {
+      if (selectedMultiGames.length === 0) return;
+      selectedMultiGames = [];
+      renderSelectedMultiGames();
+      const msg = document.getElementById('multiGameMsg');
+      if (msg) msg.textContent = 'Paket listesi temizlendi.';
+    });
+
+    // Hızlı Popüler Butonlar
+    document.querySelectorAll('.quick-multi-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        addMultiGame(btn.dataset.id, btn.dataset.name);
+      });
+    });
+
+    // Manuel Steam AppID Ekleme
+    document.getElementById('btnAddManualMulti')?.addEventListener('click', async () => {
+      const input = document.getElementById('multiManualAppId');
+      const aid = (input?.value || '').trim().replace(/[^0-9]/g, '');
+      const msg = document.getElementById('multiGameMsg');
+      if (!aid) {
+        alert('Lütfen bir Steam AppID girin.');
+        if (input) input.focus();
+        return;
+      }
+
+      if (msg) msg.textContent = `⏳ Steam AppID ${aid} sorgulanıyor...`;
+      try {
+        const r = await fetch(`https://store.steampowered.com/api/appdetails?appids=${aid}&l=turkish`);
+        const data = await r.json();
+        let gname = 'AppID ' + aid;
+        if (data && data[aid] && data[aid].success && data[aid].data) {
+          gname = data[aid].data.name || gname;
+        }
+        addMultiGame(aid, gname);
+        if (input) input.value = '';
+      } catch (err) {
+        addMultiGame(aid, 'AppID ' + aid);
+        if (input) input.value = '';
+      }
+    });
+
+    // Canlı Katalog / Steam Arama
+    let multiSearchDebounce = null;
+    const multiSearchInput = document.getElementById('multiGameSearchInput');
+    const multiSearchResults = document.getElementById('multiGameSearchResults');
+
+    multiSearchInput?.addEventListener('input', (e) => {
+      clearTimeout(multiSearchDebounce);
+      const query = (e.target.value || '').trim();
+      if (query.length < 2) {
+        if (multiSearchResults) { multiSearchResults.classList.add('hidden'); multiSearchResults.innerHTML = ''; }
+        return;
+      }
+
+      multiSearchDebounce = setTimeout(async () => {
+        try {
+          if (multiSearchResults) {
+            multiSearchResults.classList.remove('hidden');
+            multiSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-400 italic">Aranıyor...</div>';
+          }
+          const r = await fastFetch(`/api/catalog/search?q=${encodeURIComponent(query)}`);
+          const d = await readJsonSafe(r);
+          if (d.ok && Array.isArray(d.games) && d.games.length > 0) {
+            multiSearchResults.innerHTML = d.games.map(g => `
+              <div class="flex items-center justify-between p-2 hover:bg-purple-950/70 cursor-pointer rounded border-b border-gray-800 last:border-0 transition-colors" onclick="addMultiGame('${esc(g.appid)}', '${esc(g.name).replace(/'/g, "\\'")}'); document.getElementById('multiGameSearchResults').classList.add('hidden'); document.getElementById('multiGameSearchInput').value = '';">
+                <div class="flex items-center gap-2 overflow-hidden">
+                  ${g.image ? `<img src="${esc(g.image)}" alt="" class="w-8 h-4 object-cover rounded" />` : ''}
+                  <span class="text-xs font-semibold text-gray-200 truncate">${esc(g.name)}</span>
+                </div>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-800 text-purple-300 shrink-0 ml-2">AppID: ${esc(g.appid)}</span>
+              </div>
+            `).join('');
+          } else {
+            multiSearchResults.innerHTML = '<div class="p-2 text-xs text-gray-400">Sonuç bulunamadı. Steam AppID ile manuel ekleyebilirsiniz.</div>';
+          }
+        } catch (err) {
+          if (multiSearchResults) multiSearchResults.innerHTML = '<div class="p-2 text-xs text-red-400">Arama yapılamadı.</div>';
+        }
+      }, 250);
+    });
+
+    // Dropdown dışına tıklandığında kapat
+    document.addEventListener('click', (e) => {
+      if (multiSearchResults && !multiSearchResults.contains(e.target) && e.target !== multiSearchInput) {
+        multiSearchResults.classList.add('hidden');
+      }
+    });
+
+    // Çoklu Paket Token Oluştur Butonu
+    document.getElementById('generateMultiGameTokenBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('generateMultiGameTokenBtn');
+      const durSelect = document.getElementById('multiGameDuration');
+      const noteInput = document.getElementById('multiGameNote');
+      const msg = document.getElementById('multiGameMsg');
+
+      if (selectedMultiGames.length === 0) {
+        alert('Lütfen pakete en az 1 oyun ekleyin! Yukarıdaki arama kutusunu veya hızlı popüler butonları kullanabilirsiniz.');
+        if (multiSearchInput) multiSearchInput.focus();
+        return;
+      }
+
+      const dur = durSelect ? durSelect.value : '30d';
+      const note = (noteInput?.value || '').trim();
+      const appids = selectedMultiGames.map(g => g.appid);
+      const names = selectedMultiGames.map(g => g.name);
+
+      try {
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Paket Oluşturuluyor...'; }
+        if (msg) msg.textContent = 'Çoklu oyun lisansı üretiliyor...';
+
+        const r = await fastFetch('/api/admin/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'multi_game',
+            duration: dur,
+            allowed_appids: appids,
+            game_names: names,
+            note: note || `Çoklu Paket (${appids.length} Oyun)`
+          })
+        });
+        const d = await readJsonSafe(r);
+        if (d.ok && d.token) {
+          const tokenCode = d.token.token;
+          try { await navigator.clipboard.writeText(tokenCode); } catch(_) {}
+          if (msg) msg.textContent = '✅ Paket Tokeni hazır ve panoya kopyalandı: ' + tokenCode;
+          alert('📦 YENİ ÇOKLU OYUN PAKETİ LİSANSI OLUŞTURULDU! 📦\n\n' +
+                '🎮 Dahil Edilen Oyunlar (' + appids.length + ' Oyun):\n' +
+                names.map((n, i) => '  • ' + n + ' (' + appids[i] + ')').join('\n') + '\n\n' +
+                '🔑 Token: ' + tokenCode + '\n' +
+                '⏱️ Süre: ' + dur + '\n\n' +
+                'Bu token panoya kopyalandı. Müşteriniz masaüstü uygulamasına bu token ile girdiğinde yalnızca seçtiğiniz bu oyunları görebilir ve oynayabilir!');
+          selectedMultiGames = [];
+          renderSelectedMultiGames();
+          if (noteInput) noteInput.value = '';
+          await loadTokens();
+          if (typeof loadTokenStats === 'function') loadTokenStats();
+        } else {
+          alert('Hata: ' + (d.message || 'Token oluşturulamadı.'));
+          if (msg) msg.textContent = '❌ ' + (d.message || 'Hata');
+        }
+      } catch (err) {
+        alert('İşlem Hatası: ' + err);
+        if (msg) msg.textContent = '❌ ' + err;
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Çoklu Oyun Paketi Tokeni Oluştur'; }
       }
     });
 

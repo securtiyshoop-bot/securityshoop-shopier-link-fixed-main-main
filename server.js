@@ -377,16 +377,187 @@ async function pollTelegramBot() {
 setInterval(pollTelegramBot, 4000);
 setTimeout(pollTelegramBot, 1000);
 
+// PERSISTENT DATA DIRECTORY & TOKENS/USERS STORE
+const DATA_DIR = process.env.VERCEL ? path.join(os.tmpdir(), 'securityshoop-data') : __dirname;
+if (!fs.existsSync(DATA_DIR)) {
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
+}
+const TOKENS_FILE = path.join(DATA_DIR, 'tokens.json');
+const SEED_TOKENS_FILE = path.join(__dirname, 'tokens.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const SEED_USERS_FILE = path.join(__dirname, 'users.json');
+
+function getLocalTokensStorePath() {
+  try {
+    const localAppData = process.env.LOCALAPPDATA || (process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'Local') : null);
+    if (localAppData) {
+      const dir = path.join(localAppData, 'MarifetStore');
+      if (fs.existsSync(dir)) return path.join(dir, 'tokens_store.json');
+    }
+  } catch (_) {}
+  return null;
+}
+
+function ensureTokensFile() {
+  try {
+    if (!fs.existsSync(TOKENS_FILE)) {
+      if (fs.existsSync(SEED_TOKENS_FILE)) {
+        fs.copyFileSync(SEED_TOKENS_FILE, TOKENS_FILE);
+      } else {
+        fs.writeFileSync(TOKENS_FILE, JSON.stringify({ tokens: [] }, null, 2), 'utf8');
+      }
+    }
+  } catch (_) {}
+}
+
+function readTokensFile() {
+  ensureTokensFile();
+  const tokenMap = new Map();
+  try {
+    if (fs.existsSync(SEED_TOKENS_FILE)) {
+      const raw = fs.readFileSync(SEED_TOKENS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.tokens) ? parsed.tokens : []);
+      list.forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+    }
+  } catch (_) {}
+
+  try {
+    const localPath = getLocalTokensStorePath();
+    if (localPath && fs.existsSync(localPath)) {
+      const raw = fs.readFileSync(localPath, 'utf8');
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) {
+        list.forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      }
+    }
+  } catch (_) {}
+
+  try {
+    if (fs.existsSync(TOKENS_FILE)) {
+      const raw = fs.readFileSync(TOKENS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.tokens) ? parsed.tokens : []);
+      list.forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+    }
+  } catch (_) {}
+
+  return { tokens: Array.from(tokenMap.values()) };
+}
+
+function writeTokensFile(data) {
+  try {
+    ensureTokensFile();
+    const tokenMap = new Map();
+    const existing = readTokensFile();
+    (existing.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+    (data.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+    const merged = { tokens: Array.from(tokenMap.values()) };
+
+    fs.writeFileSync(TOKENS_FILE, JSON.stringify(merged, null, 2), 'utf8');
+    try { fs.writeFileSync(SEED_TOKENS_FILE, JSON.stringify(merged, null, 2), 'utf8'); } catch (_) {}
+
+    try {
+      const localPath = getLocalTokensStorePath();
+      if (localPath) {
+        fs.writeFileSync(localPath, JSON.stringify(merged.tokens, null, 2), 'utf8');
+      }
+    } catch (_) {}
+    return merged;
+  } catch (e) {
+    return data;
+  }
+}
+
+function ensureUsersFile() {
+  try {
+    if (!fs.existsSync(USERS_FILE)) {
+      if (fs.existsSync(SEED_USERS_FILE)) {
+        fs.copyFileSync(SEED_USERS_FILE, USERS_FILE);
+      } else {
+        fs.writeFileSync(USERS_FILE, JSON.stringify({ users: [] }, null, 2), 'utf8');
+      }
+    }
+  } catch (_) {}
+}
+
+function readUsersFile() {
+  ensureUsersFile();
+  const userMap = new Map();
+  try {
+    if (fs.existsSync(SEED_USERS_FILE)) {
+      const raw = fs.readFileSync(SEED_USERS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed?.users) ? parsed.users : [];
+      list.forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+    }
+  } catch (_) {}
+
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const raw = fs.readFileSync(USERS_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed?.users) ? parsed.users : [];
+      list.forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+    }
+  } catch (_) {}
+
+  const cached = cloudCache.get(CLOUD_STORAGE_IDS.users);
+  if (cached && Array.isArray(cached.users)) {
+    cached.users.forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+  }
+
+  return { users: Array.from(userMap.values()) };
+}
+
+function writeUsersFile(data) {
+  try {
+    ensureUsersFile();
+    const userMap = new Map();
+    const existing = readUsersFile();
+    (existing.users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+    (data.users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
+    const merged = { users: Array.from(userMap.values()) };
+
+    fs.writeFileSync(USERS_FILE, JSON.stringify(merged, null, 2), 'utf8');
+    try { fs.writeFileSync(SEED_USERS_FILE, JSON.stringify(merged, null, 2), 'utf8'); } catch (_) {}
+    return merged;
+  } catch(e) {}
+  saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
+}
+
 const cloudCache = new Map();
 const cloudCacheTTL = new Map();
 
 function fetchCloudJson(id, fallback) {
   const cached = cloudCache.get(id);
   const exp = cloudCacheTTL.get(id) || 0;
-  // Eger onbellekte varsa ve suresi gecmemisse aninda RAM'den dondur (0 ms!)
   if (cached && Date.now() < exp) {
     return Promise.resolve(cached);
   }
+
+  const getFallback = () => {
+    const mem = cloudCache.get(id);
+    if (mem) return mem;
+    if (id === CLOUD_STORAGE_IDS.tokens) {
+      const disk = readTokensFile();
+      if (disk && disk.tokens && disk.tokens.length > 0) {
+        cloudCache.set(id, disk);
+        cloudCacheTTL.set(id, Date.now() + 600000);
+        return disk;
+      }
+    }
+    if (id === CLOUD_STORAGE_IDS.users) {
+      const disk = readUsersFile();
+      if (disk && disk.users && disk.users.length > 0) {
+        cloudCache.set(id, disk);
+        cloudCacheTTL.set(id, Date.now() + 600000);
+        return disk;
+      }
+    }
+    return fallback;
+  };
+
   return new Promise((resolve) => {
     const req = https.get(`https://api.restful-api.dev/objects/${id}`, { timeout: 4000 }, (res) => {
       let data = '';
@@ -394,32 +565,51 @@ function fetchCloudJson(id, fallback) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(data);
-          if (parsed && parsed.data) {
-            cloudCache.set(id, parsed.data);
-            cloudCacheTTL.set(id, Date.now() + 600000); // 10 DAKIKA TTL
-            resolve(parsed.data);
+          if (parsed && parsed.data && !parsed.error) {
+            let finalData = parsed.data;
+            if (id === CLOUD_STORAGE_IDS.tokens) {
+              const disk = readTokensFile();
+              const map = new Map();
+              (disk.tokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
+              (finalData.tokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
+              finalData.tokens = Array.from(map.values());
+              writeTokensFile(finalData);
+            } else if (id === CLOUD_STORAGE_IDS.users) {
+              const disk = readUsersFile();
+              const map = new Map();
+              (disk.users || []).forEach(u => { if (u && u.email) map.set(String(u.email).toLowerCase().trim(), u); });
+              (finalData.users || []).forEach(u => { if (u && u.email) map.set(String(u.email).toLowerCase().trim(), u); });
+              finalData.users = Array.from(map.values());
+              writeUsersFile(finalData);
+            }
+            cloudCache.set(id, finalData);
+            cloudCacheTTL.set(id, Date.now() + 600000);
+            resolve(finalData);
           } else {
-            resolve(cloudCache.get(id) || fallback);
+            resolve(getFallback());
           }
         } catch {
-          resolve(cloudCache.get(id) || fallback);
+          resolve(getFallback());
         }
       });
     });
     req.on('error', () => {
-      resolve(cloudCache.get(id) || fallback);
+      resolve(getFallback());
     });
     req.on('timeout', () => {
       req.destroy();
-      resolve(cloudCache.get(id) || fallback);
+      resolve(getFallback());
     });
   });
 }
 
 function saveCloudJson(id, name, partialData) {
+  if (partialData === undefined && typeof name === 'object') {
+    partialData = name;
+    name = 'data';
+  }
   if (!partialData || typeof partialData !== 'object') return Promise.resolve(false);
   
-  // 1. Mevcut bulut verisini al ve yeni veriyi içine DERİNLEMESİNE BİRLEŞTİR (Hiçbir alan silinmez!)
   const existing = cloudCache.get(id) || {};
   const mergedData = { ...existing, ...partialData };
 
@@ -429,10 +619,12 @@ function saveCloudJson(id, name, partialData) {
       mergedData.tokens = existing.tokens;
     } else if (Array.isArray(partialData.tokens)) {
       const tokenMap = new Map();
-      (existing.tokens || []).forEach(t => { if (t && t.token) tokenMap.set(String(t.token).toLowerCase().trim(), t); });
-      (partialData.tokens || []).forEach(t => { if (t && t.token) tokenMap.set(String(t.token).toLowerCase().trim(), t); });
+      (readTokensFile().tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      (existing.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      (partialData.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
       mergedData.tokens = Array.from(tokenMap.values());
     }
+    writeTokensFile(mergedData);
   }
 
   // Users Koruması & Birleştirmesi:
@@ -441,13 +633,14 @@ function saveCloudJson(id, name, partialData) {
       mergedData.users = existing.users;
     } else if (Array.isArray(partialData.users)) {
       const userMap = new Map();
+      (readUsersFile().users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
       (existing.users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
       (partialData.users || []).forEach(u => { if (u && u.email) userMap.set(String(u.email).toLowerCase().trim(), u); });
       mergedData.users = Array.from(userMap.values());
     }
+    writeUsersFile(mergedData);
   }
 
-  // RAM onbellegini aninda guncelle
   cloudCache.set(id, mergedData);
   cloudCacheTTL.set(id, Date.now() + 600000);
   
@@ -485,11 +678,6 @@ function parseShopierOsbForm(req, res, next) {
 }
 
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = process.env.VERCEL ? path.join(os.tmpdir(), 'securityshoop-data') : __dirname;
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const REVIEWS_FILE = path.join(DATA_DIR, 'reviews.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const ACTIVITY_LOGS_FILE = path.join(DATA_DIR, 'activity-logs.json');
@@ -503,7 +691,6 @@ const SOURCE_HEALTH_FILE = path.join(DATA_DIR, 'source-health.json');
 const DEVICE_RESETS_FILE = path.join(DATA_DIR, 'device-reset-requests.json');
 const SUPPORT_TICKETS_FILE = path.join(DATA_DIR, 'support-tickets.json');
 const DESKTOP_AUTH_FILE = path.join(DATA_DIR, 'desktop-auth.json');
-const SEED_USERS_FILE = path.join(__dirname, 'users.json');
 const SEED_REVIEWS_FILE = path.join(__dirname, 'reviews.json');
 const SEED_ORDERS_FILE = path.join(__dirname, 'orders.json');
 const SHOPIER_PAYMENT_URL = process.env.SHOPIER_PAYMENT_URL || 'https://www.shopier.com/s/shipping/SecurityShoop';
@@ -675,36 +862,6 @@ app.use('/api', (_req, res, next) => {
   next();
 });
 
-function ensureUsersFile() {
-  if (!fs.existsSync(USERS_FILE)) {
-    if (fs.existsSync(SEED_USERS_FILE)) {
-      fs.copyFileSync(SEED_USERS_FILE, USERS_FILE);
-    } else {
-      fs.writeFileSync(USERS_FILE, JSON.stringify({ users: [] }, null, 2), 'utf8');
-    }
-  }
-}
-
-function readUsersFile() {
-  ensureUsersFile();
-  try {
-    const cached = cloudCache.get(CLOUD_STORAGE_IDS.users);
-    if (cached && Array.isArray(cached.users) && cached.users.length > 0) return cached;
-    const raw = fs.readFileSync(USERS_FILE, 'utf8');
-    const parsed = JSON.parse(raw || '{"users":[]}');
-    if (!Array.isArray(parsed.users)) return { users: [] };
-    return parsed;
-  } catch {
-    return { users: [] };
-  }
-}
-
-function writeUsersFile(data) {
-  try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8');
-  } catch(e) {}
-  saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data).catch(() => {});
-}
 
 async function postWithTimeout(url, options = {}, timeoutMs = 2500) {
   const controller = new AbortController();
@@ -6702,8 +6859,10 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
         t += '-';
         for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
       } else if (type === 'multi_game') {
-        const firstAid = allowed_appids[0] ? String(allowed_appids[0]).slice(0, 10) : 'PKG';
+        const firstAid = allowed_appids[0] ? String(allowed_appids[0]).replace(/[^0-9]/g, '').slice(0, 10) : 'PKG';
         t = `MS-PKG-${firstAid}-`;
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+        t += '-';
         for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
       } else if (type === 'single_game' && allowed_appid) {
         t = `MS-GAME-${allowed_appid.slice(0, 12)}-`;
@@ -6771,7 +6930,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       
       if (!found) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, { ...cloudData, tokens });
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', { ...cloudData, tokens });
       res.json({ ok: true, message: `Token (${token}) HWID kilidi basariyla sifirlandi.` });
     } catch(err) {
       res.status(500).json({ ok: false, message: err.message });
