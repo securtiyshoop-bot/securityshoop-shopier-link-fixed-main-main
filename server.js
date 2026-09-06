@@ -6676,29 +6676,71 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 
   app.post('/api/admin/tokens', requireAdmin, async (req, res) => {
     try {
-      const duration = req.body.duration || 'lifetime'; // '1d', '7d', '15d', '30d', '90d', 'lifetime'
-      const type = req.body.type || (req.body.allowed_appid ? 'single_game' : 'vip');
-      const allowed_appid = req.body.allowed_appid ? String(req.body.allowed_appid).replace(/[^0-9]/g, '').slice(0, 12) : '';
-      const game_name = req.body.game_name ? String(req.body.game_name).trim().slice(0, 120) : '';
+      const duration = req.body.duration || req.body.duration_type || 'lifetime'; // '1d', '7d', '15d', '30d', '90d', 'lifetime'
+      const role = (req.body.role === 'admin' || req.body.is_admin) ? 'admin' : 'user';
+      let type = req.body.type || (req.body.allowed_appids?.length > 1 ? 'multi_game' : (req.body.allowed_appid ? 'single_game' : 'vip'));
+      if (role === 'admin') type = 'admin';
+
+      let allowed_appids = req.body.allowed_appids || [];
+      if (!Array.isArray(allowed_appids) && req.body.allowed_appid) {
+        allowed_appids = String(req.body.allowed_appid).split(',').map(s => s.trim()).filter(Boolean);
+      }
+      let allowed_game_names = req.body.allowed_game_names || req.body.game_names || [];
+      if (!Array.isArray(allowed_game_names) && req.body.game_name) {
+        allowed_game_names = String(req.body.game_name).split(',').map(s => s.trim()).filter(Boolean);
+      }
+
+      const allowed_appid = allowed_appids.join(',') || (req.body.allowed_appid ? String(req.body.allowed_appid).trim() : '');
+      const game_name = allowed_game_names.join(', ') || (req.body.game_name ? String(req.body.game_name).trim() : '');
 
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let t = (type === 'single_game' && allowed_appid) ? `MS-GAME-${allowed_appid}-` : 'MS-';
-      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
-      t += '-';
-      for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      let t = '';
+      if (role === 'admin') {
+        t = 'MS-ADMIN-';
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+        t += '-';
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      } else if (type === 'multi_game') {
+        const firstAid = allowed_appids[0] ? String(allowed_appids[0]).slice(0, 10) : 'PKG';
+        t = `MS-PKG-${firstAid}-`;
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      } else if (type === 'single_game' && allowed_appid) {
+        t = `MS-GAME-${allowed_appid.slice(0, 12)}-`;
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+        t += '-';
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      } else {
+        t = 'MS-';
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+        t += '-';
+        for(let i=0; i<4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      let finalNote = req.body.note;
+      if (!finalNote) {
+        if (role === 'admin') finalNote = 'Yönetici Hesabı';
+        else if (type === 'multi_game') finalNote = `Çoklu Paket (${allowed_appids.length} Oyun): ${game_name}`;
+        else if (type === 'single_game') finalNote = `Tek Oyun: ${game_name || allowed_appid}`;
+        else finalNote = 'VIP';
+      }
+
       const newToken = {
         token: t,
+        code: t,
+        role: role,
         created_at: new Date().toISOString(),
         duration_type: duration,
         expires_at: null, // Hesaplanacak (ilk giriste)
         used: false,
         first_used_at: null,
         used_by_hwid: null,
-        type: type === 'single_game' ? 'single_game' : 'vip',
+        type: type,
         allowed_appid: allowed_appid,
+        allowed_appids: allowed_appids,
         game_name: game_name,
-        note: type === 'single_game' ? `Tek Oyun: ${game_name || allowed_appid}` : 'VIP'
+        game_names: allowed_game_names,
+        note: finalNote
       };
       if (!data.tokens) data.tokens = [];
       data.tokens.push(newToken);
@@ -6981,17 +7023,23 @@ app.post('/api/plugin/token-login', async (req, res) => {
         tokenObj.active_session_id = activeSessionId;
         await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
+        const loginRole = (userToken.toUpperCase().startsWith('MS-ADMIN-') || tokenObj.role === 'admin') ? 'admin' : (tokenObj.role || 'user');
+        const allowedAppids = tokenObj.allowed_appids || (tokenObj.allowed_appid ? String(tokenObj.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+        const allowedGameNames = tokenObj.game_names || (tokenObj.game_name ? String(tokenObj.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+
         return res.json({
           ok: true,
           message: 'Tekrar giris basarili!',
-          role: 'user',
+          role: loginRole,
           session_token: userToken,
           session_id: activeSessionId,
           expires_at: tokenObj.expires_at || null,
           ref_code: tokenObj.ref_code,
           license_type: tokenObj.type || 'vip',
-          allowed_appid: tokenObj.allowed_appid || '',
-          allowed_game_name: tokenObj.game_name || ''
+          allowed_appid: tokenObj.allowed_appid || allowedAppids.join(','),
+          allowed_appids: allowedAppids,
+          allowed_game_name: tokenObj.game_name || allowedGameNames.join(', '),
+          allowed_game_names: allowedGameNames
         });
       }
 
@@ -7059,20 +7107,26 @@ app.post('/api/plugin/token-login', async (req, res) => {
         }
       } catch(e) {}
 
-      const payloadStr = `${tokenObj.token}:${tokenObj.role || 'user'}:${tokenObj.expires_at || 'lifetime'}`;
+      const loginRole2 = (userToken.toUpperCase().startsWith('MS-ADMIN-') || tokenObj.role === 'admin') ? 'admin' : (tokenObj.role || 'user');
+      const allowedAppids2 = tokenObj.allowed_appids || (tokenObj.allowed_appid ? String(tokenObj.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+      const allowedGameNames2 = tokenObj.game_names || (tokenObj.game_name ? String(tokenObj.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+      const payloadStr = `${tokenObj.token}:${loginRole2}:${tokenObj.expires_at || 'lifetime'}`;
       const sign = crypto.createHmac('sha256', 'MarifetStoreSecureSecretKey2026').update(payloadStr).digest('hex');
       res.setHeader('X-Marifet-Sign', sign);
       res.json({
         ok: true,
         message: 'Cihaz kilitlendi ve giris basarili!',
-        role: tokenObj.role || 'user',
+        role: loginRole2,
         session_token: tokenObj.token,
         session_id: activeSessionId,
         expires_at: tokenObj.expires_at || null,
         ref_code: tokenObj.ref_code || '',
         license_type: tokenObj.type || 'vip',
-        allowed_appid: tokenObj.allowed_appid || '',
-        allowed_game_name: tokenObj.game_name || '',
+        allowed_appid: tokenObj.allowed_appid || allowedAppids2.join(','),
+        allowed_appids: allowedAppids2,
+        allowed_game_name: tokenObj.game_name || allowedGameNames2.join(', '),
+        allowed_game_names: allowedGameNames2,
         _sign: sign
       });
     } catch (err) {

@@ -105,25 +105,26 @@
         <button id="btnBroadcast" class="primary" style="width:auto;padding:0 24px">Yayınla</button>
       </div>
     </section>
-<section class="panel">
-  <h2 style="margin:0 0 6px">Desktop Admin Key</h2>
-  <div class="muted" style="margin-bottom:12px">MarifetStore masaüstü uygulamasında Admin Paneli için tek cihazlık yönetici key'i üretir.</div>
+<section class="panel" style="border-color:rgba(255,202,85,0.3);background:linear-gradient(180deg,#15130b,#0e151f)">
+  <h2 style="margin:0 0 6px;color:var(--amber)">👑 Desktop Admin Key Oluşturucu</h2>
+  <div class="muted" style="margin-bottom:12px">MarifetStore masaüstü uygulamasında <strong>Admin Yetkisi</strong> açan ve uygulamadaki <strong>Çoklu Lisans Üretici</strong> sekmesini aktif eden tek cihazlık yönetici tokeni üretir.</div>
   <div class="actions">
-    <button id="adminKeyBtn">Admin Key Oluştur</button>
+    <button id="adminKeyBtn" style="background:var(--amber);color:#080b0f;font-weight:700">👑 Admin Token Oluştur</button>
     <button id="copyAdminKeyBtn" class="plain">Key'i Kopyala</button>
   </div>
-  <div id="adminKeyBox" class="codes" hidden></div>
+  <div id="adminKeyBox" class="codes" hidden style="border-color:var(--amber);color:var(--amber);font-size:15px;font-weight:bold"></div>
 </section>
-    <!-- LİSANS ÜRETİM PANELİ (VIP & TEK OYUN) -->
+    <!-- LİSANS ÜRETİM PANELİ (VIP, TEK OYUN & ÇOKLU OYUN) -->
     <section class="panel" style="border-color:rgba(92,184,255,0.3);background:linear-gradient(180deg,#111821,#0e151f)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <h2 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px">
           🔑 Lisans & Key Oluşturucu
         </h2>
         <!-- Lisans Modu Toggleri -->
-        <div style="display:flex;gap:6px;background:rgba(0,0,0,0.4);padding:4px;border-radius:8px;border:1px solid var(--line)">
+        <div style="display:flex;gap:6px;background:rgba(0,0,0,0.4);padding:4px;border-radius:8px;border:1px solid var(--line);flex-wrap:wrap">
           <button type="button" id="btnTypeVip" class="pill" style="cursor:pointer;border:none;background:var(--amber);color:#080b0f;padding:6px 14px">👑 Tüm Oyunlar (VIP)</button>
           <button type="button" id="btnTypeSingle" class="pill" style="cursor:pointer;border:none;background:transparent;color:var(--muted);padding:6px 14px">🎮 Tek Oyun Lisansı</button>
+          <button type="button" id="btnTypeMulti" class="pill" style="cursor:pointer;border:none;background:transparent;color:var(--muted);padding:6px 14px">📦 Çoklu Oyun Paketi</button>
         </div>
       </div>
 
@@ -157,6 +158,66 @@
           <button type="button" class="preset-game-btn pill" data-id="1817070" data-name="Marvel’s Spider-Man Remastered" style="cursor:pointer;background:rgba(255,255,255,0.05)">Spider-Man</button>
           <button type="button" class="preset-game-btn pill" data-id="1551360" data-name="Forza Horizon 5" style="cursor:pointer;background:rgba(255,255,255,0.05)">Forza Horizon 5</button>
           <button type="button" class="preset-game-btn pill" data-id="534380" data-name="Dying Light 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">Dying Light 2</button>
+        </div>
+      </div>
+
+      <!-- ÇOKLU OYUN PAKETİ SEÇİM ALANI -->
+      <div id="multiGameSection" style="display:none;background:rgba(168,85,247,0.06);border:1px dashed rgba(168,85,247,0.4);padding:16px;border-radius:10px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <span style="font-weight:700;color:#c084fc;font-size:14px">📦 Çoklu Oyun Paketi Lisans Üretici</span>
+            <div class="muted" style="font-size:11px;margin-top:2px">Pakete dilediğiniz kadar oyun ekleyin. Bu lisansı alan kullanıcı yalnızca seçtiğiniz bu oyunlara erişebilir.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="multiSelectedBadge" class="pill" style="color:#c084fc;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.1);font-weight:bold;font-size:12px">0 Oyun Seçildi</span>
+            <button type="button" id="btnClearMultiGames" class="plain" style="padding:4px 10px;font-size:11px;border-color:rgba(255,255,255,0.15)">Temizle</button>
+          </div>
+        </div>
+
+        <!-- Canlı Steam Arama & Ekleme -->
+        <div style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="flex:1;position:relative">
+              <input id="multiSearchInput" placeholder="🔍 Oyun adı veya Steam AppID arayın (Örn: GTA, Cyberpunk, 1091500)..." style="border-color:rgba(168,85,247,0.4);width:100%;box-sizing:border-box">
+              <div id="multiSearchResults" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:260px;overflow-y:auto;background:#0d131a;border:1px solid rgba(168,85,247,0.4);border-radius:8px;z-index:999;box-shadow:0 12px 30px rgba(0,0,0,0.8);padding:6px"></div>
+            </div>
+            <button type="button" id="btnSearchSteamMulti" class="plain" style="padding:11px 16px;border-color:#c084fc;color:#c084fc;white-space:nowrap">Steam'de Ara</button>
+          </div>
+        </div>
+
+        <!-- Manuel AppID & İsim Ekleme Satırı -->
+        <div class="grid" style="grid-template-columns: 1fr 1.5fr auto;margin-bottom:12px;gap:8px">
+          <input id="multiManualAppId" type="number" placeholder="Manuel AppID (Örn: 730)" style="border-color:rgba(168,85,247,0.3)">
+          <input id="multiManualName" placeholder="Manuel Oyun Adı (Örn: CS2)" style="border-color:rgba(168,85,247,0.3)">
+          <button type="button" id="btnAddManualMulti" class="plain" style="padding:10px 14px;border-color:#c084fc;color:#c084fc;white-space:nowrap">➕ Pakete Ekle</button>
+        </div>
+
+        <!-- Hızlı Popüler Preset Butonları -->
+        <div style="margin-bottom:12px">
+          <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">⚡ Hızlı Popüler Oyun Ekle:</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="preset-multi-btn pill" data-id="1091500" data-name="Cyberpunk 2077" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Cyberpunk 2077</button>
+            <button type="button" class="preset-multi-btn pill" data-id="271590" data-name="Grand Theft Auto V" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ GTA V</button>
+            <button type="button" class="preset-multi-btn pill" data-id="730" data-name="Counter-Strike 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ CS2</button>
+            <button type="button" class="preset-multi-btn pill" data-id="1174180" data-name="Red Dead Redemption 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ RDR2</button>
+            <button type="button" class="preset-multi-btn pill" data-id="1245620" data-name="ELDEN RING" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Elden Ring</button>
+            <button type="button" class="preset-multi-btn pill" data-id="2195250" data-name="EA SPORTS FC 24" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ FC 24</button>
+            <button type="button" class="preset-multi-btn pill" data-id="1593500" data-name="God of War" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ God of War</button>
+            <button type="button" class="preset-multi-btn pill" data-id="1817070" data-name="Marvel’s Spider-Man Remastered" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Spider-Man</button>
+            <button type="button" class="preset-multi-btn pill" data-id="1551360" data-name="Forza Horizon 5" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Forza 5</button>
+            <button type="button" class="preset-multi-btn pill" data-id="534380" data-name="Dying Light 2" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Dying Light 2</button>
+            <button type="button" class="preset-multi-btn pill" data-id="990080" data-name="Hogwarts Legacy" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Hogwarts Legacy</button>
+            <button type="button" class="preset-multi-btn pill" data-id="1086940" data-name="Baldur's Gate 3" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Baldur's Gate 3</button>
+            <button type="button" class="preset-multi-btn pill" data-id="2358720" data-name="Black Myth: Wukong" style="cursor:pointer;background:rgba(255,255,255,0.05)">+ Black Myth: Wukong</button>
+          </div>
+        </div>
+
+        <!-- Pakete Eklenmiş Seçili Oyunlar Listesi -->
+        <div>
+          <div class="muted" style="font-size:11px;font-weight:700;margin-bottom:6px">📋 Pakete Eklenen Oyunlar:</div>
+          <div id="selectedMultiGamesList" style="display:flex;gap:8px;flex-wrap:wrap;min-height:48px;padding:10px;border-radius:8px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);align-items:center">
+            <span class="muted" style="font-size:12px;font-style:italic">Henüz oyun eklenmedi. Yukarıdan aratarak veya butonlara tıklayarak ekleyin.</span>
+          </div>
         </div>
       </div>
 
@@ -256,10 +317,14 @@
     let currentLicenseType = 'vip';
     let currentDurationType = '30d';
 
-    // Preset & Single Game UI wiring
+    // Preset, Single Game & Multi-Game UI wiring
+    let selectedMultiGames = []; // [{ appid: '1091500', name: 'Cyberpunk 2077' }]
+
     const btnTypeVip = $('btnTypeVip');
     const btnTypeSingle = $('btnTypeSingle');
+    const btnTypeMulti = $('btnTypeMulti');
     const singleGameSection = $('singleGameSection');
+    const multiGameSection = $('multiGameSection');
 
     btnTypeVip?.addEventListener('click', () => {
       currentLicenseType = 'vip';
@@ -267,7 +332,10 @@
       btnTypeVip.style.color = '#080b0f';
       btnTypeSingle.style.background = 'transparent';
       btnTypeSingle.style.color = 'var(--muted)';
+      btnTypeMulti.style.background = 'transparent';
+      btnTypeMulti.style.color = 'var(--muted)';
       if (singleGameSection) singleGameSection.style.display = 'none';
+      if (multiGameSection) multiGameSection.style.display = 'none';
     });
 
     btnTypeSingle?.addEventListener('click', () => {
@@ -276,7 +344,136 @@
       btnTypeSingle.style.color = '#080b0f';
       btnTypeVip.style.background = 'transparent';
       btnTypeVip.style.color = 'var(--muted)';
+      btnTypeMulti.style.background = 'transparent';
+      btnTypeMulti.style.color = 'var(--muted)';
       if (singleGameSection) singleGameSection.style.display = 'block';
+      if (multiGameSection) multiGameSection.style.display = 'none';
+    });
+
+    btnTypeMulti?.addEventListener('click', () => {
+      currentLicenseType = 'multi_game';
+      btnTypeMulti.style.background = '#c084fc';
+      btnTypeMulti.style.color = '#080b0f';
+      btnTypeVip.style.background = 'transparent';
+      btnTypeVip.style.color = 'var(--muted)';
+      btnTypeSingle.style.background = 'transparent';
+      btnTypeSingle.style.color = 'var(--muted)';
+      if (singleGameSection) singleGameSection.style.display = 'none';
+      if (multiGameSection) multiGameSection.style.display = 'block';
+    });
+
+    // Multi-game selection management
+    function renderSelectedMultiGames() {
+      const container = $('selectedMultiGamesList');
+      const badge = $('multiSelectedBadge');
+      if (badge) badge.textContent = `${selectedMultiGames.length} Oyun Seçildi`;
+
+      if (!container) return;
+      if (selectedMultiGames.length === 0) {
+        container.innerHTML = '<span class="muted" style="font-size:12px;font-style:italic">Henüz oyun eklenmedi. Yukarıdan aratarak veya butonlara tıklayarak ekleyin.</span>';
+        return;
+      }
+
+      container.innerHTML = selectedMultiGames.map((g, idx) => `
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:5px 10px;border-radius:6px;font-size:12px;color:#f3e8ff">
+          <span style="color:#c084fc;font-weight:700">#${esc(g.appid)}</span>
+          <span style="font-weight:600">${esc(g.name)}</span>
+          <button type="button" onclick="removeMultiGame(${idx})" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:13px;padding:0 2px;margin-left:2px;line-height:1">✕</button>
+        </div>
+      `).join('');
+    }
+
+    window.removeMultiGame = function(idx) {
+      selectedMultiGames.splice(idx, 1);
+      renderSelectedMultiGames();
+    };
+
+    function addMultiGame(appid, name) {
+      appid = String(appid).trim().replace(/[^0-9]/g, '');
+      name = String(name || '').trim();
+      if (!appid) return;
+      if (selectedMultiGames.some(g => g.appid === appid)) {
+        setMessage(`⚠️ "${name || appid}" zaten pakete ekli.`);
+        return;
+      }
+      selectedMultiGames.push({ appid, name: name || `Steam (AppID: ${appid})` });
+      renderSelectedMultiGames();
+      setMessage(`✅ Pakete eklendi: ${name || appid}`);
+    }
+
+    $('btnClearMultiGames')?.addEventListener('click', () => {
+      selectedMultiGames = [];
+      renderSelectedMultiGames();
+      setMessage('Paketteki tüm oyunlar temizlendi.');
+    });
+
+    document.querySelectorAll('.preset-multi-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        addMultiGame(btn.dataset.id, btn.dataset.name);
+      });
+    });
+
+    $('btnAddManualMulti')?.addEventListener('click', () => {
+      const aid = $('multiManualAppId').value.trim();
+      const name = $('multiManualName').value.trim();
+      if (!aid) return alert('Lütfen Steam AppID girin.');
+      addMultiGame(aid, name);
+      $('multiManualAppId').value = '';
+      $('multiManualName').value = '';
+    });
+
+    // Steam Catalog Search with debounce
+    let searchDebounceTimer = null;
+    const multiSearchInput = $('multiSearchInput');
+    const multiSearchResults = $('multiSearchResults');
+
+    async function searchSteamCatalog(query) {
+      query = (query || '').trim();
+      if (query.length < 2) {
+        if (multiSearchResults) multiSearchResults.style.display = 'none';
+        return;
+      }
+      try {
+        const res = await fetch(`/api/catalog/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.games) && data.games.length > 0) {
+          multiSearchResults.innerHTML = data.games.map(g => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:6px;gap:8px;border-bottom:1px solid rgba(255,255,255,0.05)">
+              <div style="display:flex;align-items:center;gap:8px;overflow:hidden">
+                ${g.image ? `<img src="${esc(g.image)}" style="width:36px;height:20px;object-fit:cover;border-radius:3px">` : ''}
+                <div style="overflow:hidden">
+                  <div style="font-size:12px;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden">${esc(g.name)}</div>
+                  <div class="muted" style="font-size:10px">AppID: ${esc(g.appid)}</div>
+                </div>
+              </div>
+              <button type="button" class="plain" onclick="addMultiGame('${esc(g.appid)}', '${esc(g.name).replace(/'/g, "\\'")}')" style="padding:4px 8px;font-size:11px;color:#c084fc;border-color:rgba(168,85,247,0.4);white-space:nowrap">➕ Ekle</button>
+            </div>
+          `).join('');
+          multiSearchResults.style.display = 'block';
+        } else {
+          multiSearchResults.innerHTML = '<div class="muted" style="padding:10px;font-size:12px;text-align:center">Sonuç bulunamadı.</div>';
+          multiSearchResults.style.display = 'block';
+        }
+      } catch (e) {
+        console.error('searchSteamCatalog error:', e);
+      }
+    }
+
+    multiSearchInput?.addEventListener('input', (e) => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        searchSteamCatalog(e.target.value);
+      }, 300);
+    });
+
+    $('btnSearchSteamMulti')?.addEventListener('click', () => {
+      searchSteamCatalog(multiSearchInput.value);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#multiSearchInput') && !e.target.closest('#multiSearchResults')) {
+        if (multiSearchResults) multiSearchResults.style.display = 'none';
+      }
     });
 
     // Preset game buttons
@@ -342,9 +539,13 @@
           <td>${statusPill(key)}</td>
           <td class="mono">
             <strong>${esc(key.code)}</strong>
-            ${key.type === 'single_game'
-              ? `<div style="margin-top:4px"><span class="pill" style="color:#5cb8ff;border-color:rgba(92,184,255,0.4);background:rgba(92,184,255,0.1);font-size:11px">🎮 Tek Oyun: ${esc(key.game_name || 'Steam')} (${esc(key.allowed_appid || '-')})</span></div>`
-              : `<div style="margin-top:4px"><span class="pill" style="color:#ffca55;border-color:rgba(255,202,85,0.3);background:rgba(255,202,85,0.08);font-size:11px">👑 VIP (Tüm Oyunlar)</span></div>`}
+            ${key.type === 'multi_game'
+              ? `<div style="margin-top:4px"><span class="pill" style="color:#c084fc;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.1);font-size:11px">📦 Çoklu Paket: ${esc(key.game_name || 'Özel Paket')} (${(key.allowed_appids || String(key.allowed_appid || '').split(',').filter(Boolean)).length} Oyun)</span></div>`
+              : (key.type === 'single_game'
+                ? `<div style="margin-top:4px"><span class="pill" style="color:#5cb8ff;border-color:rgba(92,184,255,0.4);background:rgba(92,184,255,0.1);font-size:11px">🎮 Tek Oyun: ${esc(key.game_name || 'Steam')} (${esc(key.allowed_appid || '-')})</span></div>`
+                : (key.role === 'admin'
+                  ? `<div style="margin-top:4px"><span class="pill" style="color:#f87171;border-color:rgba(248,113,113,0.4);background:rgba(248,113,113,0.1);font-size:11px">👑 Admin (Yönetici)</span></div>`
+                  : `<div style="margin-top:4px"><span class="pill" style="color:#ffca55;border-color:rgba(255,202,85,0.3);background:rgba(255,202,85,0.08);font-size:11px">👑 VIP (Tüm Oyunlar)</span></div>`))}
           </td>
           <td>${esc(key.label || '-')}<br><span class="muted">${esc(key.note || '')}</span></td>
           <td><span class="mono">${esc(key.assigned_hwid || '-')}</span><br><span class="muted">${esc(key.device_name || '')} ${esc(key.app_version || '')}</span></td>
@@ -389,11 +590,16 @@
 
     async function createKeys() {
       const isSingle = currentLicenseType === 'single_game';
+      const isMulti = currentLicenseType === 'multi_game';
       const singleAppId = $('singleAppIdInput').value.trim();
       const singleGameName = $('singleGameNameInput').value.trim();
 
       if (isSingle && !singleAppId) {
         alert('Lütfen satılacak oyunun Steam AppID değerini girin!');
+        return;
+      }
+      if (isMulti && selectedMultiGames.length === 0) {
+        alert('Lütfen pakete en az 1 oyun ekleyin!');
         return;
       }
 
@@ -407,8 +613,10 @@
           count: $('countInput').value,
           expires_at: $('expiresInput').value,
           type: currentLicenseType,
-          allowed_appid: singleAppId,
-          game_name: singleGameName || (isSingle ? `AppID: ${singleAppId}` : ''),
+          allowed_appid: isMulti ? selectedMultiGames.map(g => g.appid).join(',') : (isSingle ? singleAppId : ''),
+          allowed_appids: isMulti ? selectedMultiGames.map(g => g.appid) : (singleAppId ? [singleAppId] : []),
+          game_name: isMulti ? selectedMultiGames.map(g => g.name).join(', ') : (singleGameName || (isSingle ? `AppID: ${singleAppId}` : '')),
+          game_names: isMulti ? selectedMultiGames.map(g => g.name) : (singleGameName ? [singleGameName] : []),
           duration_type: currentDurationType
         })
       });

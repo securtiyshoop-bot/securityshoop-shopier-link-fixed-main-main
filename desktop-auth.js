@@ -62,7 +62,15 @@ function isExpired(value) {
   return Number.isFinite(time) && time <= Date.now();
 }
 
-function createAppKeyCode(type, allowedAppid) {
+function createAppKeyCode(type, allowedAppid, role) {
+  if (role === 'admin' || type === 'admin') {
+    return `MS-ADMIN-${crypto.randomBytes(3).toString('hex').toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+  }
+  if (type === 'multi_game') {
+    const aids = Array.isArray(allowedAppid) ? allowedAppid : String(allowedAppid || '').split(',').map(s => s.trim()).filter(Boolean);
+    const firstAid = aids[0] ? String(aids[0]).replace(/[^0-9]/g, '').slice(0, 10) : 'MULTI';
+    return `MS-PKG-${firstAid}-${crypto.randomBytes(2).toString('hex').toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+  }
   if (type === 'single_game' && allowedAppid) {
     const aid = String(allowedAppid).replace(/[^0-9]/g, '').slice(0, 12);
     return `MS-GAME-${aid}-${crypto.randomBytes(2).toString('hex').toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
@@ -222,19 +230,30 @@ async function ensureDatabase(pool) {
   `);
 }
 
-async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, role, type, allowed_appid, game_name, duration_type }) {
+async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, role, type, allowed_appid, allowed_appids, game_name, game_names, duration_type }) {
   const codes = [];
-  const licType = type === 'single_game' ? 'single_game' : 'vip';
-  const appId = String(allowed_appid || '').trim();
-  const gName = String(game_name || '').trim();
+  const licRole = (role === 'admin' || type === 'admin') ? 'admin' : 'user';
+  const licType = licRole === 'admin' ? 'admin' : (type === 'single_game' ? 'single_game' : (type === 'multi_game' ? 'multi_game' : 'vip'));
+
+  let appIdsList = Array.isArray(allowed_appids) ? allowed_appids : (allowed_appid ? String(allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+  let gameNamesList = Array.isArray(game_names) ? game_names : (game_name ? String(game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const appId = appIdsList.join(',');
+  const gName = gameNamesList.join(', ');
   const durType = String(duration_type || (expiresAt ? 'custom' : 'lifetime')).trim();
 
   for (let i = 0; i < count; i += 1) {
-    const code = createAppKeyCode(licType, appId);
-    const finalNote = note || (licType === 'single_game' ? `Tek Oyun: ${gName || appId}` : 'Tüm Oyunlar VIP');
+    const code = createAppKeyCode(licType, appIdsList, licRole);
+    let finalNote = note;
+    if (!finalNote) {
+      if (licRole === 'admin') finalNote = 'Yönetici Hesabı';
+      else if (licType === 'multi_game') finalNote = `Çoklu Paket (${appIdsList.length} Oyun): ${gName}`;
+      else if (licType === 'single_game') finalNote = `Tek Oyun: ${gName || appId}`;
+      else finalNote = 'Tüm Oyunlar VIP';
+    }
     await pool.query(
       'INSERT INTO app_keys (code, label, expires_at, created_by, note, role) VALUES (?, ?, ?, ?, ?, ?)',
-      [code, label || null, toSqlDate(expiresAt), createdBy || null, finalNote, role || 'user']
+      [code, label || null, toSqlDate(expiresAt), createdBy || null, finalNote, licRole]
     );
     codes.push(code);
 
@@ -243,7 +262,9 @@ async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, ro
       code,
       type: licType,
       allowed_appid: appId,
+      allowed_appids: appIdsList,
       game_name: gName,
+      game_names: gameNamesList,
       duration_type: durType,
       duration: durType,
       expires_at: expiresAt || null,
@@ -253,24 +274,35 @@ async function createKeysDb(pool, { count, label, expiresAt, createdBy, note, ro
       is_blocked: false,
       used_by_hwid: null,
       note: finalNote,
-      role: role || 'user'
+      role: licRole
     }).catch(() => {});
   }
   return codes;
 }
 
-function createKeysJson(file, { count, label, expiresAt, createdBy, note, role, type, allowed_appid, game_name, duration_type }) {
+function createKeysJson(file, { count, label, expiresAt, createdBy, note, role, type, allowed_appid, allowed_appids, game_name, game_names, duration_type }) {
   const data = readJsonStore(file);
   const maxId = data.keys.reduce((max, key) => Math.max(max, Number(key.id) || 0), 0);
   const codes = [];
-  const licType = type === 'single_game' ? 'single_game' : 'vip';
-  const appId = String(allowed_appid || '').trim();
-  const gName = String(game_name || '').trim();
+  const licRole = (role === 'admin' || type === 'admin') ? 'admin' : 'user';
+  const licType = licRole === 'admin' ? 'admin' : (type === 'single_game' ? 'single_game' : (type === 'multi_game' ? 'multi_game' : 'vip'));
+
+  let appIdsList = Array.isArray(allowed_appids) ? allowed_appids : (allowed_appid ? String(allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+  let gameNamesList = Array.isArray(game_names) ? game_names : (game_name ? String(game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const appId = appIdsList.join(',');
+  const gName = gameNamesList.join(', ');
   const durType = String(duration_type || (expiresAt ? 'custom' : 'lifetime')).trim();
 
   for (let i = 0; i < count; i += 1) {
-    const code = createAppKeyCode(licType, appId);
-    const finalNote = note || (licType === 'single_game' ? `Tek Oyun: ${gName || appId}` : 'Tüm Oyunlar VIP');
+    const code = createAppKeyCode(licType, appIdsList, licRole);
+    let finalNote = note;
+    if (!finalNote) {
+      if (licRole === 'admin') finalNote = 'Yönetici Hesabı';
+      else if (licType === 'multi_game') finalNote = `Çoklu Paket (${appIdsList.length} Oyun): ${gName}`;
+      else if (licType === 'single_game') finalNote = `Tek Oyun: ${gName || appId}`;
+      else finalNote = 'Tüm Oyunlar VIP';
+    }
     const newKey = {
       id: maxId + i + 1,
       code,
@@ -285,10 +317,12 @@ function createKeysJson(file, { count, label, expiresAt, createdBy, note, role, 
       expires_at: expiresAt || '',
       created_by: createdBy || '',
       note: finalNote,
-      role: role || 'user',
+      role: licRole,
       type: licType,
       allowed_appid: appId,
+      allowed_appids: appIdsList,
       game_name: gName,
+      game_names: gameNamesList,
       duration_type: durType,
       created_at: nowIso()
     };
@@ -300,7 +334,9 @@ function createKeysJson(file, { count, label, expiresAt, createdBy, note, role, 
       code,
       type: licType,
       allowed_appid: appId,
+      allowed_appids: appIdsList,
       game_name: gName,
+      game_names: gameNamesList,
       duration_type: durType,
       duration: durType,
       expires_at: expiresAt || null,
@@ -648,16 +684,29 @@ function registerRoutes(app, deps) {
     try {
       if (!(await deps.requirePersistentStorage(req, res))) return;
       const count = Math.min(Math.max(Number(req.body?.count) || 1, 1), 100);
+      let allowedAppids = req.body?.allowed_appids || [];
+      if (!Array.isArray(allowedAppids) && req.body?.allowed_appid) {
+        allowedAppids = String(req.body.allowed_appid).split(',').map(s => s.trim()).filter(Boolean);
+      }
+      let allowedGameNames = req.body?.allowed_game_names || [];
+      if (!Array.isArray(allowedGameNames) && req.body?.game_name) {
+        allowedGameNames = String(req.body.game_name).split(',').map(s => s.trim()).filter(Boolean);
+      }
+      const reqRole = (req.body?.role === 'admin' || req.body?.type === 'admin') ? 'admin' : 'user';
+      const reqType = reqRole === 'admin' ? 'admin' : (req.body?.type === 'single_game' ? 'single_game' : (req.body?.type === 'multi_game' ? 'multi_game' : 'vip'));
+
       const payload = {
         count,
         label: cleanText(req.body?.label, 190),
         expiresAt: cleanText(req.body?.expires_at || req.body?.expiresAt, 40),
         createdBy: cleanText(deps.getAdminUser(req)?.email || 'admin', 190),
         note: cleanText(req.body?.note, 1000),
-        role: req.body?.role === 'admin' ? 'admin' : 'user',
-        type: req.body?.type === 'single_game' ? 'single_game' : 'vip',
-        allowed_appid: cleanText(req.body?.allowed_appid, 50),
-        game_name: cleanText(req.body?.game_name, 120),
+        role: reqRole,
+        type: reqType,
+        allowed_appid: cleanText(req.body?.allowed_appid || allowedAppids.join(','), 500),
+        allowed_appids: allowedAppids,
+        game_name: cleanText(req.body?.game_name || allowedGameNames.join(', '), 500),
+        game_names: allowedGameNames,
         duration_type: cleanText(req.body?.duration_type, 30)
       };
       const codes = deps.useDatabase()
@@ -681,8 +730,9 @@ function registerRoutes(app, deps) {
         label: cleanText(req.body?.label || 'MarifetStore Desktop Admin', 190),
         expiresAt: cleanText(req.body?.expires_at || req.body?.expiresAt, 40),
         createdBy: cleanText(deps.getAdminUser(req)?.email || 'admin', 190),
-        note: cleanText(req.body?.note || 'Desktop administrator key', 1000),
-        role: 'admin'
+        note: cleanText(req.body?.note || 'Desktop administrator key (Tam Yetkili)', 1000),
+        role: 'admin',
+        type: 'admin'
       };
       const codes = deps.useDatabase()
         ? await createKeysDb(deps.pool(), payload)
