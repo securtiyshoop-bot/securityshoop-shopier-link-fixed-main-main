@@ -8578,6 +8578,23 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     }
   });
 
+  // ============================================================
+  // PUBLIC VERSION CHECK ENDPOINT (Desktop Auto-Update)
+  // ============================================================
+  // Current app version — bump this whenever you build a new .exe
+  const CURRENT_APP_VERSION = '10.1.0';
+  const SETUP_DOWNLOAD_URL = 'https://www.marifetstore.tech/MarifetStore_Setup.exe';
+
+  app.get('/api/version', (req, res) => {
+    res.json({
+      ok: true,
+      version: CURRENT_APP_VERSION,
+      download_url: SETUP_DOWNLOAD_URL,
+      changelog: 'Otomatik güncelleme, gerçek OptiScaler FSR3 & DLSS desteği, sistem uyumluluk kontrolü eklendi.',
+      required: false
+    });
+  });
+
   if (options.listen !== false) {
     app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
     app.locals.securityShoopListening = true;
