@@ -711,6 +711,48 @@
           </div>
           <!-- /ÇOKLU OYUN PAKETİ LİSANSI OLUŞTURMA ALANI -->
           
+          <!-- FEATURE 14: CANLI AKTİF OTURUMLAR -->
+          <div class="mb-5 p-4 sm:p-5 rounded-xl border border-emerald-500/30" style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,78,59,0.15));">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span class="font-800 text-sm text-emerald-400">🟢 Canlı Aktif Oturumlar</span>
+                <span id="liveSessionsCountBadge" class="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">0 Aktif</span>
+              </div>
+              <button type="button" onclick="loadLiveSessions()" class="text-xs px-3 py-1 rounded bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-500/40 text-emerald-300 font-bold transition flex items-center gap-1">
+                🔄 Yenile
+              </button>
+            </div>
+            <div id="liveSessionsContainer" class="text-xs text-gray-400">
+              <p class="text-gray-500 py-1">Aktif oturumları görmek için Yenile butonuna tıklayın veya bekleyin...</p>
+            </div>
+          </div>
+
+          <!-- FEATURE 10: CANLI DUYURU YAYINLAMA ALANI -->
+          <div class="mb-5 p-4 sm:p-5 rounded-xl border border-amber-500/30" style="background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(120,53,15,0.15));">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-base">📣</span>
+                <span class="font-800 text-sm text-amber-400">Masaüstü Kullanıcılarına Anlık Duyuru Yayınla</span>
+              </div>
+              <span class="text-[11px] text-gray-400">Uygulaması açık kullanıcılarda anında popup/banner olarak görünür</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+              <div class="sm:col-span-3">
+                <input id="announcementTitleInput" type="text" class="fi2 w-full text-xs" placeholder="Başlık (Örn: Hafta Sonu İndirimi!)" style="border-color: rgba(245,158,11,0.4);" />
+              </div>
+              <div class="sm:col-span-7">
+                <input id="announcementTextInput" type="text" class="fi2 w-full text-xs" placeholder="Duyuru metni yazın (Örn: Tüm tek oyun ve paket lisanslarında geçerli %20 kupon tanımlandı!)..." style="border-color: rgba(245,158,11,0.4);" />
+              </div>
+              <div class="sm:col-span-2">
+                <button type="button" onclick="publishAdminAnnouncement()" id="btnPublishAnnouncement" class="btn w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs rounded-lg shadow-md transition flex items-center justify-center gap-1">
+                  🚀 Yayınla
+                </button>
+              </div>
+            </div>
+            <div id="announcementMsg" class="mt-2 text-xs font-bold text-amber-400"></div>
+          </div>
+
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -2552,8 +2594,114 @@
 
     
     
+    // ============================================================
+    // FEATURE 14: CANLI AKTİF OTURUMLAR JS
+    // ============================================================
+    async function loadLiveSessions() {
+      const container = document.getElementById('liveSessionsContainer');
+      const badge = document.getElementById('liveSessionsCountBadge');
+      if (!container) return;
+
+      try {
+        const r = await fetch('/api/admin/live-sessions');
+        const d = await r.json();
+        if (d && d.ok) {
+          const sessions = d.sessions || [];
+          if (badge) badge.innerText = `${sessions.length} Aktif`;
+
+          if (sessions.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 py-2">Şu anda masaüstü uygulamasında aktif açık bir oturum bulunmuyor.</p>';
+            return;
+          }
+
+          container.innerHTML = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              ${sessions.map(s => {
+                const isRecent = (Date.now() - s.last_seen_ts) < 15000;
+                return `
+                  <div class="p-3 rounded-lg bg-gray-900/80 border border-emerald-500/30 flex flex-col justify-between shadow-sm">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="font-bold text-white text-xs flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full ${isRecent ? 'bg-emerald-400 animate-pulse' : 'bg-yellow-400'}"></span>
+                        ${esc(s.username || 'Oyuncu')}
+                      </span>
+                      <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
+                        ${esc(s.ip || 'Bilinmiyor')}
+                      </span>
+                    </div>
+                    <div class="font-mono text-[11px] text-gray-400 truncate mb-1">
+                      🔑 ${esc(s.token || '')}
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-gray-500">
+                      <span>💻 HWID: ${esc(s.hwid || '?')}</span>
+                      <span>Son: ${new Date(s.last_seen).toLocaleTimeString('tr-TR')}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<p class="text-red-400 py-1 text-xs">Oturumlar çekilemedi: ${esc(d.message || '')}</p>`;
+        }
+      } catch(e) {
+        container.innerHTML = `<p class="text-red-400 py-1 text-xs">Bağlantı hatası: ${esc(e.message)}</p>`;
+      }
+    }
+
+    // ============================================================
+    // FEATURE 10: CANLI DUYURU YAYINLAMA JS
+    // ============================================================
+    async function publishAdminAnnouncement() {
+      const titleInput = document.getElementById('announcementTitleInput');
+      const textInput = document.getElementById('announcementTextInput');
+      const msg = document.getElementById('announcementMsg');
+      const btn = document.getElementById('btnPublishAnnouncement');
+
+      const title = titleInput ? titleInput.value.trim() : '';
+      const text = textInput ? textInput.value.trim() : '';
+
+      if (!text) {
+        if (msg) msg.innerText = 'Lütfen duyuru metni girin!';
+        return;
+      }
+
+      if (btn) { btn.disabled = true; btn.innerText = 'Yayınlanıyor...'; }
+      if (msg) msg.innerText = '';
+
+      try {
+        const r = await fetch('/api/admin/announcement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, text, type: 'info' })
+        });
+        const d = await r.json();
+        if (d && d.ok) {
+          if (textInput) textInput.value = '';
+          if (titleInput) titleInput.value = '';
+          if (msg) {
+            msg.className = 'mt-2 text-xs font-bold text-emerald-400';
+            msg.innerText = '✅ Duyuru başarıyla yayımlandı! Uygulaması açık kullanıcılarda anında belirecek.';
+          }
+        } else {
+          if (msg) {
+            msg.className = 'mt-2 text-xs font-bold text-red-400';
+            msg.innerText = '❌ Hata: ' + (d?.message || 'Bilinmeyen hata');
+          }
+        }
+      } catch(e) {
+        if (msg) {
+          msg.className = 'mt-2 text-xs font-bold text-red-400';
+          msg.innerText = '❌ Bağlantı hatası: ' + e.message;
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🚀 Yayınla'; }
+      }
+    }
+
     // TOKEN LOGIC
     async function loadTokens() {
+      loadLiveSessions();
       const tbody = document.getElementById('tokensTableBody');
       if (!tbody) return;
       try {
@@ -2605,16 +2753,9 @@
               gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm">👑 Admin (Yönetici)${noteText}</span></div>`;
             } else if (isMulti) {
               const count = Array.isArray(t.allowed_appids) ? t.allowed_appids.length : (t.allowed_appid ? String(t.allowed_appid).split(',').filter(Boolean).length : 1);
-              let names = '';
-              if (Array.isArray(t.game_names) && t.game_names.length) {
-                names = t.game_names.slice(0, 3).join(', ') + (t.game_names.length > 3 ? '...' : '');
-              } else if (t.game_name) {
-                names = t.game_name;
-              }
-              const displayInfo = names ? `: ${names}` : '';
-              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-purple-900/60 text-purple-300 border border-purple-500/40">📦 Çoklu Paket${esc(displayInfo)} (${count} Oyun)</span></div>`;
+              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-purple-900/60 text-purple-300 border border-purple-500/40">📦 Çoklu Paket (${count} Oyun)</span></div>`;
             } else if (isSingle) {
-              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-sky-900/60 text-sky-300 border border-sky-500/40">🎮 Tek Oyun: ${esc(t.game_name || t.allowed_appid)} (${esc(t.allowed_appid || '')})</span></div>`;
+              gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-sky-900/60 text-sky-300 border border-sky-500/40">🎮 Tek Oyun</span></div>`;
             } else {
               gameBadge = `<div class="mt-1"><span class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-900/40 text-amber-300 border border-amber-500/30">👑 VIP</span></div>`;
             }

@@ -8595,6 +8595,121 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
     });
   });
 
+  // ============================================================
+  // FEATURE 14 & 15: CANLI OTURUM TAKİBİ & ŞÜPHELİ GİRİŞ TESPİTİ
+  // ============================================================
+  if (!app.locals.activeSessions) app.locals.activeSessions = {};
+  if (!app.locals.tokenLastIps) app.locals.tokenLastIps = {};
+
+  app.post('/api/plugin/token-heartbeat', async (req, res) => {
+    try {
+      const { token, session_id, hwid, username } = req.body || {};
+      if (!token) return res.status(400).json({ ok: false, message: 'Token zorunludur' });
+
+      const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+      const cleanToken = String(token).trim();
+
+      // Şüpheli Giriş Algılama (Feature 15): Farklı IP'den ani oturum
+      const prevIp = app.locals.tokenLastIps[cleanToken];
+      if (prevIp && prevIp !== clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+        const maskedTok = cleanToken.length > 8 ? cleanToken.substring(0, 7) + '...' + cleanToken.slice(-4) : cleanToken;
+        sendTelegramNotification(
+          `⚠️ <b>ŞÜPHELİ GİRİŞ TESPİT EDİLDİ!</b>\n\n` +
+          `🔑 <b>Token:</b> <code>${maskedTok}</code>\n` +
+          `👤 <b>Kullanıcı:</b> ${username || 'Bilinmiyor'}\n` +
+          `🌐 <b>Önceki IP:</b> <code>${prevIp}</code>\n` +
+          `🚨 <b>Yeni IP:</b> <code>${clientIp}</code>\n` +
+          `💻 <b>HWID:</b> <code>${hwid ? String(hwid).substring(0, 12) + '...' : '?'}</code>\n` +
+          `⏱️ <b>Zaman:</b> ${new Date().toLocaleString('tr-TR')}`
+        ).catch(() => {});
+      }
+      app.locals.tokenLastIps[cleanToken] = clientIp;
+
+      // Oturumu kaydet (Feature 14)
+      app.locals.activeSessions[cleanToken] = {
+        token: cleanToken.length > 8 ? cleanToken.substring(0, 7) + '...' + cleanToken.slice(-4) : cleanToken,
+        full_token: cleanToken,
+        username: username || 'Oyuncu',
+        hwid: hwid ? String(hwid).substring(0, 10) + '...' : '?',
+        ip: clientIp,
+        session_id: session_id || '',
+        last_seen: new Date().toISOString(),
+        last_seen_ts: Date.now()
+      };
+
+      // 45 saniyeden eski pasif oturumları süpür
+      const cutoff = Date.now() - 45000;
+      Object.keys(app.locals.activeSessions).forEach(k => {
+        if (app.locals.activeSessions[k].last_seen_ts < cutoff) {
+          delete app.locals.activeSessions[k];
+        }
+      });
+
+      res.json({ ok: true, active_count: Object.keys(app.locals.activeSessions).length });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: err.message });
+    }
+  });
+
+  app.get('/api/admin/live-sessions', requireAdmin, (req, res) => {
+    try {
+      const cutoff = Date.now() - 45000;
+      const sessions = Object.values(app.locals.activeSessions || {}).filter(s => s.last_seen_ts >= cutoff);
+      res.json({ ok: true, count: sessions.length, sessions });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: err.message });
+    }
+  });
+
+  // ============================================================
+  // FEATURE 10: DUYURU YAYINLAMA SİSTEMİ (Web Admin → Masaüstü)
+  // ============================================================
+  app.post('/api/admin/announcement', requireAdmin, async (req, res) => {
+    try {
+      const { text, title, type } = req.body || {};
+      if (!text || !String(text).trim()) {
+        return res.status(400).json({ ok: false, message: 'Duyuru metni boş olamaz.' });
+      }
+
+      const cleanText = String(text).trim();
+      const cleanTitle = String(title || '📢 Yönetici Duyurusu').trim();
+      const annType = type || 'info';
+
+      const cloudData = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { announcements: [] });
+      if (!Array.isArray(cloudData.announcements)) {
+        cloudData.announcements = [];
+      }
+
+      const newAnn = {
+        id: 'ann_' + Date.now(),
+        title: cleanTitle,
+        text: cleanText,
+        content: cleanText,
+        type: annType,
+        created_at: new Date().toISOString(),
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+
+      cloudData.announcements.unshift(newAnn);
+      // Son 15 duyuruyu sakla
+      cloudData.announcements = cloudData.announcements.slice(0, 15);
+
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', cloudData);
+
+      // Telegram bildirim
+      sendTelegramNotification(
+        `📣 <b>CANLI DUYURU YAYINLANDI</b>\n\n` +
+        `<b>${cleanTitle}</b>\n` +
+        `${cleanText}\n\n` +
+        `<i>Masaüstü uygulaması açık olan tüm kullanıcılara otomatik iletiliyor.</i>`
+      ).catch(() => {});
+
+      res.json({ ok: true, message: 'Duyuru başarıyla yayımlandı!', announcement: newAnn });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: err.message });
+    }
+  });
+
   if (options.listen !== false) {
     app.listen(PORT, () => console.log(`SecurityShoop server running on http://localhost:${PORT} [storage=${useDatabase ? 'mysql' : 'json'}]`));
     app.locals.securityShoopListening = true;
