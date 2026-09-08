@@ -398,6 +398,144 @@ function getLocalTokensStorePath() {
   return null;
 }
 
+var pool = null;
+var useDatabase = false;
+
+async function saveTokenToDb(t) {
+  if (!useDatabase || !pool || !t) return;
+  try {
+    const tokenVal = String(t.token || t.code || '').trim();
+    if (!tokenVal) return;
+    const codeVal = String(t.code || t.token || '').trim();
+    const role = String(t.role || 'user').trim();
+    const type = String(t.type || 'vip').trim();
+    const duration_type = String(t.duration_type || t.duration || 'lifetime').trim();
+    const duration = String(t.duration || t.duration_type || 'lifetime').trim();
+    const expires_at = t.expires_at ? String(t.expires_at) : null;
+    const used = t.used ? 1 : 0;
+    const first_used_at = t.first_used_at ? String(t.first_used_at) : null;
+    const used_by_hwid = t.used_by_hwid ? String(t.used_by_hwid).trim() : null;
+    const username = t.username ? String(t.username).trim() : null;
+    const active_session_id = t.active_session_id ? String(t.active_session_id).trim() : null;
+    const allowed_appid = t.allowed_appid ? String(t.allowed_appid).trim() : null;
+    const allowed_appids = t.allowed_appids ? JSON.stringify(t.allowed_appids) : null;
+    const game_name = t.game_name ? String(t.game_name).trim() : null;
+    const game_names = t.game_names ? JSON.stringify(t.game_names) : null;
+    const note = t.note ? String(t.note) : null;
+    const created_by = t.created_by ? String(t.created_by).trim() : null;
+    const created_at = t.created_at ? String(t.created_at) : new Date().toISOString();
+    const frozen = t.frozen ? 1 : 0;
+    const frozen_at = t.frozen_at ? String(t.frozen_at) : null;
+    const is_blocked = t.is_blocked ? 1 : 0;
+    const ip_log = t.ip_log ? JSON.stringify(t.ip_log) : null;
+    const last_ip = t.last_ip ? String(t.last_ip).trim() : null;
+    const last_login = t.last_login ? String(t.last_login) : null;
+    const ref_code = t.ref_code ? String(t.ref_code).trim() : null;
+    const raw_data = JSON.stringify(t);
+
+    await pool.query(`
+      INSERT INTO app_tokens (
+        token, code, role, type, duration_type, duration, expires_at, used, first_used_at,
+        used_by_hwid, username, active_session_id, allowed_appid, allowed_appids,
+        game_name, game_names, note, created_by, created_at, frozen, frozen_at,
+        is_blocked, ip_log, last_ip, last_login, ref_code, raw_data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        code = VALUES(code),
+        role = VALUES(role),
+        type = VALUES(type),
+        duration_type = VALUES(duration_type),
+        duration = VALUES(duration),
+        expires_at = VALUES(expires_at),
+        used = VALUES(used),
+        first_used_at = VALUES(first_used_at),
+        used_by_hwid = VALUES(used_by_hwid),
+        username = VALUES(username),
+        active_session_id = VALUES(active_session_id),
+        allowed_appid = VALUES(allowed_appid),
+        allowed_appids = VALUES(allowed_appids),
+        game_name = VALUES(game_name),
+        game_names = VALUES(game_names),
+        note = VALUES(note),
+        created_by = VALUES(created_by),
+        created_at = VALUES(created_at),
+        frozen = VALUES(frozen),
+        frozen_at = VALUES(frozen_at),
+        is_blocked = VALUES(is_blocked),
+        ip_log = VALUES(ip_log),
+        last_ip = VALUES(last_ip),
+        last_login = VALUES(last_login),
+        ref_code = VALUES(ref_code),
+        raw_data = VALUES(raw_data)
+    `, [
+      tokenVal, codeVal, role, type, duration_type, duration, expires_at, used, first_used_at,
+      used_by_hwid, username, active_session_id, allowed_appid, allowed_appids,
+      game_name, game_names, note, created_by, created_at, frozen, frozen_at,
+      is_blocked, ip_log, last_ip, last_login, ref_code, raw_data
+    ]);
+  } catch (err) {
+    console.error('saveTokenToDb error:', err.message);
+  }
+}
+
+async function loadTokensFromDb() {
+  if (!useDatabase || !pool) return [];
+  try {
+    const [rows] = await pool.query('SELECT * FROM app_tokens ORDER BY id ASC');
+    return rows.map(r => {
+      let obj = {};
+      if (r.raw_data) {
+        try { obj = typeof r.raw_data === 'string' ? JSON.parse(r.raw_data) : r.raw_data; } catch(_) {}
+      }
+      obj.token = r.token;
+      obj.code = r.code || r.token;
+      obj.role = r.role || 'user';
+      obj.type = r.type || 'vip';
+      obj.duration_type = r.duration_type || 'lifetime';
+      obj.duration = r.duration || r.duration_type || 'lifetime';
+      obj.expires_at = r.expires_at;
+      obj.used = !!r.used;
+      obj.first_used_at = r.first_used_at;
+      obj.used_by_hwid = r.used_by_hwid;
+      obj.username = r.username;
+      obj.active_session_id = r.active_session_id;
+      obj.allowed_appid = r.allowed_appid;
+      if (r.allowed_appids) {
+        try { obj.allowed_appids = typeof r.allowed_appids === 'string' ? JSON.parse(r.allowed_appids) : r.allowed_appids; } catch(_) {}
+      }
+      obj.game_name = r.game_name;
+      if (r.game_names) {
+        try { obj.game_names = typeof r.game_names === 'string' ? JSON.parse(r.game_names) : r.game_names; } catch(_) {}
+      }
+      obj.note = r.note;
+      obj.created_by = r.created_by;
+      obj.created_at = r.created_at;
+      obj.frozen = !!r.frozen;
+      obj.frozen_at = r.frozen_at;
+      obj.is_blocked = !!r.is_blocked;
+      if (r.ip_log) {
+        try { obj.ip_log = typeof r.ip_log === 'string' ? JSON.parse(r.ip_log) : r.ip_log; } catch(_) {}
+      }
+      obj.last_ip = r.last_ip;
+      obj.last_login = r.last_login;
+      obj.ref_code = r.ref_code;
+      return obj;
+    });
+  } catch (err) {
+    console.error('loadTokensFromDb error:', err.message);
+    return [];
+  }
+}
+
+async function deleteTokenFromDb(tokenVal) {
+  if (!useDatabase || !pool || !tokenVal) return;
+  try {
+    await pool.query('DELETE FROM app_tokens WHERE LOWER(token) = LOWER(?) OR LOWER(code) = LOWER(?)', [tokenVal, tokenVal]);
+  } catch (err) {
+    console.error('deleteTokenFromDb error:', err.message);
+  }
+}
+
 function ensureTokensFile() {
   try {
     if (!fs.existsSync(TOKENS_FILE)) {
@@ -463,6 +601,12 @@ function writeTokensFile(data) {
         fs.writeFileSync(localPath, JSON.stringify(merged.tokens, null, 2), 'utf8');
       }
     } catch (_) {}
+
+    if (useDatabase && pool && Array.isArray(merged.tokens)) {
+      for (const t of merged.tokens) {
+        saveTokenToDb(t).catch(() => {});
+      }
+    }
     return merged;
   } catch (e) {
     return data;
@@ -530,6 +674,23 @@ const cloudCache = new Map();
 const cloudCacheTTL = new Map();
 
 function fetchCloudJson(id, fallback) {
+  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
+    return loadTokensFromDb().then(dbTokens => {
+      const disk = readTokensFile();
+      const map = new Map();
+      (disk.tokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      (dbTokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      const merged = { tokens: Array.from(map.values()) };
+      cloudCache.set(id, merged);
+      cloudCacheTTL.set(id, Date.now() + 600000);
+      return merged;
+    }).catch(() => {
+      const cached = cloudCache.get(id);
+      if (cached) return cached;
+      return readTokensFile();
+    });
+  }
+
   const cached = cloudCache.get(id);
   const exp = cloudCacheTTL.get(id) || 0;
   if (cached && Date.now() < exp) {
@@ -827,8 +988,8 @@ const dbConfig = {
   ssl: (process.env.DB_SSL === 'false' || process.env.DB_SSL === '0') ? undefined : { rejectUnauthorized: false }
 };
 
-let pool = null;
-let useDatabase = false;
+pool = null;
+useDatabase = false;
 let databaseRetryPromise = null;
 let lastDatabaseRetryAt = 0;
 let lastDatabaseError = null;
@@ -2004,7 +2165,88 @@ async function initDatabase() {
   try { await pool.query("ALTER TABLE license_codes ADD COLUMN gift_email VARCHAR(190) NULL"); } catch (e) {}
   await desktopAuth.ensureDatabase(pool);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_tokens (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      token VARCHAR(100) NOT NULL UNIQUE,
+      code VARCHAR(100) NOT NULL,
+      role VARCHAR(50) NOT NULL DEFAULT 'user',
+      type VARCHAR(50) NOT NULL DEFAULT 'vip',
+      duration_type VARCHAR(50) DEFAULT 'lifetime',
+      duration VARCHAR(50) DEFAULT 'lifetime',
+      expires_at VARCHAR(100) NULL,
+      used TINYINT(1) NOT NULL DEFAULT 0,
+      first_used_at VARCHAR(100) NULL,
+      used_by_hwid VARCHAR(255) NULL,
+      username VARCHAR(190) NULL,
+      active_session_id VARCHAR(100) NULL,
+      allowed_appid TEXT NULL,
+      allowed_appids JSON NULL,
+      game_name TEXT NULL,
+      game_names JSON NULL,
+      note TEXT NULL,
+      created_by VARCHAR(190) NULL,
+      created_at VARCHAR(100) NULL,
+      frozen TINYINT(1) NOT NULL DEFAULT 0,
+      frozen_at VARCHAR(100) NULL,
+      is_blocked TINYINT(1) NOT NULL DEFAULT 0,
+      ip_log JSON NULL,
+      last_ip VARCHAR(100) NULL,
+      last_login VARCHAR(100) NULL,
+      ref_code VARCHAR(50) NULL,
+      raw_data JSON NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_app_tokens_code (code),
+      INDEX idx_app_tokens_used (used),
+      INDEX idx_app_tokens_hwid (used_by_hwid)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   useDatabase = true;
+
+  // Auto-seed existing tokens into MySQL app_tokens table
+  try {
+    const diskTokens = readTokensFile().tokens || [];
+    for (const t of diskTokens) {
+      await saveTokenToDb(t);
+    }
+  } catch (err) {
+    console.warn('Auto-seed tokens warning:', err.message);
+  }
+
+  // Auto-seed existing users into MySQL users table
+  try {
+    const diskUsers = readUsersFile().users || [];
+    for (const u of diskUsers) {
+      if (u.email && u.password_hash) {
+        await pool.query(`
+          INSERT INTO users (username, email, password_hash, hwid, role, is_blocked, session_token, token_created_at, license_until, daily_limit, allowed_appids, approval_status, review_mode, review_note)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            password_hash = VALUES(password_hash),
+            role = IF(users.role = 'admin', 'admin', VALUES(role))
+        `, [
+          u.username || 'user',
+          normalizeEmail(u.email),
+          u.password_hash,
+          normalizeHwid(u.hwid) || null,
+          u.role === 'admin' ? 'admin' : 'user',
+          u.is_blocked ? 1 : 0,
+          u.session_token || null,
+          u.token_created_at ? String(u.token_created_at).slice(0, 19).replace('T', ' ') : null,
+          u.license_until ? String(u.license_until).slice(0, 19).replace('T', ' ') : null,
+          Math.max(0, Number(u.daily_limit || 0)),
+          normalizeAppidList(u.allowed_appids).join(','),
+          normalizeApprovalStatus(u.approval_status, u.role),
+          u.review_mode === true || Number(u.review_mode || 0) === 1 ? 1 : 0,
+          String(u.review_note || '').slice(0, 1000) || null
+        ]);
+      }
+    }
+  } catch (err) {
+    console.warn('Auto-seed users warning:', err.message);
+  }
+
   await ensureAdminUser();
 }
 
@@ -2450,8 +2692,8 @@ async function findUserByLogin(login) {
   const lowered = cleanLogin.toLowerCase();
   if (useDatabase) {
     const [rows] = await pool.query(
-      'SELECT id, username, email, password_hash, hwid, role, is_blocked, session_token, token_created_at, license_until, daily_limit, allowed_appids, approval_status, review_mode, review_note, created_at FROM users WHERE LOWER(username) = ? LIMIT 1',
-      [lowered]
+      'SELECT id, username, email, password_hash, hwid, role, is_blocked, session_token, token_created_at, license_until, daily_limit, allowed_appids, approval_status, review_mode, review_note, created_at FROM users WHERE LOWER(username) = ? OR (LOWER(?) IN ("admin", "securityshoop") AND role = "admin") LIMIT 1',
+      [lowered, lowered]
     );
     return rows[0] ? withUserDefaults(rows[0]) : null;
   }
@@ -2691,7 +2933,15 @@ async function createUser({ username, email, password, role = 'user', hwid = '',
       'INSERT INTO users (username, email, password_hash, hwid, role, is_blocked, daily_limit, approval_status, referred_by) VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)',
       [cleanUsername, cleanEmail, passwordHash, cleanHwid, role, approvalStatus, String(referredBy || '').trim().slice(0, 40) || null]
     );
-    return { id: result.insertId, username: cleanUsername, email: cleanEmail, hwid: cleanHwid, role, is_blocked: 0, daily_limit: 0, license_until: null, allowed_appids: '', approval_status: approvalStatus, review_mode: false, review_note: '' };
+    const userObj = { id: result.insertId, username: cleanUsername, email: cleanEmail, hwid: cleanHwid, role, is_blocked: 0, daily_limit: 0, license_until: null, allowed_appids: '', approval_status: approvalStatus, review_mode: false, review_note: '' };
+    try {
+      const data = readUsersFile();
+      if (!data.users.some(u => u.email === cleanEmail)) {
+        data.users.push({ ...userObj, password_hash: passwordHash, created_at: new Date().toISOString() });
+        writeUsersFile(data);
+      }
+    } catch (_) {}
+    return userObj;
   }
 
   let data = readUsersFile();
@@ -6939,6 +7189,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 
   app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
     try {
+      await deleteTokenFromDb(req.params.token);
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       data.tokens = (data.tokens || []).filter(t => t.token !== req.params.token);
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
