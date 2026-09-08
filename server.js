@@ -7434,8 +7434,26 @@ app.post('/api/plugin/token-login', async (req, res) => {
         await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
 
         const loginRole = (userToken.toUpperCase().startsWith('MS-ADMIN-') || tokenObj.role === 'admin') ? 'admin' : (tokenObj.role || 'user');
-        const allowedAppids = tokenObj.allowed_appids || (tokenObj.allowed_appid ? String(tokenObj.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
-        const allowedGameNames = tokenObj.game_names || (tokenObj.game_name ? String(tokenObj.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+        let allowedAppids = tokenObj.allowed_appids || (tokenObj.allowed_appid ? String(tokenObj.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+        let allowedGameNames = tokenObj.game_names || (tokenObj.game_name ? String(tokenObj.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+        let licType = tokenObj.type;
+
+        if (userToken.startsWith('MS-GAME-') || userToken.startsWith('MS-PKG-')) {
+          const parts = userToken.split('-');
+          if (parts.length >= 3 && /^\d+$/.test(parts[2])) {
+            if (!allowedAppids.includes(parts[2])) allowedAppids.push(parts[2]);
+            if (!tokenObj.allowed_appid) tokenObj.allowed_appid = parts[2];
+          }
+          if (!licType || licType === 'vip') {
+            licType = userToken.startsWith('MS-GAME-') ? 'single_game' : 'multi_game';
+          }
+        }
+        if (!licType) {
+          licType = (allowedAppids.length > 0) ? 'single_game' : 'vip';
+        }
+        if (allowedAppids.includes('1174180') && (!tokenObj.game_name || !allowedGameNames.length)) {
+          if (!allowedGameNames.includes('Red Dead Redemption 2')) allowedGameNames.push('Red Dead Redemption 2');
+        }
 
         return res.json({
           ok: true,
@@ -7445,7 +7463,7 @@ app.post('/api/plugin/token-login', async (req, res) => {
           session_id: activeSessionId,
           expires_at: tokenObj.expires_at || null,
           ref_code: tokenObj.ref_code,
-          license_type: tokenObj.type || 'vip',
+          license_type: licType,
           allowed_appid: tokenObj.allowed_appid || allowedAppids.join(','),
           allowed_appids: allowedAppids,
           allowed_game_name: tokenObj.game_name || allowedGameNames.join(', '),
@@ -7518,8 +7536,26 @@ app.post('/api/plugin/token-login', async (req, res) => {
       } catch(e) {}
 
       const loginRole2 = (userToken.toUpperCase().startsWith('MS-ADMIN-') || tokenObj.role === 'admin') ? 'admin' : (tokenObj.role || 'user');
-      const allowedAppids2 = tokenObj.allowed_appids || (tokenObj.allowed_appid ? String(tokenObj.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
-      const allowedGameNames2 = tokenObj.game_names || (tokenObj.game_name ? String(tokenObj.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+      let allowedAppids2 = tokenObj.allowed_appids || (tokenObj.allowed_appid ? String(tokenObj.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+      let allowedGameNames2 = tokenObj.game_names || (tokenObj.game_name ? String(tokenObj.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+      let licType2 = tokenObj.type;
+
+      if (userToken.startsWith('MS-GAME-') || userToken.startsWith('MS-PKG-')) {
+        const parts = userToken.split('-');
+        if (parts.length >= 3 && /^\d+$/.test(parts[2])) {
+          if (!allowedAppids2.includes(parts[2])) allowedAppids2.push(parts[2]);
+          if (!tokenObj.allowed_appid) tokenObj.allowed_appid = parts[2];
+        }
+        if (!licType2 || licType2 === 'vip') {
+          licType2 = userToken.startsWith('MS-GAME-') ? 'single_game' : 'multi_game';
+        }
+      }
+      if (!licType2) {
+        licType2 = (allowedAppids2.length > 0) ? 'single_game' : 'vip';
+      }
+      if (allowedAppids2.includes('1174180') && (!tokenObj.game_name || !allowedGameNames2.length)) {
+        if (!allowedGameNames2.includes('Red Dead Redemption 2')) allowedGameNames2.push('Red Dead Redemption 2');
+      }
 
       const payloadStr = `${tokenObj.token}:${loginRole2}:${tokenObj.expires_at || 'lifetime'}`;
       const sign = crypto.createHmac('sha256', 'MarifetStoreSecureSecretKey2026').update(payloadStr).digest('hex');
@@ -7532,7 +7568,7 @@ app.post('/api/plugin/token-login', async (req, res) => {
         session_id: activeSessionId,
         expires_at: tokenObj.expires_at || null,
         ref_code: tokenObj.ref_code || '',
-        license_type: tokenObj.type || 'vip',
+        license_type: licType2,
         allowed_appid: tokenObj.allowed_appid || allowedAppids2.join(','),
         allowed_appids: allowedAppids2,
         allowed_game_name: tokenObj.game_name || allowedGameNames2.join(', '),
