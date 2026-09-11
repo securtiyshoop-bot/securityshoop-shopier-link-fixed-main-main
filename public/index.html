@@ -2866,6 +2866,28 @@
       }
     };
 
+    window.deleteToken = async function(token) {
+      if (!confirm(`"${token}" tokenini kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) return;
+      try {
+        const r = await fastFetch('/api/admin/tokens/' + encodeURIComponent(token) + '/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token })
+        });
+        const d = await readJsonSafe(r);
+        if (d && d.ok) {
+          if (typeof toast === 'function') toast('✓ ' + (d.message || 'Token silindi'));
+          else alert('✓ ' + (d.message || 'Token silindi'));
+          await loadTokens();
+          if (typeof loadTokenStats === 'function') loadTokenStats();
+        } else {
+          alert('Hata: ' + (d?.message || 'Token silinemedi'));
+        }
+      } catch (e) {
+        alert('Bağlantı hatası: ' + e);
+      }
+    };
+
     async function loadTokenStats() {
       try {
         const r = await fastFetch('/api/admin/token-stats');
@@ -3255,19 +3277,7 @@
       }
     });
 
-    window.deleteToken = async function(token) {
-      if(!confirm(`"${token}" tokenini kalıcı olarak silmek istediğinize emin misiniz?`)) return;
-      try {
-        const r = await fastFetch(`/api/admin/tokens/${encodeURIComponent(token)}/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const d = await readJsonSafe(r);
-        if (typeof toast === 'function') toast(d.ok ? '✓ Token silindi' : '❌ ' + (d.message||'Silinemedi'));
-        await loadTokens();
-        if (typeof loadTokenStats === 'function') loadTokenStats();
-      } catch(e) { alert('Hata: ' + e); }
-    };
+    // deleteToken is defined globally above
 
     // Safe loadCredits stub to prevent ReferenceError
     function loadCredits() {

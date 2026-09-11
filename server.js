@@ -536,6 +536,76 @@ async function deleteTokenFromDb(tokenVal) {
   }
 }
 
+async function purgeTokenCompletely(tokenVal) {
+  const norm = String(tokenVal || '').toLowerCase().trim();
+  if (!norm) return false;
+
+  // 1. Delete from MySQL database (both token and code columns, case-insensitive)
+  try {
+    if (useDatabase && pool) {
+      await pool.query('DELETE FROM app_tokens WHERE LOWER(token) = ? OR LOWER(code) = ?', [norm, norm]);
+    }
+  } catch (e) {
+    console.error('[PURGE] MySQL error:', e.message);
+  }
+
+  // Helper to remove token from any disk file
+  const removeFromFile = (filePath) => {
+    try {
+      if (filePath && fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        let parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter(t => t && String(t.token || t.code || '').toLowerCase().trim() !== norm);
+          fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2), 'utf8');
+        } else if (parsed && Array.isArray(parsed.tokens)) {
+          parsed.tokens = parsed.tokens.filter(t => t && String(t.token || t.code || '').toLowerCase().trim() !== norm);
+          fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2), 'utf8');
+        }
+      }
+    } catch (e) {
+      console.error('[PURGE] File error for', filePath, e.message);
+    }
+  };
+
+  // 2. Remove directly from all local storage files on disk
+  removeFromFile(TOKENS_FILE);
+  removeFromFile(SEED_TOKENS_FILE);
+  removeFromFile(getLocalTokensStorePath());
+
+  // 3. Purge from in-memory cloudCache
+  try {
+    const cached = cloudCache.get(CLOUD_STORAGE_IDS.tokens);
+    if (cached && Array.isArray(cached.tokens)) {
+      cached.tokens = cached.tokens.filter(t => t && String(t.token || t.code || '').toLowerCase().trim() !== norm);
+      cloudCache.set(CLOUD_STORAGE_IDS.tokens, cached);
+      cloudCacheTTL.set(CLOUD_STORAGE_IDS.tokens, Date.now() + 600000);
+    }
+  } catch (e) {}
+
+  // 4. Update cloud REST API directly without resurrection
+  try {
+    const cached = cloudCache.get(CLOUD_STORAGE_IDS.tokens) || { tokens: [] };
+    const payload = JSON.stringify({ name: 'marifetstore_tokens', data: cached });
+    await new Promise((resolve) => {
+      const req = https.request(`https://api.restful-api.dev/objects/${CLOUD_STORAGE_IDS.tokens}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 4000
+      }, (res) => resolve(true));
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.write(payload);
+      req.end();
+    });
+  } catch (e) {}
+
+  return true;
+}
+
 function ensureTokensFile() {
   try {
     if (!fs.existsSync(TOKENS_FILE)) {
@@ -583,14 +653,19 @@ function readTokensFile() {
   return { tokens: Array.from(tokenMap.values()) };
 }
 
-function writeTokensFile(data) {
+function writeTokensFile(data, doNotMerge = false) {
   try {
     ensureTokensFile();
-    const tokenMap = new Map();
-    const existing = readTokensFile();
-    (existing.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
-    (data.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
-    const merged = { tokens: Array.from(tokenMap.values()) };
+    let merged;
+    if (doNotMerge) {
+      merged = { tokens: Array.isArray(data.tokens) ? data.tokens : [] };
+    } else {
+      const tokenMap = new Map();
+      const existing = readTokensFile();
+      (existing.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      (data.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
+      merged = { tokens: Array.from(tokenMap.values()) };
+    }
 
     fs.writeFileSync(TOKENS_FILE, JSON.stringify(merged, null, 2), 'utf8');
     try { fs.writeFileSync(SEED_TOKENS_FILE, JSON.stringify(merged, null, 2), 'utf8'); } catch (_) {}
@@ -602,7 +677,7 @@ function writeTokensFile(data) {
       }
     } catch (_) {}
 
-    if (useDatabase && pool && Array.isArray(merged.tokens)) {
+    if (!doNotMerge && useDatabase && pool && Array.isArray(merged.tokens)) {
       for (const t of merged.tokens) {
         saveTokenToDb(t).catch(() => {});
       }
@@ -779,13 +854,9 @@ function saveCloudJson(id, name, partialData) {
     if (!partialData.tokens && existing.tokens) {
       mergedData.tokens = existing.tokens;
     } else if (Array.isArray(partialData.tokens)) {
-      const tokenMap = new Map();
-      (readTokensFile().tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
-      (existing.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
-      (partialData.tokens || []).forEach(t => { if (t && (t.token || t.code)) tokenMap.set(String(t.token || t.code).toLowerCase().trim(), t); });
-      mergedData.tokens = Array.from(tokenMap.values());
+      mergedData.tokens = partialData.tokens;
     }
-    writeTokensFile(mergedData);
+    writeTokensFile(mergedData, true);
   }
 
   // Users Koruması & Birleştirmesi:
@@ -7187,17 +7258,25 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
-  app.post('/api/admin/tokens/:token/delete', requireAdmin, async (req, res) => {
+  const handleTokenDelete = async (req, res) => {
     try {
-      await deleteTokenFromDb(req.params.token);
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      data.tokens = (data.tokens || []).filter(t => t.token !== req.params.token);
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      res.json({ ok: true, message: 'Token silindi.' });
+      const targetToken = String(req.params.token || req.body?.token || req.query?.token || '').trim();
+      if (!targetToken) {
+        return res.status(400).json({ ok: false, message: 'Token belirtilmedi.' });
+      }
+
+      await purgeTokenCompletely(targetToken);
+      console.log(`[ADMIN] Token '${targetToken}' successfully purged completely across all layers.`);
+      res.json({ ok: true, message: 'Token başarıyla silindi.' });
     } catch (err) {
-      res.status(500).json({ ok: false, message: 'Token silinemedi.' });
+      console.error('[ADMIN] Token delete error:', err);
+      res.status(500).json({ ok: false, message: 'Token silinemedi: ' + err.message });
     }
-  });
+  };
+
+  app.post('/api/admin/tokens/:token/delete', requireAdmin, handleTokenDelete);
+  app.delete('/api/admin/tokens/:token', requireAdmin, handleTokenDelete);
+  app.post('/api/admin/tokens/delete', requireAdmin, handleTokenDelete);
 
   
 // ==========================================
@@ -8869,7 +8948,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // PUBLIC VERSION CHECK ENDPOINT (Desktop Auto-Update)
   // ============================================================
   // Current app version — bump this whenever you build a new .exe
-  const CURRENT_APP_VERSION = '10.1.0';
+  const CURRENT_APP_VERSION = '10.2.0';
   const SETUP_DOWNLOAD_URL = 'https://www.marifetstore.tech/MarifetStore_Setup.exe';
 
   app.get('/api/version', (req, res) => {
@@ -8877,8 +8956,8 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
       ok: true,
       version: CURRENT_APP_VERSION,
       download_url: SETUP_DOWNLOAD_URL,
-      changelog: 'Otomatik güncelleme, gerçek OptiScaler FSR3 & DLSS desteği, sistem uyumluluk kontrolü eklendi.',
-      required: false
+      changelog: 'Tüm lisans anahtarları ve güvenlik protokolü güncellendi. Yeni lisans anahtarınızı girerek devam edebilirsiniz.',
+      required: true
     });
   });
 
