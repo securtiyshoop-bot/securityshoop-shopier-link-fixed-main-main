@@ -7109,6 +7109,254 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
+  // ============================================================
+  // SHOPIER API v2 ENTEGRASYONU (PAT BEARER TOKEN & OTOMATIK TESLİMAT)
+  // ============================================================
+  const SHOPIER_PAT_TOKEN = process.env.SHOPIER_PAT_TOKEN || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI4YTQ1OGE5MmFjYjMyMGVmZTYzOGM2ZDgwZTAxNzQ3NSIsImp0aSI6IjU0MTBlNjBhZmNjNTVjMmNmOGMwYWZkODVjM2FkYjNkOTg0MmM1YTQ3YzM5M2M5YWRiN2ZjNTRlMzgxY2U2NDcwNzlmYjUzZGQ1ZTY1ZWIyZTE0YjIzZTQwODBmMmM2ZjBkODJkZGY3NmE2ZGVjZWIyYTYxYmE3ODc4ZTc3YzEzNGNhMWNiYTk1ZjY0MjA5MzE1YTAzNzExMDJiN2VlN2MiLCJpYXQiOjE3ODkxMzQyOTksIm5iZiI6MTc4OTEzNDI5OSwiZXhwIjoxOTQ2OTE5MDU5LCJzdWIiOjI3MjEwNjIsInNjb3BlcyI6WyJvcmRlcnM6cmVhZCIsIm9yZGVyczp3cml0ZSIsInByb2R1Y3RzOnJlYWQiLCJwcm9kdWN0czp3cml0ZSIsInNoaXBwaW5nczpyZWFkIiwic2hpcHBpbmdzOndyaXRlIiwiZGlzY291bnRzOnJlYWQiLCJkaXNjb3VudHM6d3JpdGUiLCJwYXlvdXRzOnJlYWQiLCJyZWZ1bmRzOnJlYWQiLCJyZWZ1bmRzOndyaXRlIiwic2hvcDpyZWFkIiwic2hvcDp3cml0ZSJdfQ.nSATbBHi06MOlAh54kNIfHxmFrHqNeg7reUqEL-o2Aty7FqIvSink5S6hh9PHPv7OAPBFlgKWKicd9g6RzZGeawYcG-8gejK49H3O8lMkyrm-O9gzVeFudmxkWiXV5NPiN54ZYWap1YK7ja5IuO-UcUd9kL5Pd-IbafGToLlJ3XLrEwNYZ_-nkm-Dp5seiJQQ3LsapJR4JXt06rBjoYAakcK6Y-Dv_eGOIh-BzMc_e0Ga8VaooO9jJZMXj0JKcZ31WMaB6vpsfIkLFio2mHcCQ379U4ZsP1zcOqEsOgdHU4hcelk0V6KO-ppztjRJTlWA2bJV2fJ1yQU8SvYBi21FA';
+  const SHOPIER_API_BASE = 'https://api.shopier.com/v1';
+
+  // Bellek içi teslim edilen Shopier siparişleri haritası (orderId -> token)
+  if (!app.locals.deliveredShopierOrders) app.locals.deliveredShopierOrders = {};
+
+  async function generateLicenseForShopierPackage(pkg, customerName, orderId) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let t = '';
+    const durType = pkg?.days ? `${pkg.days}d` : 'lifetime';
+
+    if (pkg?.id === 'unlimited') {
+      t = 'MS-VIP-';
+      for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+    } else if (pkg?.id?.startsWith('pack-') || pkg?.id?.startsWith('random-')) {
+      t = 'MS-PKG-';
+      for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+    } else {
+      t = 'MS-GAME-';
+      for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+      t += '-';
+      for (let i = 0; i < 4; i++) t += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    const note = `Shopier Sipariş #${orderId} - ${pkg?.name || 'Paket'} (${customerName || 'Müşteri'})`;
+    const tokenObj = {
+      token: t,
+      code: t,
+      role: 'user',
+      created_at: new Date().toISOString(),
+      duration_type: durType,
+      duration: durType,
+      expires_at: null,
+      used: false,
+      frozen: false,
+      is_blocked: false,
+      first_used_at: null,
+      used_by_hwid: null,
+      type: pkg?.id === 'unlimited' ? 'vip' : (pkg?.id?.startsWith('pack-') || pkg?.id?.startsWith('random-') ? 'multi_game' : 'single_game'),
+      note: note,
+      created_by: 'Shopier Otomatik Teslimat'
+    };
+
+    try {
+      const data = readTokensFile();
+      data.tokens = data.tokens || [];
+      data.tokens.push(tokenObj);
+      writeTokensFile(data, false);
+    } catch(e) {
+      console.error('Shopier token save error:', e);
+    }
+
+    return tokenObj;
+  }
+
+  function findPackageByShopierTitleOrId(titleOrUrl) {
+    const s = String(titleOrUrl || '').toLowerCase();
+    for (const pkg of LICENSE_PACKAGES) {
+      const pUrl = String(pkg.shopier_url || '').toLowerCase();
+      const pId = pUrl.split('/').filter(Boolean).pop();
+      if (pId && s.includes(pId)) return pkg;
+      if (s.includes(pkg.name.toLowerCase())) return pkg;
+    }
+    if (s.includes('100')) return LICENSE_PACKAGES.find(p => p.id === 'pack-100');
+    if (s.includes('50')) return LICENSE_PACKAGES.find(p => p.id === 'pack-50');
+    if (s.includes('25')) return LICENSE_PACKAGES.find(p => p.id === 'random-add');
+    if (s.includes('10')) return LICENSE_PACKAGES.find(p => p.id === 'pack-10');
+    if (s.includes('tek') || s.includes('1 oyun')) return LICENSE_PACKAGES.find(p => p.id === 'single-1');
+    if (s.includes('rastgele')) return LICENSE_PACKAGES.find(p => p.id === 'random-1');
+    if (s.includes('sinirsiz') || s.includes('sınırsız')) return LICENSE_PACKAGES.find(p => p.id === 'unlimited');
+    return LICENSE_PACKAGES[0];
+  }
+
+  // Shopier API v2 Sipariş Poller & Otomatik Teslimat Fonksiyonu
+  async function pollShopierOrders() {
+    if (!SHOPIER_PAT_TOKEN) return;
+    try {
+      const res = await new Promise((resolve, reject) => {
+        const req = https.request(`${SHOPIER_API_BASE}/orders?limit=20`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${SHOPIER_PAT_TOKEN}`,
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+          },
+          timeout: 8000
+        }, (resp) => {
+          let data = '';
+          resp.on('data', chunk => data += chunk);
+          resp.on('end', () => {
+            try { resolve({ status: resp.statusCode, json: JSON.parse(data) }); }
+            catch(e) { resolve({ status: resp.statusCode, json: null, raw: data }); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Shopier API Timeout')); });
+        req.end();
+      });
+
+      if (res.status !== 200 || !Array.isArray(res.json)) return;
+
+      const orders = res.json;
+      for (const order of orders) {
+        const orderId = String(order.id || order.order_id || '');
+        if (!orderId) continue;
+
+        const isPaid = (order.status === 'completed' || order.status === 'paid' || order.status === 'processing' || order.payment_status === 'paid');
+        if (!isPaid) continue;
+
+        // Daha önce teslim edildiyse atla
+        if (app.locals.deliveredShopierOrders[orderId]) continue;
+
+        const buyerName = `${order.buyer?.name || order.buyer?.first_name || ''} ${order.buyer?.surname || order.buyer?.last_name || ''}`.trim() || order.buyer?.email || 'Müşteri';
+        const itemTitle = (order.line_items && order.line_items[0] && order.line_items[0].title) || order.product_name || '';
+        const pkg = findPackageByShopierTitleOrId(itemTitle);
+
+        const tokenObj = await generateLicenseForShopierPackage(pkg, buyerName, orderId);
+        app.locals.deliveredShopierOrders[orderId] = {
+          token: tokenObj.token,
+          pkg_name: pkg.name,
+          buyer_name: buyerName,
+          created_at: new Date().toISOString()
+        };
+
+        // Telegram Bildirimi Gönder
+        sendTelegramNotification(
+          `🎉 <b>YENİ SHOPIER SATIŞI!</b>\n\n` +
+          `📦 <b>Sipariş No:</b> <code>#${orderId}</code>\n` +
+          `👤 <b>Müşteri:</b> ${buyerName} (${order.buyer?.email || '-'})\n` +
+          `🎮 <b>Paket:</b> ${pkg.name}\n` +
+          `💰 <b>Tutar:</b> ${order.total_price || pkg.price} TL\n` +
+          `🔑 <b>Otomatik Teslim Edilen Lisans:</b>\n<code>${tokenObj.token}</code>`
+        ).catch(() => {});
+      }
+    } catch(err) {
+      // Hata sessizce loglanır
+    }
+  }
+
+  // 15 saniyede bir Shopier siparişlerini tara
+  setInterval(pollShopierOrders, 15000);
+  setTimeout(pollShopierOrders, 2000);
+
+  // Müşterinin web sitesinden Sipariş Numarası ile Lisansını Alma Endpoint'i
+  app.post('/api/shopier/claim-by-order', async (req, res) => {
+    try {
+      const orderId = String(req.body.order_id || req.body.orderId || '').replace(/[^0-9]/g, '').trim();
+      if (!orderId) {
+        return res.status(400).json({ ok: false, message: 'Lütfen geçerli bir Shopier sipariş numarası girin.' });
+      }
+
+      // 1. Daha önce teslim edilmiş mi kontrol et
+      if (app.locals.deliveredShopierOrders[orderId]) {
+        const item = app.locals.deliveredShopierOrders[orderId];
+        return res.json({
+          ok: true,
+          delivered: true,
+          order_id: orderId,
+          token: item.token,
+          package_name: item.pkg_name,
+          message: 'Lisans anahtarınız başarıyla teslim edildi!'
+        });
+      }
+
+      // 2. Canlı Shopier API üzerinden bu siparişi sorgula
+      if (!SHOPIER_PAT_TOKEN) {
+        return res.status(500).json({ ok: false, message: 'Shopier API yapılandırması eksik.' });
+      }
+
+      const checkRes = await new Promise((resolve, reject) => {
+        const reqApi = https.request(`${SHOPIER_API_BASE}/orders/${orderId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${SHOPIER_PAT_TOKEN}`,
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          timeout: 6000
+        }, (resp) => {
+          let data = '';
+          resp.on('data', chunk => data += chunk);
+          resp.on('end', () => {
+            try { resolve({ status: resp.statusCode, json: JSON.parse(data) }); }
+            catch(e) { resolve({ status: resp.statusCode, json: null }); }
+          });
+        });
+        reqApi.on('error', reject);
+        reqApi.on('timeout', () => { reqApi.destroy(); reject(new Error('Zaman aşımı')); });
+        reqApi.end();
+      });
+
+      if (checkRes.status === 200 && checkRes.json && checkRes.json.id) {
+        const order = checkRes.json;
+        const isPaid = (order.status === 'completed' || order.status === 'paid' || order.status === 'processing' || order.payment_status === 'paid');
+
+        if (!isPaid) {
+          return res.status(400).json({
+            ok: false,
+            message: `Sipariş bulundu ancak ödeme henüz tamamlanmamış (Durum: ${order.status || 'Beklemede'}). Lütfen ödemenizi tamamlayın.`
+          });
+        }
+
+        const buyerName = `${order.buyer?.name || ''} ${order.buyer?.surname || ''}`.trim() || order.buyer?.email || 'Müşteri';
+        const itemTitle = (order.line_items && order.line_items[0] && order.line_items[0].title) || order.product_name || '';
+        const pkg = findPackageByShopierTitleOrId(itemTitle);
+
+        const tokenObj = await generateLicenseForShopierPackage(pkg, buyerName, orderId);
+        app.locals.deliveredShopierOrders[orderId] = {
+          token: tokenObj.token,
+          pkg_name: pkg.name,
+          buyer_name: buyerName,
+          created_at: new Date().toISOString()
+        };
+
+        sendTelegramNotification(
+          `🎉 <b>YENİ SHOPIER SATIŞI (Müşteri Talebiyle Teslim)!</b>\n\n` +
+          `📦 <b>Sipariş No:</b> <code>#${orderId}</code>\n` +
+          `👤 <b>Müşteri:</b> ${buyerName}\n` +
+          `🎮 <b>Paket:</b> ${pkg.name}\n` +
+          `🔑 <b>Üretilen Lisans:</b>\n<code>${tokenObj.token}</code>`
+        ).catch(() => {});
+
+        return res.json({
+          ok: true,
+          delivered: true,
+          order_id: orderId,
+          token: tokenObj.token,
+          package_name: pkg.name,
+          message: 'Tebrikler! Ödemeniz doğrulandı ve lisans anahtarınız üretildi.'
+        });
+      } else {
+        return res.status(404).json({
+          ok: false,
+          message: `#${orderId} numaralı Shopier siparişi bulunamadı. Lütfen sipariş numaranızı kontrol edin veya Shopier ödemenizin tamamlandığından emin olun.`
+        });
+      }
+    } catch(e) {
+      return res.status(500).json({ ok: false, message: 'Sipariş kontrolü sırasında hata: ' + e.message });
+    }
+  });
+
   app.get('/api/reviews', async (req, res) => {
     try {
       const reviews = await listReviews(20);
