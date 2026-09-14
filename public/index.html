@@ -2235,7 +2235,8 @@
         if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
-          loadCredits();}
+          loadCredits();
+          if(window.fetchFixes)window.fetchFixes();}
       } else {
         welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
         document.getElementById('loginOpenBtn').classList.remove('hidden');
@@ -3911,8 +3912,8 @@
       });
     }
 
-    // Initial load
-    fetchFixes();
+    // Expose for admin load only
+    window.fetchFixes = fetchFixes;
   })();
 </script>
 
