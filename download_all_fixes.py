@@ -1,11 +1,12 @@
-﻿import json
+import json
 import os
 import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-META_PATH = r"C:\Users\PC\Desktop\securityshoop-shopier-link-fixed-main-main\storage\fixes_meta.json"
-OUT_DIR = r"C:\Users\PC\Desktop\securityshoop-shopier-link-fixed-main-main\storage\fixes"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+META_PATH = os.path.join(BASE_DIR, "storage", "fixes_meta.json")
+OUT_DIR = os.path.join(BASE_DIR, "storage", "fixes")
 COOKIE = "hideAnnouncementModal=true; connect.sid=s%3An2Loz1zVh587PYNlIl9LS99dBxSa9lvb.6Q0xIKhVkSod2B8e8YCECG4xWdPxBRdPBv4Uhk2Uvoo"
 
 os.makedirs(OUT_DIR, exist_ok=True)
