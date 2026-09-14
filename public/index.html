@@ -293,7 +293,7 @@
       </a>
 
       <nav class="hidden md:flex items-center gap-7">
-        <a href="#fixesSection" class="nl text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes</a>
+        <a href="#fixesSection" id="fixesMenuLink" class="nl hidden text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes</a>
         <a href="#urunler" class="nl">Ürünler</a>
         <a href="#lisanslar" class="nl">Lisanslar</a>
         <a href="#nedenbiz" class="nl">Neden Biz</a>
@@ -322,7 +322,7 @@
       </div>
     </div>
     <div id="mmenu" class="flex-col md:hidden px-5 py-4 gap-3.5" style="border-top:1px solid var(--border);background:rgba(8,11,15,.97)">
-      <a href="#fixesSection" class="nl text-base text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes & Bypasses</a>
+      <a href="#fixesSection" id="fixesMenuLinkMobile" class="nl text-base hidden text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes & Bypasses</a>
       <a href="#urunler" class="nl text-base">Ürünler</a>
       <a href="#lisanslar" class="nl text-base">Lisanslar</a>
       <a href="#nedenbiz" class="nl text-base">Neden Biz</a>
@@ -435,8 +435,8 @@
       </div>
     </section>
 
-    <!-- MARIFETSTORE FIXES & BYPASSES SECTION -->
-    <section id="fixesSection" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <!-- MARIFETSTORE FIXES & BYPASSES SECTION (ADMIN ONLY) -->
+    <section id="fixesSection" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv hidden">
       <div class="premium-band p-6 md:p-8" style="background: radial-gradient(circle at top left, rgba(245,158,11,0.08), rgba(8,11,15,0.95)); border: 1px solid rgba(245,158,11,0.25); border-radius: 24px;">
         <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
           <div>
@@ -2230,6 +2230,8 @@
         loadAccountSummary();
         const isAdmin=d.user.role==='admin';
         adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);
+        const fSec=document.getElementById('fixesSection'),fLnk=document.getElementById('fixesMenuLink'),fLnkMob=document.getElementById('fixesMenuLinkMobile');
+        if(fSec)fSec.classList.toggle('hidden',!isAdmin);if(fLnk)fLnk.classList.toggle('hidden',!isAdmin);if(fLnkMob)fLnkMob.classList.toggle('hidden',!isAdmin);
         if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
       checkAdminDbStatus();
       loadTokens();
@@ -2239,6 +2241,8 @@
         document.getElementById('loginOpenBtn').classList.remove('hidden');
         document.getElementById('registerOpenBtn').classList.remove('hidden');
         adminPanel.classList.add('hidden');adminLink.classList.add('hidden');
+        const fSec=document.getElementById('fixesSection'),fLnk=document.getElementById('fixesMenuLink'),fLnkMob=document.getElementById('fixesMenuLinkMobile');
+        if(fSec)fSec.classList.add('hidden');if(fLnk)fLnk.classList.add('hidden');if(fLnkMob)fLnkMob.classList.add('hidden');
         accountPanel.classList.add('hidden');accountLink.classList.add('hidden');accountLinkMobile.classList.add('hidden');
         rvText.disabled=true;rvBtn.disabled=true;rvBtn.classList.add('opacity-50');
         rvGate.textContent='Yorum yazmak için giriş yapman gerekir.';
