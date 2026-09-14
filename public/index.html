@@ -293,6 +293,7 @@
       </a>
 
       <nav class="hidden md:flex items-center gap-7">
+        <a href="#fixesSection" class="nl text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes</a>
         <a href="#urunler" class="nl">Ürünler</a>
         <a href="#lisanslar" class="nl">Lisanslar</a>
         <a href="#nedenbiz" class="nl">Neden Biz</a>
@@ -321,6 +322,7 @@
       </div>
     </div>
     <div id="mmenu" class="flex-col md:hidden px-5 py-4 gap-3.5" style="border-top:1px solid var(--border);background:rgba(8,11,15,.97)">
+      <a href="#fixesSection" class="nl text-base text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes & Bypasses</a>
       <a href="#urunler" class="nl text-base">Ürünler</a>
       <a href="#lisanslar" class="nl text-base">Lisanslar</a>
       <a href="#nedenbiz" class="nl text-base">Neden Biz</a>
@@ -428,6 +430,57 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARIFETSTORE FIXES & BYPASSES SECTION -->
+    <section id="fixesSection" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+      <div class="premium-band p-6 md:p-8" style="background: radial-gradient(circle at top left, rgba(245,158,11,0.08), rgba(8,11,15,0.95)); border: 1px solid rgba(245,158,11,0.25); border-radius: 24px;">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
+          <div>
+            <div class="slabel mb-3" style="color:#f59e0b"><i class="fa-solid fa-wrench mr-1.5"></i>Doğrudan İndirme Merkezi</div>
+            <h2 class="syne text-3xl md:text-4xl font-800 text-amber-400">Oyun Fix & Bypass Arşivi</h2>
+            <p class="text-sm leading-6 mt-2 max-w-2xl" style="color:var(--muted)">
+              Online multiplayer bypass, EAC/BattleEye fixleri ve özel kütüphane yamalarını doğrudan yüksek hızla indirin.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="fixesTotalBadge" class="text-xs px-3 py-1.5 rounded-xl font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+              1800+ Fix Hazır
+            </span>
+          </div>
+        </div>
+
+        <!-- SEARCH & FILTER BAR -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 mb-6">
+          <div class="md:col-span-8 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input type="text" id="fixesSearchInput" class="fi2 w-full pl-11 pr-4 py-3 text-sm rounded-xl" placeholder="Oyun adı veya Steam AppID arayın (Örn: Cyberpunk, Hellish, 1000360)..." style="background: rgba(0,0,0,0.4); border-color: rgba(245,158,11,0.3);" />
+          </div>
+          <div class="md:col-span-4 flex items-center gap-2">
+            <button type="button" class="fix-tag-btn active px-3.5 py-2.5 rounded-xl text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300 transition-all" data-tag="all">Tümü</button>
+            <button type="button" class="fix-tag-btn px-3.5 py-2.5 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-amber-500/50 transition-all" data-tag="online">Online</button>
+            <button type="button" class="fix-tag-btn px-3.5 py-2.5 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-amber-500/50 transition-all" data-tag="bypass">Bypass</button>
+            <button type="button" class="fix-tag-btn px-3.5 py-2.5 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-amber-500/50 transition-all" data-tag="hypervisor">Hypervisor</button>
+          </div>
+        </div>
+
+        <!-- FIXES GRID CONTAINER -->
+        <div id="fixesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[220px]">
+          <div class="col-span-full py-12 text-center text-gray-400">
+            <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-400 mb-2"></i>
+            <p class="text-xs">Fix arşivi taranıyor...</p>
+          </div>
+        </div>
+
+        <!-- PAGINATION / LOAD MORE -->
+        <div class="mt-6 flex items-center justify-between pt-4 border-t border-white/10 text-xs text-gray-400">
+          <span id="fixesShowingInfo">Yükleniyor...</span>
+          <div class="flex gap-2">
+            <button id="fixesPrevBtn" class="btn btn-o px-3 py-1.5 text-xs rounded-lg disabled:opacity-30" disabled>Önceki</button>
+            <button id="fixesNextBtn" class="btn btn-o px-3 py-1.5 text-xs rounded-lg disabled:opacity-30" disabled>Sonraki</button>
           </div>
         </div>
       </div>
@@ -3693,6 +3746,170 @@
         // Also load initially if credits is visible
         window.loadCredits();
     });
+</script>
+
+<!-- FIXES ARCHIVE CLIENT SCRIPT -->
+<script>
+  (function() {
+    let allFixGames = [];
+    let filteredGames = [];
+    let currentPage = 1;
+    const pageSize = 12;
+    let activeTag = 'all';
+
+    const fixesGrid = document.getElementById('fixesGrid');
+    const fixesSearchInput = document.getElementById('fixesSearchInput');
+    const fixesShowingInfo = document.getElementById('fixesShowingInfo');
+    const fixesPrevBtn = document.getElementById('fixesPrevBtn');
+    const fixesNextBtn = document.getElementById('fixesNextBtn');
+    const fixesTotalBadge = document.getElementById('fixesTotalBadge');
+    const tagBtns = document.querySelectorAll('.fix-tag-btn');
+
+    async function fetchFixes() {
+      try {
+        const res = await fetch('/api/fixes');
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.games)) {
+          allFixGames = data.games;
+          if (fixesTotalBadge) fixesTotalBadge.textContent = `${allFixGames.length} Fix Hazır`;
+          applyFilters();
+        } else {
+          showError('Fix listesi alınamadı.');
+        }
+      } catch (err) {
+        showError('Sunucuya bağlanılamadı.');
+      }
+    }
+
+    function applyFilters() {
+      const q = (fixesSearchInput?.value || '').trim().toLowerCase();
+      filteredGames = allFixGames.filter(g => {
+        const matchTag = activeTag === 'all' || (g.fixes || []).some(f => (f.tags || []).includes(activeTag));
+        if (!matchTag) return false;
+        if (!q) return true;
+        const nameMatch = (g.name || '').toLowerCase().includes(q);
+        const appidMatch = String(g.appid || '').includes(q);
+        const fileMatch = (g.fixes || []).some(f => (f.downloadName || '').toLowerCase().includes(q));
+        return nameMatch || appidMatch || fileMatch;
+      });
+      currentPage = 1;
+      renderFixes();
+    }
+
+    function renderFixes() {
+      if (!fixesGrid) return;
+      if (filteredGames.length === 0) {
+        fixesGrid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-gray-400">
+            <i class="fa-solid fa-folder-open text-3xl text-amber-400/60 mb-2"></i>
+            <p class="text-sm">Eşleşen oyun veya fix bulunamadı.</p>
+          </div>`;
+        if (fixesShowingInfo) fixesShowingInfo.textContent = '0 sonuç';
+        if (fixesPrevBtn) fixesPrevBtn.disabled = true;
+        if (fixesNextBtn) fixesNextBtn.disabled = true;
+        return;
+      }
+
+      const totalPages = Math.ceil(filteredGames.length / pageSize);
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * pageSize;
+      const pagedGames = filteredGames.slice(start, start + pageSize);
+
+      fixesGrid.innerHTML = pagedGames.map(g => {
+        const appid = g.appid || '';
+        const imgUrl = appid
+          ? `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${appid}/header.jpg`
+          : '/placeholder.webp';
+
+        const downloadButtons = (g.fixes || []).map(f => {
+          const fid = encodeURIComponent(f.id || '');
+          const fname = encodeURIComponent(f.downloadName || f.filename || 'fix.rar');
+          const dlUrl = fid ? `/api/fixes/download?id=${fid}` : `/api/fixes/download?file=${fname}`;
+          const badges = (f.badges || ['Fix']).map(b => `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 mr-1">${b}</span>`).join('');
+          return `
+            <a href="${dlUrl}" class="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/40 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/50 text-xs text-gray-200 transition-all group" download>
+              <div class="truncate max-w-[170px]" title="${f.downloadName || f.filename}">
+                ${badges}
+                <span class="font-mono text-[11px]">${f.downloadName || f.filename}</span>
+              </div>
+              <i class="fa-solid fa-download text-amber-400 group-hover:translate-y-0.5 transition-transform"></i>
+            </a>`;
+        }).join('');
+
+        return `
+          <div class="rounded-2xl p-3.5 bg-black/50 border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between gap-3 shadow-lg">
+            <div>
+              <div class="relative aspect-video rounded-xl overflow-hidden bg-gray-900 mb-2.5 border border-white/5">
+                <img src="${imgUrl}" alt="${g.name}" class="w-full h-full object-cover" onerror="this.src='/placeholder.webp'" loading="lazy" />
+                ${appid ? `<span class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-black/70 text-gray-300 backdrop-blur-md border border-white/10">#${appid}</span>` : ''}
+              </div>
+              <h4 class="font-bold text-sm text-gray-100 truncate" title="${g.name}">${g.name}</h4>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              ${downloadButtons}
+            </div>
+          </div>`;
+      }).join('');
+
+      if (fixesShowingInfo) {
+        fixesShowingInfo.textContent = `${filteredGames.length} sonuçtan ${start + 1}-${Math.min(start + pageSize, filteredGames.length)} arası gösteriliyor (Sayfa ${currentPage}/${totalPages})`;
+      }
+      if (fixesPrevBtn) fixesPrevBtn.disabled = currentPage <= 1;
+      if (fixesNextBtn) fixesNextBtn.disabled = currentPage >= totalPages;
+    }
+
+    function showError(msg) {
+      if (fixesGrid) {
+        fixesGrid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-red-400">
+            <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+            <p class="text-xs">${msg}</p>
+          </div>`;
+      }
+    }
+
+    // Event listeners
+    if (fixesSearchInput) {
+      fixesSearchInput.addEventListener('input', () => applyFilters());
+    }
+
+    tagBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tagBtns.forEach(b => {
+          b.classList.remove('active', 'border-amber-500', 'bg-amber-500/20', 'text-amber-300');
+          b.classList.add('border-white/10', 'bg-white/5', 'text-gray-300');
+        });
+        btn.classList.add('active', 'border-amber-500', 'bg-amber-500/20', 'text-amber-300');
+        btn.classList.remove('border-white/10', 'bg-white/5', 'text-gray-300');
+        activeTag = btn.getAttribute('data-tag') || 'all';
+        applyFilters();
+      });
+    });
+
+    if (fixesPrevBtn) {
+      fixesPrevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderFixes();
+          document.getElementById('fixesSection')?.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    }
+
+    if (fixesNextBtn) {
+      fixesNextBtn.addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredGames.length / pageSize);
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderFixes();
+          document.getElementById('fixesSection')?.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    }
+
+    // Initial load
+    fetchFixes();
+  })();
 </script>
 
 </body>

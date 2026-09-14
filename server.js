@@ -7595,6 +7595,97 @@ app.get('/api/plugin/get-lua', async (req, res) => {
   }
 });
 
+// ==========================================
+// MARIFETSTORE GAME FIXES & BYPASSES API
+// ==========================================
+const FIXES_STORAGE_DIR = path.join(__dirname, 'storage', 'fixes');
+const FIXES_META_FILE = path.join(__dirname, 'storage', 'fixes_meta.json');
+
+let cachedFixesMeta = null;
+function loadFixesMeta() {
+  if (cachedFixesMeta) return cachedFixesMeta;
+  try {
+    if (fs.existsSync(FIXES_META_FILE)) {
+      cachedFixesMeta = JSON.parse(fs.readFileSync(FIXES_META_FILE, 'utf-8'));
+    }
+  } catch (err) {
+    console.error('loadFixesMeta error:', err);
+  }
+  return cachedFixesMeta || { success: true, tags: ["online", "bypass", "hypervisor"], count: 0, games: [] };
+}
+
+app.get('/api/fixes', (req, res) => {
+  try {
+    const meta = loadFixesMeta();
+    let games = meta.games || [];
+    
+    // Tag filter
+    const tagQuery = String(req.query.tag || '').trim().toLowerCase();
+    if (tagQuery) {
+      const requestedTags = tagQuery.split(',').map(t => t.trim()).filter(Boolean);
+      if (requestedTags.length > 0) {
+        games = games.filter(g => {
+          const gameTags = (g.fixes || []).flatMap(f => f.tags || []);
+          return requestedTags.some(t => gameTags.includes(t));
+        });
+      }
+    }
+
+    // Search query filter (by name, appid, or downloadName)
+    const q = String(req.query.q || '').trim().toLowerCase();
+    if (q) {
+      games = games.filter(g => {
+        const nameMatch = (g.name || '').toLowerCase().includes(q);
+        const appidMatch = String(g.appid || '').includes(q);
+        const fileMatch = (g.fixes || []).some(f => (f.downloadName || '').toLowerCase().includes(q));
+        return nameMatch || appidMatch || fileMatch;
+      });
+    }
+
+    res.json({
+      success: true,
+      tags: meta.tags || ["online", "bypass", "hypervisor"],
+      availableTags: meta.availableTags || ["online", "bypass", "hypervisor"],
+      count: games.length,
+      games: games
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Fix listesi yuklenemedi.' });
+  }
+});
+
+app.get('/api/fixes/download', (req, res) => {
+  const fixId = String(req.query.id || '').trim();
+  const fileParam = String(req.query.file || '').trim();
+  
+  const meta = loadFixesMeta();
+  let targetFix = null;
+  
+  if (fixId) {
+    for (const g of (meta.games || [])) {
+      const f = (g.fixes || []).find(fx => fx.id === fixId);
+      if (f) { targetFix = f; break; }
+    }
+  } else if (fileParam) {
+    for (const g of (meta.games || [])) {
+      const f = (g.fixes || []).find(fx => (fx.downloadName === fileParam || fx.filename === fileParam));
+      if (f) { targetFix = f; break; }
+    }
+  }
+
+  const downloadFilename = targetFix ? (targetFix.downloadName || targetFix.filename) : (fileParam || 'fix.rar');
+  const safeFilename = path.basename(downloadFilename);
+  const localFilePath = path.join(FIXES_STORAGE_DIR, safeFilename);
+
+  if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).size > 100) {
+    res.setHeader('Content-Type', 'application/vnd.rar');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+    return res.sendFile(localFilePath);
+  }
+
+  return res.status(404).json({ success: false, error: 'Fix dosyasi hazirlaniyor veya bulunamadi.' });
+});
+
 // Feature 45: Token Login Brute-Force Rate Limiter
 const tokenLoginFailedMap = new Map();
 function checkTokenLoginBrute(identifier) {
