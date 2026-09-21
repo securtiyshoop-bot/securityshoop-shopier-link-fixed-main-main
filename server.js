@@ -677,7 +677,7 @@ function writeTokensFile(data, doNotMerge = false) {
       }
     } catch (_) {}
 
-    if (!doNotMerge && useDatabase && pool && Array.isArray(merged.tokens)) {
+    if (useDatabase && pool && Array.isArray(merged.tokens)) {
       for (const t of merged.tokens) {
         saveTokenToDb(t).catch(() => {});
       }
@@ -7758,7 +7758,22 @@ app.post('/api/plugin/token-login', async (req, res) => {
 
       // Frozen (dondurulmus) kontrol
       if (tokenObj.frozen) {
-        return res.status(403).json({ ok: false, message: 'Hesabiniz dondurulmustur. Lutfen yonetici ile iletisime gecin.' });
+        return res.status(403).json({ ok: false, message: 'Hesabiniz / lisansiniz yonetici tarafindan dondurulmustur. Lutfen iletisime gecin.' });
+      }
+
+      // TEK TOKEN KURALI: Bu hesaba daha önce başka bir token tanımlanmış mı?
+      if (rawUser && !userToken.toUpperCase().startsWith('MS-ADMIN-')) {
+        const otherToken = (data.tokens || []).find(t => 
+          t && t.used && t.username && 
+          t.username.toLowerCase() === rawUser.toLowerCase() && 
+          String(t.token || t.code || '').trim().toUpperCase() !== userToken.toUpperCase()
+        );
+        if (otherToken) {
+          return res.status(403).json({
+            ok: false,
+            message: `⛔ Bu hesaba ("${rawUser}") zaten bir lisans (${otherToken.token}) tanımlanmıştır! Bir hesaba ikinci bir token girilemez.`
+          });
+        }
       }
 
       const now = new Date();
@@ -8187,6 +8202,33 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   // ======================================================
   // TOKEN FREEZE / UNFREEZE
   // ======================================================
+  // HWID BAN ENDPOINT
+  app.post('/api/admin/tokens/:token/ban-hwid', requireAdmin, async (req, res) => {
+    try {
+      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [], blacklist: { hwids: [], ips: [] } });
+      if (!data.blacklist) data.blacklist = { hwids: [], ips: [] };
+      const tokenObj = (data.tokens || []).find(t => String(t.token).toUpperCase() === String(req.params.token).toUpperCase());
+      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
+      if (!tokenObj.used_by_hwid) return res.status(400).json({ ok: false, message: 'Bu token henuz bir cihaza baglanmamis (HWID kaydi yok).' });
+
+      const targetHwid = tokenObj.used_by_hwid;
+      if (!data.blacklist.hwids.includes(targetHwid)) {
+        data.blacklist.hwids.push(targetHwid);
+      }
+      tokenObj.frozen = true;
+      tokenObj.frozen_at = new Date().toISOString();
+      tokenObj.is_blocked = true;
+
+      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (useDatabase && pool) {
+        await saveTokenToDb(tokenObj);
+      }
+      res.json({ ok: true, message: `HWID (${targetHwid.substring(0, 12)}...) kalici olarak banlandi ve token donduruldu.` });
+    } catch(err) {
+      res.status(500).json({ ok: false, message: err.message });
+    }
+  });
+
   app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
     try {
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });

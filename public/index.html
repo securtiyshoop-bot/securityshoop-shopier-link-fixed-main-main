@@ -2805,11 +2805,17 @@
             tr.style.borderBottom = '1px solid var(--border)';
             if (t.frozen) tr.style.background = 'rgba(59,130,246,0.07)';
             
-            let statusHtml = '<span class="text-xs px-2 py-1 rounded bg-green-900/60 text-green-300 border border-green-500/30">🟢 Boşta</span>';
+            let statusHtml = '<span class="text-xs px-2.5 py-1 rounded font-bold bg-green-950/70 text-green-300 border border-green-500/40 shadow-sm">🟢 Boşta (Kullanılmadı)</span>';
             if (t.frozen) {
-              statusHtml = '<span class="text-xs px-2 py-1 rounded bg-blue-900/60 text-blue-300 border border-blue-500/30">❄️ Dondurulmuş</span>';
-            } else if (t.used_by_hwid) {
-              statusHtml = `<div class="flex flex-col gap-0.5"><span class="text-xs px-2 py-1 rounded bg-yellow-900/60 text-yellow-300 border border-yellow-500/30">🔒 Kilitli</span><span class="text-[10px] text-gray-400">👤 ${t.username ? t.username : 'Isimsiz'}</span><span class="text-[10px] text-gray-400">🌐 ${t.last_ip || '-'}</span></div>`;
+              statusHtml = '<span class="text-xs px-2.5 py-1 rounded font-bold bg-blue-950/70 text-blue-300 border border-blue-500/40 shadow-sm">❄️ Dondurulmuş</span>';
+            } else if (t.used || t.used_by_hwid) {
+              const uName = t.username ? esc(t.username) : 'İsimsiz Müşteri';
+              const uHwid = t.used_by_hwid ? esc(t.used_by_hwid.substring(0, 10)) + '...' : 'Cihaz Bekleniyor';
+              statusHtml = `<div class="flex flex-col gap-1">
+                <span class="text-xs px-2 py-0.5 rounded font-bold bg-amber-950/70 text-amber-300 border border-amber-500/40 w-fit">🔒 Kullanıldı (Aktif)</span>
+                <span class="text-[11px] text-gray-200 font-semibold">👤 ${uName}</span>
+                <span class="text-[10px] text-gray-400 font-mono">💻 ${uHwid} | 🌐 ${t.last_ip || '-'}</span>
+              </div>`;
             }
             
             const durMap = {'1d': '1 Gün', '7d': '1 Hafta', '30d': '1 Ay', 'lifetime': 'Sınırsız (Ömür Boyu)'};
@@ -2848,6 +2854,9 @@
             const hwidBtn = t.used_by_hwid
               ? `<button onclick="resetTokenHwid('${esc(t.token)}')" class="text-xs px-2 py-1 rounded font-700 bg-amber-900/70 hover:bg-amber-800 text-amber-300 transition-colors" title="HWID Cihaz Kilidini Sıfırla">🔓 HWID</button>`
               : '';
+            const banHwidBtn = t.used_by_hwid
+              ? `<button onclick="banTokenHwid('${esc(t.token)}', '${esc(t.used_by_hwid)}', '${esc(t.username || '')}')" class="text-xs px-2 py-1 rounded font-700 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800/50 transition-colors" title="Bu Cihaza (HWID) Kalıcı Ban At">🚫 HWID Ban</button>`
+              : '';
 
             tr.innerHTML = `
               <td class="px-3 py-3 font-mono text-xs font-bold text-green-400 select-all">${esc(t.token)}${gameBadge}</td>
@@ -2859,6 +2868,7 @@
                 <div class="flex gap-1.5 flex-wrap items-center">
                   <button onclick="copyTokenText('${esc(t.token)}')" class="text-xs px-2 py-1 rounded font-700 bg-gray-800 hover:bg-gray-700 text-gray-200" title="Kopyala">📋 Kopyala</button>
                   ${hwidBtn}
+                  ${banHwidBtn}
                   ${freezeBtn}
                   <button onclick="deleteToken('${esc(t.token)}')" class="text-xs px-2.5 py-1 rounded font-700 bg-red-900/70 hover:bg-red-800 text-red-300 transition-colors">Sil</button>
                 </div>
@@ -2894,6 +2904,28 @@
         await loadTokens(); 
         if (typeof loadTokenStats === 'function') loadTokenStats();
       } catch(e) { alert('Hata: ' + e); }
+    };
+
+    window.banTokenHwid = async function(token, hwid, username) {
+      const uText = username ? `"${username}" kullanıcısının` : 'Bu';
+      if (!confirm(`${uText} cihazını (${(hwid || '').substring(0, 12)}...) kalıcı olarak BANLAMAK ve lisansı dondurmak istiyor musunuz?\n\nBu cihazdan MarifetStore uygulamasına bir daha asla giriş yapılamaz!`)) return;
+      try {
+        const r = await fastFetch('/api/admin/tokens/' + encodeURIComponent(token) + '/ban-hwid', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const d = await readJsonSafe(r);
+        if (d && d.ok) {
+          if (typeof toast === 'function') toast('🚫 ' + (d.message || 'HWID kalıcı olarak banlandı!'));
+          else alert('🚫 ' + (d.message || 'HWID kalıcı olarak banlandı!'));
+          await loadTokens();
+          if (typeof loadTokenStats === 'function') loadTokenStats();
+        } else {
+          alert('Hata: ' + (d?.message || 'HWID banlanamadı'));
+        }
+      } catch (e) {
+        alert('Bağlantı hatası: ' + e);
+      }
     };
 
     window.unfreezeToken = async function(token) {
