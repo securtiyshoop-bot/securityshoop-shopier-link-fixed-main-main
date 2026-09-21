@@ -8024,7 +8024,17 @@ app.post('/api/plugin/token-login', async (req, res) => {
 
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
       const tokenObj = (data.tokens || []).find(t => String(t.token || '').trim().toUpperCase() === userToken.toUpperCase());
-      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Geçersiz token.' });
+      if (!tokenObj) {
+        // Kullanıcı hesap girişi sırasında parola veya kullanıcı adı kontrolü yapılıyorsa
+        const rawUser = String(req.body.username || '').trim();
+        if (rawUser) {
+          const u = await findUserByLogin(rawUser);
+          if (u && !u.is_blocked) {
+            return res.json({ ok: true, pending_token: true, message: 'Kullanıcı hesabı onaylı ve aktif.' });
+          }
+        }
+        return res.status(404).json({ ok: false, message: 'Geçersiz token.' });
+      }
 
       if (tokenObj.frozen) {
         return res.status(403).json({ ok: false, blocked: true, message: 'Hesabınız yönetici tarafından dondurulmuştur.' });
