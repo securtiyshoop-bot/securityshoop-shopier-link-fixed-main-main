@@ -407,6 +407,11 @@ async function activateDb(pool, { code, hwid, deviceName, appVersion, ip }) {
       await connection.rollback();
       return { status: 403, body: { ok: false, blocked: true, message: 'Bu keyin suresi dolmus.' } };
     }
+    // Single-use enforcement: reject if already used by a different HWID
+    if (key.status === 'used' && key.assigned_hwid && key.assigned_hwid !== hwid) {
+      await connection.rollback();
+      return { status: 403, body: { ok: false, blocked: true, message: 'Bu key zaten baska bir cihazda kullanilmis. Her key tek kullanimlik ve cihaza ozgudurudur.' } };
+    }
     if (key.assigned_hwid && key.assigned_hwid !== hwid) {
       await connection.rollback();
       return { status: 403, body: { ok: false, blocked: true, message: 'Bu key baska bir cihaza bagli.' } };
@@ -491,6 +496,10 @@ function activateJson(file, { code, hwid, deviceName, appVersion, ip }) {
   if (!key) return { status: 404, body: { ok: false, message: 'Key bulunamadi.' } };
   if (key.status === 'blocked') return { status: 403, body: { ok: false, blocked: true, message: 'Bu key banlanmis.' } };
   if (isExpired(key.expires_at)) return { status: 403, body: { ok: false, blocked: true, message: 'Bu keyin suresi dolmus.' } };
+  // Single-use enforcement: if already used by a different HWID, reject
+  if (key.status === 'used' && key.assigned_hwid && key.assigned_hwid !== hwid) {
+    return { status: 403, body: { ok: false, blocked: true, message: 'Bu key zaten baska bir cihazda kullanilmis. Her key tek kullanimlik ve cihaza ozgudurudur.' } };
+  }
   if (key.assigned_hwid && key.assigned_hwid !== hwid) {
     return { status: 403, body: { ok: false, blocked: true, message: 'Bu key baska bir cihaza bagli.' } };
   }
