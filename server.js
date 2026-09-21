@@ -7479,7 +7479,7 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
-  app.post('/api/admin/tokens/reset-hwid', async (req, res) => {
+  app.post('/api/admin/tokens/reset-hwid', requireAdmin, async (req, res) => {
     try {
       const { token } = req.body;
       if (!token) return res.status(400).json({ ok: false, message: 'Token belirtilmedi.' });
@@ -7500,6 +7500,10 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       if (!found) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', { ...cloudData, tokens });
+      if (useDatabase && pool) {
+        const targetObj = tokens.find(t => t.token && t.token.toLowerCase() === String(token).toLowerCase());
+        if (targetObj) await saveTokenToDb(targetObj).catch(() => {});
+      }
       res.json({ ok: true, message: `Token (${token}) HWID kilidi basariyla sifirlandi.` });
     } catch(err) {
       res.status(500).json({ ok: false, message: err.message });
@@ -8036,8 +8040,14 @@ app.post('/api/plugin/token-login', async (req, res) => {
         return res.status(404).json({ ok: false, message: 'Geçersiz token.' });
       }
 
-      if (tokenObj.frozen) {
-        return res.status(403).json({ ok: false, blocked: true, message: 'Hesabınız yönetici tarafından dondurulmuştur.' });
+      // Blacklist Check (Cihaz banlandıysa anında oturumu düşür)
+      const blacklist = data.blacklist || { hwids: [], ips: [] };
+      if (blacklist.hwids && hwid && blacklist.hwids.includes(hwid)) {
+        return res.status(403).json({ ok: false, blocked: true, message: 'Bu cihaz (HWID) kalıcı olarak yasaklanmıştır.' });
+      }
+
+      if (tokenObj.frozen || tokenObj.is_blocked) {
+        return res.status(403).json({ ok: false, blocked: true, message: 'Hesabınız / lisansınız yönetici tarafından dondurulmuştur veya engellenmiştir.' });
       }
       if (tokenObj.expires_at && new Date(tokenObj.expires_at) < new Date()) {
         return res.status(403).json({ ok: false, expired: true, message: 'Token süresi dolmuş!' });
@@ -9221,6 +9231,9 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
 
       target.is_blocked = !target.is_blocked;
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', cloudData);
+      if (useDatabase && pool) {
+        await saveTokenToDb(target).catch(() => {});
+      }
       res.json({ ok: true, message: target.is_blocked ? 'Token engellendi.' : 'Token engeli kaldirildi.', is_blocked: target.is_blocked });
     } catch(err) {
       res.status(500).json({ ok: false, message: err.message });
