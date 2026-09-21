@@ -7821,6 +7821,9 @@ app.post('/api/plugin/token-login', async (req, res) => {
         }
         
         await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+        if (useDatabase && pool) {
+          await saveTokenToDb(tokenObj);
+        }
 
         // Discord ve Telegram Bildirimi
         const durLabel = tokenObj.duration_type === '1d' ? '1 Günlük' : tokenObj.duration_type === '7d' ? '1 Haftalık' : tokenObj.duration_type === '30d' ? '1 Aylık' : 'Sınırsız';
@@ -7933,6 +7936,9 @@ app.post('/api/plugin/token-login', async (req, res) => {
       tokenObj.active_session_id = activeSessionId;
 
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (useDatabase && pool) {
+        await saveTokenToDb(tokenObj);
+      }
 
       // Discord ve Telegram bildirimi
       try {
@@ -8252,11 +8258,15 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
     try {
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      const targetToken = String(req.params.token || '').toUpperCase().trim();
+      const tokenObj = (data.tokens || []).find(t => String(t.token || t.code || '').toUpperCase().trim() === targetToken);
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       tokenObj.frozen = true;
       tokenObj.frozen_at = new Date().toISOString();
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (useDatabase && pool) {
+        await saveTokenToDb(tokenObj);
+      }
       res.json({ ok: true, message: 'Token donduruldu.' });
     } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
   });
@@ -8264,11 +8274,15 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
   app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
     try {
       const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
+      const targetToken = String(req.params.token || '').toUpperCase().trim();
+      const tokenObj = (data.tokens || []).find(t => String(t.token || t.code || '').toUpperCase().trim() === targetToken);
       if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
       tokenObj.frozen = false;
       tokenObj.frozen_at = null;
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (useDatabase && pool) {
+        await saveTokenToDb(tokenObj);
+      }
       res.json({ ok: true, message: 'Token cozuldu.' });
     } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
   });
@@ -8774,32 +8788,7 @@ app.post('/api/plugin/redeem-credit', async (req, res) => {
 });
 
 
-  // ======================================================
-  // TOKEN FREEZE / UNFREEZE
-  // ======================================================
-  app.post('/api/admin/tokens/:token/freeze', requireAdmin, async (req, res) => {
-    try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
-      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
-      tokenObj.frozen = true;
-      tokenObj.frozen_at = new Date().toISOString();
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      res.json({ ok: true, message: 'Token donduruldu.' });
-    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
-  });
-
-  app.post('/api/admin/tokens/:token/unfreeze', requireAdmin, async (req, res) => {
-    try {
-      const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
-      const tokenObj = (data.tokens || []).find(t => t.token === req.params.token);
-      if (!tokenObj) return res.status(404).json({ ok: false, message: 'Token bulunamadi.' });
-      tokenObj.frozen = false;
-      tokenObj.frozen_at = null;
-      await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
-      res.json({ ok: true, message: 'Token cozuldu.' });
-    } catch(err) { res.status(500).json({ ok: false, message: err.message }); }
-  });
+  // Duplicate freeze/unfreeze removed (defined above with DB sync)
 
   // ======================================================
   // REFERRAL SYSTEM
