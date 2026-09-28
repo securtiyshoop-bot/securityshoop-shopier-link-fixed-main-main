@@ -283,7 +283,7 @@
 
   <!-- HEADER -->
   <header class="sticky top-0 z-50" style="background:var(--header-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border)">
-    <div class="mx-auto max-w-7xl px-5 sm:px-8 flex items-center justify-between" style="height:64px">
+    <div class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 flex items-center justify-between" style="height:64px">
       <a href="#" class="flex items-center gap-3">
         <img src="/logo.png" alt="MarifetStore" class="h-9 w-9 rounded-xl object-cover" onerror="this.src='/logo.jpeg'" />
         <div>
@@ -293,7 +293,7 @@
       </a>
 
       <nav class="hidden md:flex items-center gap-7">
-        <a href="#fixesSection" id="fixesMenuLink" class="nl hidden text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes</a>
+        <a href="#fixesSection" id="fixesMenuLink" class="hidden" onclick="openFixesSection(event)" class="nl text-amber-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-wrench"></i><span>Fixes & Bypasses</span></a>
         <a href="#urunler" class="nl">Ürünler</a>
         <a href="#lisanslar" class="nl">Lisanslar</a>
         <a href="#nedenbiz" class="nl">Neden Biz</a>
@@ -322,7 +322,7 @@
       </div>
     </div>
     <div id="mmenu" class="flex-col md:hidden px-5 py-4 gap-3.5" style="border-top:1px solid var(--border);background:rgba(8,11,15,.97)">
-      <a href="#fixesSection" id="fixesMenuLinkMobile" class="nl text-base hidden text-amber-400 font-bold"><i class="fa-solid fa-wrench mr-1"></i>Fixes & Bypasses</a>
+      <a href="#fixesSection" id="fixesMenuLinkMobile" class="hidden" onclick="openFixesSection(event)" class="nl text-base text-amber-400 font-bold flex items-center gap-2"><i class="fa-solid fa-wrench"></i><span>Fixes & Bypasses</span></a>
       <a href="#urunler" class="nl text-base">Ürünler</a>
       <a href="#lisanslar" class="nl text-base">Lisanslar</a>
       <a href="#nedenbiz" class="nl text-base">Neden Biz</a>
@@ -333,7 +333,7 @@
       <a href="#accountPanel" id="accountMenuLinkMobile" class="nl text-base hidden">Hesabım</a>
     </div>
     <div class="site-utility">
-      <div class="mx-auto max-w-7xl px-5 sm:px-8 py-2 flex flex-wrap items-center justify-between gap-2">
+      <div class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 py-2 flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap items-center gap-2">
           <span class="utility-chip"><i class="fa-regular fa-clock"></i><span id="publicClock">Saat alınıyor</span></span>
           <span class="utility-chip"><i class="fa-solid fa-cloud-sun"></i><span id="publicWeather">Hava durumu hazırlanıyor</span></span>
@@ -352,7 +352,7 @@
   <main class="relative z-10">
 
     <!-- HERO -->
-    <section class="mx-auto max-w-7xl px-5 sm:px-8 pt-24 pb-20">
+    <section class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pt-24 pb-20">
       <div class="grid lg:grid-cols-2 gap-16 items-center">
         <div>
           <div class="hero-pulse-line mb-8 anim d1"><span class="dot"></span>MarifetStore oyun ekleme sistemi aktif</div>
@@ -436,7 +436,7 @@
     </section>
 
     <!-- MARIFETSTORE FIXES & BYPASSES SECTION (ADMIN ONLY) -->
-    <section id="fixesSection" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv hidden">
+    <section id="fixesSection" class="hidden" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv ">
       <div class="premium-band p-6 md:p-8" style="background: radial-gradient(circle at top left, rgba(245,158,11,0.08), rgba(8,11,15,0.95)); border: 1px solid rgba(245,158,11,0.25); border-radius: 24px;">
         <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
           <div>
@@ -487,7 +487,7 @@
     </section>
 
     <!-- PUBLIC LICENSE PACKAGES -->
-    <section id="lisanslar" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <section id="lisanslar" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="premium-band p-6 md:p-8">
         <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-7">
           <div>
@@ -503,19 +503,19 @@
       </div>
     </section>
 
-    <section id="paket-karsilastirma" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <section id="paket-karsilastirma" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7"><div><div class="slabel mb-3">Karşılaştır</div><h2 class="syne text-3xl font-800">Sana uygun paketi seç</h2></div><div class="flex gap-2"><input id="publicCouponCode" class="fi2" style="max-width:190px" placeholder="Kupon kodu" /><button id="validateCouponBtn" class="btn btn-o px-4 py-2 text-sm">Kuponu Kontrol Et</button></div></div>
       <p id="publicCouponMessage" class="text-xs mb-4" style="color:var(--muted)"></p>
       <div class="overflow-x-auto glass rounded-2xl"><table class="w-full text-sm"><thead><tr style="color:var(--muted)"><th class="p-4 text-left">Paket</th><th class="p-4 text-left">Oyun hakkı</th><th class="p-4 text-left">Lisans</th><th class="p-4 text-left">Fiyat</th><th class="p-4"></th></tr></thead><tbody id="licenseCompareBody"></tbody></table></div>
     </section>
 
-    <section id="durum" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <section id="durum" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="flex items-end justify-between gap-4 mb-6"><div><div class="slabel mb-3">Canlı Durum</div><h2 class="syne text-3xl font-800">Sistem durumu</h2></div><span id="statusCheckedAt" class="text-xs" style="color:var(--muted)">Kontrol ediliyor</span></div>
       <div id="publicStatusGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
     </section>
 
     <!-- ACCOUNT -->
-    <section id="accountPanel" class="hidden mx-auto max-w-5xl px-5 sm:px-8 pb-20 rv">
+    <section id="accountPanel" class="hidden mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="admin-shell mb-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
@@ -565,8 +565,110 @@
     </section>
 
     <!-- ADMIN -->
-    <section id="adminPanel" class="hidden mx-auto max-w-[1500px] px-5 sm:px-8 pb-20 rv">
+    <!-- ADMIN -->
+    <section id="adminPanel" class="hidden mx-auto w-full max-w-[1880px] px-4 sm:px-8 xl:px-12 pb-20 rv pt-6">
       
+      <!-- ADMIN TOP BAR -->
+      <div class="admin-topbar flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl mb-6 glass border border-emerald-500/25 bg-slate-950/80 backdrop-blur-xl shadow-2xl">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="syne font-800 text-xl md:text-2xl text-slate-100">MarifetStore Yönetici Portalı</h1>
+              <span class="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">CANLI KONTROL</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Sistem kontrolleri, tokenlar, lisanslar, kayıtlı kullanıcılar ve destek yönetimi</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="button" onclick="openFixesSection(event)" class="btn btn-o px-4 py-2.5 text-sm border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 flex items-center gap-2 rounded-xl font-bold transition-all">
+            <i class="fa-solid fa-wrench"></i>
+            <span>Fix & Bypass Arşivi</span>
+          </button>
+          <button type="button" onclick="window.scrollTo({top:0, behavior:'smooth'})" class="btn btn-g px-5 py-2.5 text-sm font-bold flex items-center gap-2 rounded-xl shadow-lg">
+            <i class="fa-solid fa-globe"></i>
+            <span>Site Vitrinine Dön</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ADMIN NAV TABS -->
+      <div class="flex flex-wrap items-center gap-2.5 mb-8 pb-3 border-b border-white/10" id="adminNavTabs">
+        <button type="button" onclick="switchAdminTab('tokens')" id="adminTabBtn-tokens" class="admin-tab-btn active px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-emerald-500 bg-emerald-500/20 text-emerald-300 transition-all flex items-center gap-2">
+          <i class="fa-solid fa-key"></i>
+          <span>Token & Lisanslar</span>
+        </button>
+        <button type="button" onclick="switchAdminTab('users')" id="adminTabBtn-users" class="admin-tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-emerald-500/50 hover:text-emerald-300 transition-all flex items-center gap-2">
+          <i class="fa-solid fa-users-gear"></i>
+          <span>Kullanıcılar & Güvenlik</span>
+        </button>
+        <button type="button" onclick="switchAdminTab('store')" id="adminTabBtn-store" class="admin-tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-purple-500/50 hover:text-purple-300 transition-all flex items-center gap-2">
+          <i class="fa-solid fa-store"></i>
+          <span>Mağaza & Krediler</span>
+        </button>
+        <button type="button" onclick="switchAdminTab('system')" id="adminTabBtn-system" class="admin-tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-amber-500/50 hover:text-amber-300 transition-all flex items-center gap-2">
+          <i class="fa-solid fa-microchip"></i>
+          <span>MarifetStore Modülü</span>
+        </button>
+        <button type="button" onclick="switchAdminTab('tickets')" id="adminTabBtn-tickets" class="admin-tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-blue-500/50 hover:text-blue-300 transition-all flex items-center gap-2">
+          <i class="fa-solid fa-ticket"></i>
+          <span>Destek & Duyurular</span>
+        </button>
+        <button type="button" onclick="switchAdminTab('fixes')" id="adminTabBtn-fixes" class="admin-tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-white/10 bg-white/5 text-gray-300 hover:border-amber-500/50 hover:text-amber-300 transition-all flex items-center gap-2">
+          <i class="fa-solid fa-wrench text-amber-400"></i>
+          <span>Fix & Bypass Arşivi (1800+)</span>
+        </button>
+      </div>
+
+      
+      <!-- TAB 6: FIXES & BYPASSES (ADMIN ARCHIVE) -->
+      <div id="adminTab-fixes" class="admin-tab-pane hidden w-full space-y-6">
+        <div class="admin-shell p-6 rounded-2xl border border-amber-500/30 bg-amber-950/10 backdrop-blur-xl">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-amber-500/20">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 mb-2">
+                <i class="fa-solid fa-shield-virus"></i> YÖNETİCİ ÖZEL FIX VERİTABANI
+              </div>
+              <h2 class="syne text-2xl font-800 text-white flex items-center gap-2">
+                <span>Steam Fix & Bypass Kataloğu</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">1.827 Doğrulanmış</span>
+              </h2>
+              <p class="text-xs text-slate-400 mt-1">Bu bölüm yalnızca yöneticilere özeldir. Masaüstü uygulamasında kullanıcıların Steam kütüphanelerine tek tıkla enjekte edilen tüm online fix arşivini buradan yönetebilirsiniz.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="if(typeof fetchFixes==='function') fetchFixes();" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-lg">
+                <i class="fa-solid fa-rotate"></i> Yenile
+              </button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            <div class="md:col-span-2 relative">
+              <input type="text" id="adminFixSearchInput" oninput="if(typeof filterFixes==='function') filterFixes(this.value)" placeholder="Oyun adı, AppID veya fix dosyası ara (örn: GTA, Elden Ring, 1086940)..." class="w-full px-4 py-3 pl-11 bg-slate-950/80 border border-amber-500/30 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition">
+              <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-amber-400"></i>
+            </div>
+            <div>
+              <select id="adminFixCategorySelect" onchange="if(typeof filterFixesByCategory==='function') filterFixesByCategory(this.value)" class="w-full px-4 py-3 bg-slate-950/80 border border-amber-500/30 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+                <option value="all">Tüm Kategoriler (Online, LAN, Steamworks)</option>
+                <option value="online">Online / Multiplayer Fixler</option>
+                <option value="coop">Co-Op / Eşli Oyun Fixleri</option>
+                <option value="dedicated">Dedicated Server Fixleri</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Fixes Container Cloned / Synced View -->
+          <div id="adminFixesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <!-- Dynamically populated by renderAdminFixes -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 1: TOKENS -->
+      <div id="adminTab-tokens" class="admin-tab-pane w-full space-y-6">
         <!-- TEK KULLANIMLIK TOKEN PANELI -->
         <div class="admin-shell mb-6" style="border: 1px solid #10B981; background: rgba(16, 185, 129, 0.05);">
           <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
@@ -834,9 +936,132 @@
         </div>
         <!-- /TEK KULLANIMLIK TOKEN PANELI -->
 
+
+        <!-- TOKEN İSTATİSTİKLERİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #06b6d4; background: rgba(6,182,212,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color: #06b6d4; background: rgba(6,182,212,0.2);">Canlı Veriler</div>
+              <h2 class="syne text-2xl font-800 text-cyan-400">Token İstatistikleri</h2>
+            </div>
+            <button onclick="loadTokenStats()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
+          </div>
+          <div id="tokenStatsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne" id="stat-total">-</div><div class="text-xs mt-1" style="color:var(--muted)">Toplam Token</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-green-400" id="stat-active">-</div><div class="text-xs mt-1" style="color:var(--muted)">Aktif</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-red-400" id="stat-expired">-</div><div class="text-xs mt-1" style="color:var(--muted)">Süresi Dolan</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-blue-400" id="stat-frozen">-</div><div class="text-xs mt-1" style="color:var(--muted)">Dondurulmuş</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-yellow-400" id="stat-today-created">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Oluşturulan</div></div>
+            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-purple-400" id="stat-today-used">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Kullanılan</div></div>
+          </div>
+        </div>
+        <!-- /TOKEN İSTATİSTİKLERİ -->
+
+
+        <!-- TOPLU TOKEN OLUŞTURMA -->
+        <div class="admin-shell mb-6" style="border: 1px solid #10b981; background: rgba(16,185,129,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#10b981;background:rgba(16,185,129,0.2);">Toplu Oluşturma</div>
+              <h2 class="syne text-2xl font-800 text-green-400">Toplu Token Oluştur & İndir</h2>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="bulk-token-duration" class="fi2 text-sm">
+              <option value="lifetime">Sınırsız</option>
+              <option value="1d">1 Gün</option>
+              <option value="7d">1 Hafta</option>
+              <option value="30d">1 Ay</option>
+            </select>
+            <input type="number" id="bulk-token-count" min="1" max="100" value="10" class="fi2 text-sm" style="width:80px" />
+            <span class="text-xs" style="color:var(--muted)">adet</span>
+            <button id="bulkGenerateBtn" class="btn btn-g px-5 py-2">⚡ Oluştur ve TXT İndir</button>
+          </div>
+          <div id="bulkMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /TOPLU TOKEN OLUŞTURMA -->
+
+
+      </div>
+
+      <!-- TAB 2: USERS & SECURITY (PHOTO SECTION - CLEAN FULL WIDTH) -->
+      <div id="adminTab-users" class="admin-tab-pane hidden w-full space-y-6">
+        <!-- KAYITLI KULLANICILAR TABLE -->
+      <div class="admin-shell">
+        <div class="admin-section-head">
+          <div><div class="slabel mb-3">Admin Paneli</div><h2 class="syne text-2xl font-800">Kayıtlı Kullanıcılar</h2></div>
+          <button id="refreshUsersBtn" class="btn btn-g px-5 py-2.5 text-sm">Yenile</button>
+        </div>
+        <div class="admin-actions-bar mb-4 flex flex-wrap items-center gap-3">
+          <input id="userSearchInput" class="fi2" style="max-width:280px" placeholder="Kullanıcı, e-posta veya HWID ara" />
+          <select id="userFilterSelect" class="fi2" style="max-width:230px">
+            <option value="all">Tüm kullanıcılar</option>
+            <option value="pending">Onay bekleyenler</option>
+            <option value="blocked">Sadece banlı/engelli</option>
+            <option value="expired">Lisansı bitenler</option>
+            <option value="today">Bugün aktif olanlar</option>
+            <option value="risky">Riskli kullanıcılar</option>
+            <option value="review">İncelemede olanlar</option>
+            <option value="pcban">PC banlılar</option>
+          </select>
+          <button id="clearUserFiltersBtn" class="btn btn-o px-4 py-2 text-sm">Filtreyi Temizle</button>
+        </div>
+        <div class="admin-actions-bar mb-4 flex flex-wrap items-center gap-3">
+          <select id="bulkAction" class="fi2" style="max-width:190px"><option value="block">Engelle</option><option value="unblock">Engeli Aç</option><option value="approve">Hesap Onayla</option><option value="reject">Hesap Reddet</option><option value="license">Lisans Ver</option><option value="pcban">PC Ban</option><option value="command">Komut Gönder</option><option value="delete">Sil</option></select>
+          <select id="bulkCommand" class="fi2" style="max-width:210px"><option value="refresh_control">Kontrol Yenile</option><option value="health_check">Sağlık Kontrol</option><option value="repair_health_shield">Kalkan Onar</option><option value="integrity_check">Dosya Kontrol</option><option value="repair_integrity">Dosya Onar</option><option value="logout">Çıkış Yaptır</option><option value="cleanup_games">Oyunları Temizle</option><option value="reset_account">Ayar Sıfırla</option><option value="install_cleanup_watchdog">Temizleme Koruması Aç</option><option value="remove_cleanup_watchdog">Temizleme Koruması Kapat</option></select>
+          <select id="bulkLicensePackage" class="fi2" style="max-width:210px"><option value="">Lisans paketi seç</option></select>
+          <input id="bulkLicenseUntil" class="fi2" style="max-width:170px" placeholder="Lisans YYYY-MM-DD" />
+          <input id="bulkDailyLimit" class="fi2" style="max-width:140px" placeholder="Günlük limit" />
+          <button id="runBulkActionBtn" class="btn btn-o px-4 py-2 text-sm">Toplu Uygula</button>
+        </div>
+        <p id="adminMessage" class="text-sm mb-4" style="color:var(--muted)"></p>
+        <div class="overflow-x-auto admin-panel-table">
+          <table class="min-w-full text-sm">
+            <thead><tr style="background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)">
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)"><input id="selectAllUsers" type="checkbox" class="accent-green-400" /></th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">ID</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Kullanıcı</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">E-posta</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Rol</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Durum</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">İstatistik</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Lisans</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Risk</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Kayıt</th>
+              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">İşlem</th>
+            </tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+
+        <!-- KARA LISTE (BAN) -->
+          <!-- KARA LİSTE -->
+          <div class="admin-shell" style="border: 1px solid #ef4444; background: rgba(239,68,68,0.05);">
+            <div class="slabel mb-3" style="color:#ef4444;background:rgba(239,68,68,0.2);">Güvenlik</div>
+            <h2 class="syne text-xl font-800 text-red-400 mb-4">Kara Liste (Ban)</h2>
+            
+            <div class="flex gap-2 mb-4">
+              <select id="blacklistType" class="fi2"><option value="hwid">HWID</option><option value="ip">IP</option></select>
+              <input type="text" id="blacklistValue" class="fi2 w-full" placeholder="Banlanacak değer..." />
+              <button onclick="addBlacklist()" class="btn px-4" style="background:#ef4444;color:white">Banla</button>
+            </div>
+            
+            <div class="overflow-x-auto h-48">
+              <table class="w-full text-left" style="min-width:300px">
+                <tbody id="blacklistTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+      </div>
+
+      <!-- TAB 3: STORE & CREDITS & PROMO -->
+      <div id="adminTab-store" class="admin-tab-pane hidden w-full space-y-6">
         
         <!-- OYUN KREDILERI -->
-        <div id="credits" class="tab-pane hidden">
+        <div id="credits" class="tab-pane">
           <div class="admin-shell mb-6" style="border: 1px solid #8B5CF6; background: rgba(139, 92, 246, 0.05);">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
               <div>
@@ -876,110 +1101,6 @@
         </div>
         <!-- /OYUN KREDILERI -->
 
-
-
-        <!-- TOKEN İSTATİSTİKLERİ -->
-        <div class="admin-shell mb-6" style="border: 1px solid #06b6d4; background: rgba(6,182,212,0.05);">
-          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
-            <div>
-              <div class="slabel mb-3" style="color: #06b6d4; background: rgba(6,182,212,0.2);">Canlı Veriler</div>
-              <h2 class="syne text-2xl font-800 text-cyan-400">Token İstatistikleri</h2>
-            </div>
-            <button onclick="loadTokenStats()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
-          </div>
-          <div id="tokenStatsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne" id="stat-total">-</div><div class="text-xs mt-1" style="color:var(--muted)">Toplam Token</div></div>
-            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-green-400" id="stat-active">-</div><div class="text-xs mt-1" style="color:var(--muted)">Aktif</div></div>
-            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-red-400" id="stat-expired">-</div><div class="text-xs mt-1" style="color:var(--muted)">Süresi Dolan</div></div>
-            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-blue-400" id="stat-frozen">-</div><div class="text-xs mt-1" style="color:var(--muted)">Dondurulmuş</div></div>
-            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-yellow-400" id="stat-today-created">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Oluşturulan</div></div>
-            <div class="admin-stat-card text-center"><div class="text-2xl font-800 syne text-purple-400" id="stat-today-used">-</div><div class="text-xs mt-1" style="color:var(--muted)">Bugün Kullanılan</div></div>
-          </div>
-        </div>
-        <!-- /TOKEN İSTATİSTİKLERİ -->
-
-
-        <!-- PROMO & BLACKLIST & TICKETS -->
-        <div class="grid lg:grid-cols-2 gap-6 mb-6">
-          <!-- PROMOSYON KODLARI -->
-          <div class="admin-shell" style="border: 1px solid #d946ef; background: rgba(217,70,239,0.05);">
-            <div class="slabel mb-3" style="color:#d946ef;background:rgba(217,70,239,0.2);">Pazarlama</div>
-            <h2 class="syne text-xl font-800 text-fuchsia-400 mb-4">Promosyon Kodları</h2>
-            
-            <div class="flex gap-2 mb-4">
-              <input type="text" id="promoCodeInput" class="fi2 w-full" placeholder="KOD (Örn: YAZ24)" />
-              <input type="number" id="promoDaysInput" class="fi2 w-24" placeholder="Gün" />
-              <input type="number" id="promoMaxUsesInput" class="fi2 w-24" placeholder="Limit" />
-              <button onclick="addPromoCode()" class="btn btn-g px-4">Ekle</button>
-            </div>
-            
-            <div class="overflow-x-auto">
-              <table class="w-full text-left" style="min-width:400px">
-                <thead><tr style="border-bottom:1px solid var(--border)"><th class="py-2 text-xs text-gray-400">KOD</th><th class="py-2 text-xs text-gray-400">GÜN</th><th class="py-2 text-xs text-gray-400">KULLANIM</th><th class="py-2 text-xs text-gray-400 text-right">İŞLEM</th></tr></thead>
-                <tbody id="promoTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- KARA LİSTE -->
-          <div class="admin-shell" style="border: 1px solid #ef4444; background: rgba(239,68,68,0.05);">
-            <div class="slabel mb-3" style="color:#ef4444;background:rgba(239,68,68,0.2);">Güvenlik</div>
-            <h2 class="syne text-xl font-800 text-red-400 mb-4">Kara Liste (Ban)</h2>
-            
-            <div class="flex gap-2 mb-4">
-              <select id="blacklistType" class="fi2"><option value="hwid">HWID</option><option value="ip">IP</option></select>
-              <input type="text" id="blacklistValue" class="fi2 w-full" placeholder="Banlanacak değer..." />
-              <button onclick="addBlacklist()" class="btn px-4" style="background:#ef4444;color:white">Banla</button>
-            </div>
-            
-            <div class="overflow-x-auto h-48">
-              <table class="w-full text-left" style="min-width:300px">
-                <tbody id="blacklistTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- DESTEK TALEPLERİ -->
-        <div class="admin-shell mb-6" style="border: 1px solid #3b82f6; background: rgba(59,130,246,0.05);">
-            <div class="flex justify-between items-center mb-4">
-              <div>
-                <div class="slabel mb-3" style="color:#3b82f6;background:rgba(59,130,246,0.2);">Müşteri Hizmetleri</div>
-                <h2 class="syne text-xl font-800 text-blue-400">Destek Talepleri (Tickets)</h2>
-              </div>
-              <button onclick="loadV5Data()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="ticketsGrid">
-            </div>
-        </div>
-        <!-- /PROMO & BLACKLIST & TICKETS -->
-
-        <!-- DUYURU SİSTEMİ -->
-        <div class="admin-shell mb-6" style="border: 1px solid #f59e0b; background: rgba(245,158,11,0.05);">
-          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
-            <div>
-              <div class="slabel mb-3" style="color:#f59e0b;background:rgba(245,158,11,0.2);">Bildirim Sistemi</div>
-              <h2 class="syne text-2xl font-800 text-yellow-400">Duyuru Yönetimi</h2>
-              <p class="text-sm mt-2" style="color:var(--muted)">Tüm müşteriler uygulamayı açtığında bu mesajı görür.</p>
-            </div>
-          </div>
-          <div class="grid lg:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block text-xs font-700 mb-1">Duyuru Başlığı</label>
-              <input type="text" id="annTitle" class="fi2 w-full" placeholder="Örn: Hafta sonu kampanyası!" />
-            </div>
-            <div>
-              <label class="block text-xs font-700 mb-1">Duyuru Mesajı</label>
-              <input type="text" id="annMessage" class="fi2 w-full" placeholder="Örn: Tüm tokenlerde %50 indirim!" />
-            </div>
-          </div>
-          <div class="flex gap-2">
-            <button id="saveAnnouncementBtn" class="btn btn-g px-5 py-2">📢 Duyuru Yayınla</button>
-            <button id="clearAnnouncementBtn" class="btn btn-o px-5 py-2">🗑️ Duyuruyu Kaldır</button>
-          </div>
-          <div id="annMsg" class="mt-2 text-sm font-bold text-green-400"></div>
-        </div>
-        <!-- /DUYURU SİSTEMİ -->
 
         <!-- MAĞAZA YÖNETİMİ -->
         <div class="admin-shell mb-6" style="border: 1px solid #8b5cf6; background: rgba(139,92,246,0.05);">
@@ -1028,29 +1149,27 @@
         </div>
         <!-- /MAĞAZA YÖNETİMİ -->
 
-        <!-- TOPLU TOKEN OLUŞTURMA -->
-        <div class="admin-shell mb-6" style="border: 1px solid #10b981; background: rgba(16,185,129,0.05);">
-          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
-            <div>
-              <div class="slabel mb-3" style="color:#10b981;background:rgba(16,185,129,0.2);">Toplu Oluşturma</div>
-              <h2 class="syne text-2xl font-800 text-green-400">Toplu Token Oluştur & İndir</h2>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <select id="bulk-token-duration" class="fi2 text-sm">
-              <option value="lifetime">Sınırsız</option>
-              <option value="1d">1 Gün</option>
-              <option value="7d">1 Hafta</option>
-              <option value="30d">1 Ay</option>
-            </select>
-            <input type="number" id="bulk-token-count" min="1" max="100" value="10" class="fi2 text-sm" style="width:80px" />
-            <span class="text-xs" style="color:var(--muted)">adet</span>
-            <button id="bulkGenerateBtn" class="btn btn-g px-5 py-2">⚡ Oluştur ve TXT İndir</button>
-          </div>
-          <div id="bulkMsg" class="mt-2 text-sm font-bold text-green-400"></div>
-        </div>
-        <!-- /TOPLU TOKEN OLUŞTURMA -->
 
+        <div class="admin-shell mb-6" style="border: 1px solid #d946ef; background: rgba(217,70,239,0.05);">
+          <div class="slabel mb-3" style="color:#d946ef;background:rgba(217,70,239,0.2);">Pazarlama</div>
+          <h2 class="syne text-xl font-800 text-fuchsia-400 mb-4">Promosyon Kodları</h2>
+          <div class="flex gap-2 mb-4">
+            <input type="text" id="promoCodeInput" class="fi2 w-full" placeholder="KOD (Örn: YAZ24)" />
+            <input type="number" id="promoDaysInput" class="fi2 w-24" placeholder="Gün" />
+            <input type="number" id="promoMaxUsesInput" class="fi2 w-24" placeholder="Limit" />
+            <button onclick="addPromoCode()" class="btn btn-g px-4">Ekle</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left" style="min-width:400px">
+              <thead><tr style="border-bottom:1px solid var(--border)"><th class="py-2 text-xs text-gray-400">KOD</th><th class="py-2 text-xs text-gray-400">GÜN</th><th class="py-2 text-xs text-gray-400">KULLANIM</th><th class="py-2 text-xs text-gray-400 text-right">İŞLEM</th></tr></thead>
+              <tbody id="promoTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: SYSTEM / MARIFETSTORE PLUGIN -->
+      <div id="adminTab-system" class="admin-tab-pane hidden w-full space-y-6">
         <!-- MARIFETSTORE ADMIN -->
       <div class="admin-shell mb-6" style="border: 1px solid #F59E0B; background: rgba(245, 158, 11, 0.05);">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
@@ -1100,6 +1219,57 @@
         <div id="mfMsg" class="mt-2 text-sm text-green-400 font-bold"></div>
       </div>
       <!-- /MARIFETSTORE ADMIN -->
+
+      </div>
+
+      <!-- TAB 5: TICKETS & ANNOUNCEMENTS -->
+      <div id="adminTab-tickets" class="admin-tab-pane hidden w-full space-y-6">
+        <!-- DESTEK TALEPLERİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #3b82f6; background: rgba(59,130,246,0.05);">
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <div class="slabel mb-3" style="color:#3b82f6;background:rgba(59,130,246,0.2);">Müşteri Hizmetleri</div>
+                <h2 class="syne text-xl font-800 text-blue-400">Destek Talepleri (Tickets)</h2>
+              </div>
+              <button onclick="loadV5Data()" class="btn btn-o px-4 py-2 text-sm">Yenile</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="ticketsGrid">
+            </div>
+        </div>
+        <!-- /PROMO & BLACKLIST & TICKETS -->
+
+
+        <!-- DUYURU SİSTEMİ -->
+        <div class="admin-shell mb-6" style="border: 1px solid #f59e0b; background: rgba(245,158,11,0.05);">
+          <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div>
+              <div class="slabel mb-3" style="color:#f59e0b;background:rgba(245,158,11,0.2);">Bildirim Sistemi</div>
+              <h2 class="syne text-2xl font-800 text-yellow-400">Duyuru Yönetimi</h2>
+              <p class="text-sm mt-2" style="color:var(--muted)">Tüm müşteriler uygulamayı açtığında bu mesajı görür.</p>
+            </div>
+          </div>
+          <div class="grid lg:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-xs font-700 mb-1">Duyuru Başlığı</label>
+              <input type="text" id="annTitle" class="fi2 w-full" placeholder="Örn: Hafta sonu kampanyası!" />
+            </div>
+            <div>
+              <label class="block text-xs font-700 mb-1">Duyuru Mesajı</label>
+              <input type="text" id="annMessage" class="fi2 w-full" placeholder="Örn: Tüm tokenlerde %50 indirim!" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="saveAnnouncementBtn" class="btn btn-g px-5 py-2">📢 Duyuru Yayınla</button>
+            <button id="clearAnnouncementBtn" class="btn btn-o px-5 py-2">🗑️ Duyuruyu Kaldır</button>
+          </div>
+          <div id="annMsg" class="mt-2 text-sm font-bold text-green-400"></div>
+        </div>
+        <!-- /DUYURU SİSTEMİ -->
+
+
+      </div>
+
+      <!-- HIDDEN CONTAINERS (BACKGROUND JS COMPATIBILITY) -->
       <!-- Arka plan JS fonksiyonlarının çökmemesi için gizli tutulan hedef konteynerlar -->
       <div style="display:none;">
         <div id="adminLiveClock"></div>
@@ -1151,59 +1321,14 @@
         <p id="commerceMessage"></p>
         <div id="userDetailPanel"></div>
       </div>
-      <div class="admin-shell">
-        <div class="admin-section-head">
-          <div><div class="slabel mb-3">Admin Paneli</div><h2 class="syne text-2xl font-800">Kayıtlı Kullanıcılar</h2></div>
-          <button id="refreshUsersBtn" class="btn btn-g px-5 py-2.5 text-sm">Yenile</button>
-        </div>
-        <div class="admin-actions-bar mb-4 flex flex-wrap items-center gap-3">
-          <input id="userSearchInput" class="fi2" style="max-width:280px" placeholder="Kullanıcı, e-posta veya HWID ara" />
-          <select id="userFilterSelect" class="fi2" style="max-width:230px">
-            <option value="all">Tüm kullanıcılar</option>
-            <option value="pending">Onay bekleyenler</option>
-            <option value="blocked">Sadece banlı/engelli</option>
-            <option value="expired">Lisansı bitenler</option>
-            <option value="today">Bugün aktif olanlar</option>
-            <option value="risky">Riskli kullanıcılar</option>
-            <option value="review">İncelemede olanlar</option>
-            <option value="pcban">PC banlılar</option>
-          </select>
-          <button id="clearUserFiltersBtn" class="btn btn-o px-4 py-2 text-sm">Filtreyi Temizle</button>
-        </div>
-        <div class="admin-actions-bar mb-4 flex flex-wrap items-center gap-3">
-          <select id="bulkAction" class="fi2" style="max-width:190px"><option value="block">Engelle</option><option value="unblock">Engeli Aç</option><option value="approve">Hesap Onayla</option><option value="reject">Hesap Reddet</option><option value="license">Lisans Ver</option><option value="pcban">PC Ban</option><option value="command">Komut Gönder</option><option value="delete">Sil</option></select>
-          <select id="bulkCommand" class="fi2" style="max-width:210px"><option value="refresh_control">Kontrol Yenile</option><option value="health_check">Sağlık Kontrol</option><option value="repair_health_shield">Kalkan Onar</option><option value="integrity_check">Dosya Kontrol</option><option value="repair_integrity">Dosya Onar</option><option value="logout">Çıkış Yaptır</option><option value="cleanup_games">Oyunları Temizle</option><option value="reset_account">Ayar Sıfırla</option><option value="install_cleanup_watchdog">Temizleme Koruması Aç</option><option value="remove_cleanup_watchdog">Temizleme Koruması Kapat</option></select>
-          <select id="bulkLicensePackage" class="fi2" style="max-width:210px"><option value="">Lisans paketi seç</option></select>
-          <input id="bulkLicenseUntil" class="fi2" style="max-width:170px" placeholder="Lisans YYYY-MM-DD" />
-          <input id="bulkDailyLimit" class="fi2" style="max-width:140px" placeholder="Günlük limit" />
-          <button id="runBulkActionBtn" class="btn btn-o px-4 py-2 text-sm">Toplu Uygula</button>
-        </div>
-        <p id="adminMessage" class="text-sm mb-4" style="color:var(--muted)"></p>
-        <div class="overflow-x-auto admin-panel-table">
-          <table class="min-w-full text-sm">
-            <thead><tr style="background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)">
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)"><input id="selectAllUsers" type="checkbox" class="accent-green-400" /></th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">ID</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Kullanıcı</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">E-posta</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Rol</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Durum</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">İstatistik</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Lisans</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Risk</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">Kayıt</th>
-              <th class="px-4 py-3 text-left text-xs font-700 uppercase tracking-wider" style="color:var(--muted)">İşlem</th>
-            </tr></thead>
-            <tbody id="usersTableBody"></tbody>
-          </table>
-        </div>
-      </div>
+
+
     </section>
 
     <!-- WHY US -->
     
     <!-- (113) BLOG & OYUN DÜNYASI HABERLERİ -->
-    <section id="haberler" class="mx-auto max-w-7xl px-5 sm:px-8 py-16">
+    <section id="haberler" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 py-16">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <div class="slabel mb-2">GÜNCEL DUYURULAR & FIRSATLAR</div>
@@ -1232,7 +1357,7 @@
         </div>
       </div>
     </section>
-<section id="nedenbiz" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+<section id="nedenbiz" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="text-center mb-12">
         <div class="slabel mb-4 justify-center">Neden Biz</div>
         <h2 class="syne text-3xl md:text-4xl font-800">Fark yaratan özellikler</h2>
@@ -1263,7 +1388,7 @@
     </section>
 
     <!-- VIDEO -->
-    <section id="urunler" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <section id="urunler" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
         <div><div class="slabel mb-4">Nasıl Yapılır?</div><h2 class="syne text-3xl md:text-4xl font-800">Kurulum ve Kullanım</h2></div>
         <p class="text-sm leading-6 max-w-xs" style="color:var(--muted)">Videodan adım adım nasıl çalıştığını öğren.</p>
@@ -1287,7 +1412,7 @@
     </section>
 
     <!-- ACCESS -->
-    <section id="erisim" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <section id="erisim" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="rounded-3xl p-8 md:p-12" style="background:linear-gradient(135deg,rgba(0,230,118,.05),rgba(0,229,255,.03));border:1px solid rgba(0,230,118,.1)">
         <div class="grid md:grid-cols-2 gap-10 items-center">
           <div>
@@ -1314,7 +1439,7 @@
     </section>
 
     <!-- REVIEWS -->
-    <section id="yorumlar" class="mx-auto max-w-7xl px-5 sm:px-8 pb-24 rv">
+    <section id="yorumlar" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-24 rv">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
         <div><div class="slabel mb-4">Topluluk</div><h2 class="syne text-3xl md:text-4xl font-800">Son Yorumlar</h2></div>
         <p class="text-sm leading-6 max-w-xs" style="color:var(--muted)">Kayıt olan üyeler yorum bırakabilir.</p>
@@ -1342,7 +1467,7 @@
     </section>
 
     <!-- CONTACT -->
-    <section id="iletisim" class="mx-auto max-w-7xl px-5 sm:px-8 pb-24 rv">
+    <section id="iletisim" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-24 rv">
       <div class="grid lg:grid-cols-5 gap-6">
         <div class="lg:col-span-3 glass-s rounded-3xl p-8">
           <div class="slabel mb-4">Satış & Destek</div>
@@ -1382,7 +1507,7 @@
     </section>
 
     <!-- FAQ -->
-    <section id="yasal" class="mx-auto max-w-7xl px-5 sm:px-8 pb-20 rv">
+    <section id="yasal" class="mx-auto w-full max-w-[1880px] px-5 sm:px-8 pb-20 rv">
       <div class="slabel mb-4">Şeffaflık</div><h2 class="syne text-3xl font-800 mb-6">Satış ve kullanım koşulları</h2>
       <div class="grid md:grid-cols-3 gap-4">
         <div class="glass rounded-2xl p-5"><div class="font-800 mb-2">Dijital teslimat</div><p class="text-sm leading-6" style="color:var(--muted)">Ödeme doğrulandıktan sonra lisans hesabına tanımlanır. Dijital ürünlerde işlem başladıktan sonra iade değerlendirmesi hizmet durumuna göre yapılır.</p></div>
@@ -1555,9 +1680,12 @@
     function fastFetch(input,init){
       init=init||{};
       if(init.signal)return nativeFetch(input,init);
-      const timeout=Number(init.timeout||0)||12000;
+      const timeout=Number(init.timeout||0)||25000;
       const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),timeout);
+      const timer=setTimeout(()=>{
+        try { controller.abort(new DOMException('Zaman aşımı', 'AbortError')); }
+        catch(_) { controller.abort(); }
+      }, timeout);
       const next={...init,signal:controller.signal};
       delete next.timeout;
       return nativeFetch(input,next).finally(()=>clearTimeout(timer));
@@ -1711,6 +1839,11 @@
         const roleLabel=pluginOnly?'plugin':u.role;
         const rowId=esc(String(u.virtual_id||u.id||''));
         const reviewMode=!!u.review_mode;
+        const isOnline=!!u.online;
+        const onlinePill=isOnline
+          ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-800 inline-flex items-center gap-1.5" style="background:rgba(0,230,118,.15);color:#7dffc0;border:1px solid rgba(0,230,118,.35);box-shadow:0 0 10px rgba(0,230,118,.25)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00e676;box-shadow:0 0 6px #00e676"></span>ÇEVRİM İÇİ</span>`
+          : `<span class="text-xs px-2 py-0.5 rounded-full font-600 inline-flex items-center gap-1" style="background:rgba(255,255,255,.04);color:var(--muted);border:1px solid var(--border)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#64748b"></span>Çevrim Dışı</span>`;
+        const sessionActionBtns=u.role==='admin'?'':`<button data-action="terminate_session" data-id="${rowId}" title="Oturumu Sonlandır" class="text-xs px-2.5 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)">Oturumu Kapat</button><button data-action="clear_data" data-id="${rowId}" title="Cihaz ve Eklenti Verilerini Temizle" class="text-xs px-2.5 py-1.5 rounded-lg font-700" style="background:rgba(245,158,11,.12);color:#fde68a;border:1px solid rgba(245,158,11,.25)">Veri Temizle</button>`;
         const actionCell=pluginOnly
           ? `<span class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(56,189,248,.1);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)">Eski plugin girişi</span><span class="text-xs" style="color:var(--muted)">Kullanıcı tablosunda yok; e-posta/HWID izi plugin durum/log kayıtlarından alındı.</span>`
           : `${u.role==='admin'?'<span class="text-xs" style="color:var(--muted)">Admin</span>':`${approval!=='approved'?`<button data-action="approve" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Onayla</button>`:''}${approval!=='rejected'?`<button data-action="reject" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)">Reddet</button>`:''}<button data-action="${reviewMode?'reviewoff':'reviewon'}" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.25)">${reviewMode?'İnceleme Kapat':'İncelemeye Al'}</button>${u.is_blocked?`<button data-action="unblock" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-600" style="background:var(--surface);border:1px solid var(--border)">Engeli Aç</button>`:`<button data-action="block" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-600" style="background:var(--surface);border:1px solid var(--border)">Engelle</button>`}${u.is_pc_banned?'<span class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)">PC Banlı</span>':`<button data-action="pcban" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.3)" ${u.hwid?'':'disabled title="HWID yok"'}>PC Ban</button>`}<button data-action="license" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(56,189,248,.1);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)">Lisans</button><button data-action="delete" data-id="${u.id}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)">Sil</button>`}`;
@@ -1719,12 +1852,12 @@
           <td class="px-4 py-3 text-sm font-600">${u.username}</td>
           <td class="px-4 py-3 text-sm" style="color:var(--muted)">${u.email}</td>
           <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full font-700" style="${u.role==='admin'?'background:var(--green-dim);color:var(--green);border:1px solid rgba(0,230,118,.2)':(pluginOnly?'background:rgba(56,189,248,.1);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)':'background:var(--surface);border:1px solid var(--border);color:var(--muted)')}">${roleLabel}</span></td>
-          <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full font-700" style="${u.is_blocked?'background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)':'background:var(--green-dim);color:#7dffc0;border:1px solid rgba(0,230,118,.2)'}">${u.is_blocked?'Engelli':'Aktif'}</span><br><span class="text-xs px-2.5 py-1 rounded-full font-700 inline-block mt-1" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:${approvalColor}">${approvalText}</span>${reviewBadge}</td>
+          <td class="px-4 py-3">${onlinePill}<br><span class="text-xs px-2.5 py-1 rounded-full font-700 inline-block mt-1" style="${u.is_blocked?'background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)':'background:var(--green-dim);color:#7dffc0;border:1px solid rgba(0,230,118,.2)'}">${u.is_blocked?'Engelli':'Aktif'}</span><br><span class="text-xs px-2.5 py-1 rounded-full font-700 inline-block mt-1" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:${approvalColor}">${approvalText}</span>${reviewBadge}</td>
           <td class="px-4 py-3 text-xs" style="color:var(--muted)">Oyun: ${u.add_game_count||0}<br>Son giriş: ${lastLogin}</td>
           <td class="px-4 py-3 text-xs" style="color:var(--muted)">Bitiş: ${license}<br>Günlük limit: ${limit?limit:'Sınırsız'}<br>AppID: ${allowedAppids?esc(allowedAppids).slice(0,32):'Sınırsız'}</td>
           <td class="px-4 py-3 text-xs"><span class="px-2.5 py-1 rounded-full font-800" style="background:rgba(255,255,255,.04);border:1px solid var(--border);color:${riskColor}">${risk.score}</span><br><span style="color:var(--muted)">${esc((risk.reasons||[]).slice(0,2).join(', ')||'Düşük')}</span></td>
           <td class="px-4 py-3 text-sm" style="color:var(--muted)">${new Date(u.created_at).toLocaleString('tr-TR')}</td>
-          <td class="px-4 py-3"><div class="flex gap-2 flex-wrap"><button data-action="detail" data-id="${rowId}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Detay</button>${actionCell}</div></td>`;
+          <td class="px-4 py-3"><div class="flex gap-2 flex-wrap"><button data-action="detail" data-id="${rowId}" class="text-xs px-3 py-1.5 rounded-lg font-700" style="background:rgba(0,230,118,.1);color:#7dffc0;border:1px solid rgba(0,230,118,.2)">Detay</button>${sessionActionBtns}${actionCell}</div></td>`;
         usersBody.appendChild(tr);
       });
     }
@@ -1739,6 +1872,8 @@
         const expired=!!u.license_until&&new Date(u.license_until).getTime()<Date.now();
         const todayActive=String(u.last_action_at||u.last_login_at||'').startsWith(today);
         const risky=Number(u.risk?.score||0)>=35;
+        if(f==='online')return !!u.online;
+        if(f==='offline')return !u.online;
         if(f==='pending')return String(u.approval_status||'approved')==='pending';
         if(f==='blocked')return !!u.is_blocked||!!u.is_pc_banned;
         if(f==='expired')return expired;
@@ -2228,22 +2363,26 @@
         rvGate.textContent='Giriş yaptın. Yorumunu gönderebilirsin.';
         accountPanel.classList.remove('hidden');accountLink.classList.remove('hidden');accountLinkMobile.classList.remove('hidden');
         loadAccountSummary();
-        const isAdmin=d.user.role==='admin';
+        const isAdmin = Boolean(d.user && (d.user.role === 'admin' || d.user.isAdmin));
+        window.currentUser = d.user;
+        window.currentUser.isAdmin = isAdmin;
         adminPanel.classList.toggle('hidden',!isAdmin);adminLink.classList.toggle('hidden',!isAdmin);
-        const fSec=document.getElementById('fixesSection'),fLnk=document.getElementById('fixesMenuLink'),fLnkMob=document.getElementById('fixesMenuLinkMobile');
-        if(fSec)fSec.classList.toggle('hidden',!isAdmin);if(fLnk)fLnk.classList.toggle('hidden',!isAdmin);if(fLnkMob)fLnkMob.classList.toggle('hidden',!isAdmin);
-        if(isAdmin){loadAdminUsers();loadPluginControl();loadAdminDashboard();
-      checkAdminDbStatus();
-      loadTokens();
+        const fLink = document.getElementById('fixesMenuLink'); if (fLink) fLink.classList.toggle('hidden', !isAdmin);
+        const fLinkM = document.getElementById('fixesMenuLinkMobile'); if (fLinkM) fLinkM.classList.toggle('hidden', !isAdmin);
+        const fSec = document.getElementById('fixesSection'); if (fSec) fSec.classList.toggle('hidden', !isAdmin);
+        if(isAdmin){
+          loadAdminUsers();loadPluginControl();loadAdminDashboard();
+          checkAdminDbStatus();
+          loadTokens();
           loadCredits();
-          if(window.fetchFixes)window.fetchFixes();}
+          if(window.fetchFixes) window.fetchFixes();
+        }
       } else {
         welcomeUser.classList.add('hidden');logoutBtn.classList.add('hidden');
         document.getElementById('loginOpenBtn').classList.remove('hidden');
         document.getElementById('registerOpenBtn').classList.remove('hidden');
         adminPanel.classList.add('hidden');adminLink.classList.add('hidden');
-        const fSec=document.getElementById('fixesSection'),fLnk=document.getElementById('fixesMenuLink'),fLnkMob=document.getElementById('fixesMenuLinkMobile');
-        if(fSec)fSec.classList.add('hidden');if(fLnk)fLnk.classList.add('hidden');if(fLnkMob)fLnkMob.classList.add('hidden');
+        // Fixes section remains accessible to all visitors and users
         accountPanel.classList.add('hidden');accountLink.classList.add('hidden');accountLinkMobile.classList.add('hidden');
         rvText.disabled=true;rvBtn.disabled=true;rvBtn.classList.add('opacity-50');
         rvGate.textContent='Yorum yazmak için giriş yapman gerekir.';
@@ -2545,6 +2684,28 @@
         const r=await fetch(adminUserUrl(id,'/license'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({license_until,daily_limit:Number(daily_limit||0)})}),d=await r.json();
         adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok)loadAdminUsers();return;
       }
+      if(action==='terminate_session'){
+        if(!confirm('Bu kullanıcının oturumu sonlandırılsın ve uygulamadan çıkış yaptırılsın mı?'))return;
+        try {
+          const r=await fetch(`/api/admin/users/${encodeURIComponent(id)}/terminate-session`,{method:'POST'});
+          const d=await r.json();
+          adminMsg.textContent=d.message||'';
+          if(d.ok){toast('✓ Oturum sonlandırıldı');loadAdminUsers();}
+          else{alert('Hata: ' + (d.message||'İşlem başarısız'));}
+        }catch(err){alert('Bağlantı hatası: ' + err.message);}
+        return;
+      }
+      if(action==='clear_data'){
+        if(!confirm('Bu kullanıcının cihaz kayıtları, eklenti verileri ve oturum bilgileri veritabanından silinsin mi?'))return;
+        try {
+          const r=await fetch(`/api/admin/users/${encodeURIComponent(id)}/clear-data`,{method:'POST'});
+          const d=await r.json();
+          adminMsg.textContent=d.message||'';
+          if(d.ok){toast('✓ Kullanıcı verileri temizlendi');loadAdminUsers();}
+          else{alert('Hata: ' + (d.message||'İşlem başarısız'));}
+        }catch(err){alert('Bağlantı hatası: ' + err.message);}
+        return;
+      }
       if(action==='delete'){if(!confirm('Bu kullanıcı silinsin mi?'))return;ep=adminUserUrl(id,'/delete');}
       const r=await fetch(ep,{method:'POST'}),d=await r.json();
       adminMsg.textContent=d.message||''; if(!d.ok) alert('HATA: ' + (d.message||'Bilinmeyen hata'));if(d.ok)loadAdminUsers();
@@ -2791,7 +2952,7 @@
       if (!tbody) return;
       try {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-gray-400">Tokenlar yükleniyor...</td></tr>';
-        const r = await fastFetch('/api/admin/tokens', { timeout: 8000 });
+        const r = await fastFetch('/api/admin/tokens', { timeout: 30000 });
         const d = await readJsonSafe(r);
         
         if (d.ok && Array.isArray(d.tokens)) {
@@ -2880,6 +3041,24 @@
           tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">Tokenlar yüklenemedi: ${esc(d.message || 'Yetki hatası')}</td></tr>`;
         }
       } catch(e) {
+        if (e.name === 'AbortError' || String(e).includes('abort')) {
+          console.warn('loadTokens abort yakalandı, arka planda yeniden deneniyor...');
+          setTimeout(() => {
+            fastFetch('/api/admin/tokens', { timeout: 35000 })
+              .then(r => readJsonSafe(r))
+              .then(d => {
+                if (d && d.ok && Array.isArray(d.tokens)) {
+                  loadTokens();
+                } else {
+                  tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-amber-400">Token listesi yanıt vermedi. <button onclick="loadTokens()" class="underline text-purple-400 font-bold ml-1">Tekrar Dene</button></td></tr>';
+                }
+              })
+              .catch(() => {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-sm text-amber-400">Token listesi yanıt vermedi. <button onclick="loadTokens()" class="underline text-purple-400 font-bold ml-1">Tekrar Dene</button></td></tr>';
+              });
+          }, 600);
+          return;
+        }
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-sm text-red-400">Bağlantı hatası: ${esc(String(e))}</td></tr>`;
       }
     }
@@ -3331,6 +3510,7 @@
         const r = await fastFetch('/api/admin/tokens', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          timeout: 30000,
           body: JSON.stringify({
             type: 'multi_game',
             duration: dur,
@@ -3949,5 +4129,100 @@
   })();
 </script>
 
+
+<script>
+  // Admin Tab Navigation
+  window.switchAdminTab = function(tabId) {
+    const tabs = ['tokens', 'users', 'store', 'system', 'tickets', 'fixes'];
+    tabs.forEach(t => {
+      const pane = document.getElementById('adminTab-' + t);
+      const btn = document.getElementById('adminTabBtn-' + t);
+      if (pane) {
+        if (t === tabId) {
+          pane.classList.remove('hidden');
+        } else {
+          pane.classList.add('hidden');
+        }
+      }
+      if (btn) {
+        if (t === tabId) {
+          btn.classList.add('active', 'border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300');
+          btn.classList.remove('border-white/10', 'bg-white/5', 'text-gray-300');
+        } else {
+          btn.classList.remove('active', 'border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300');
+          btn.classList.add('border-white/10', 'bg-white/5', 'text-gray-300');
+        }
+      }
+    });
+
+    if (tabId === 'users') {
+      if (typeof loadAdminUsers === 'function') loadAdminUsers();
+      if (typeof loadV5Data === 'function') loadV5Data();
+    } else if (tabId === 'tokens') {
+      if (typeof loadTokens === 'function') loadTokens();
+      if (typeof loadTokenStats === 'function') loadTokenStats();
+    } else if (tabId === 'store') {
+      if (typeof loadCredits === 'function') loadCredits();
+      if (typeof loadV5Data === 'function') loadV5Data();
+      if (typeof loadAdminStore === 'function') loadAdminStore();
+    } else if (tabId === 'system') {
+      if (typeof loadPluginControl === 'function') loadPluginControl();
+        } else if (tabId === 'tickets') {
+      if (typeof loadAdminTickets === 'function') loadAdminTickets();
+    } else if (tabId === 'fixes') {
+      if (typeof fetchFixes === 'function') fetchFixes();
+      if (typeof syncAdminFixesView === 'function') syncAdminFixesView();
+    }
+  };
+
+  // Open & Scroll to Fixes Section
+  window.openFixesSection = function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const isAdmin = window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.isAdmin);
+    if (!isAdmin) {
+      if (typeof showToast === 'function') showToast('Bu bölüm yalnızca yöneticilere özeldir.', 'warning');
+      return;
+    }
+    const fSec = document.getElementById('fixesSection');
+    if (fSec) {
+      fSec.classList.remove('hidden');
+      fSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (typeof fetchFixes === 'function') {
+      fetchFixes();
+    }
+  };
+
+  // Auto-init only for admins
+  document.addEventListener('DOMContentLoaded', () => {
+    const isAdmin = window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.isAdmin);
+    if (isAdmin) {
+      if (window.location.hash === '#fixesSection' || window.location.hash === '#fixes') {
+        window.openFixesSection();
+      } else if (typeof fetchFixes === 'function') {
+        fetchFixes();
+      }
+    }
+  });
+</script>
+
+<script>
+function updateFixesAdminVisibility() {
+
+// Admin-only fixes section visibility
+if (window.currentUser && (window.currentUser.role === 'admin' || window.currentUser.isAdmin)) {
+    const s = document.getElementById('fixesSection'); if (s) s.classList.remove('hidden');
+    const m = document.getElementById('fixesMenuLink'); if (m) m.classList.remove('hidden');
+    const mb = document.getElementById('fixesMenuLinkMobile'); if (mb) mb.classList.remove('hidden');
+} else {
+    const s = document.getElementById('fixesSection'); if (s) s.classList.add('hidden');
+    const m = document.getElementById('fixesMenuLink'); if (m) m.classList.add('hidden');
+    const mb = document.getElementById('fixesMenuLinkMobile'); if (mb) mb.classList.add('hidden');
+}
+
+}
+document.addEventListener("DOMContentLoaded", updateFixesAdminVisibility);
+window.addEventListener("authChanged", updateFixesAdminVisibility);
+</script>
 </body>
 </html>

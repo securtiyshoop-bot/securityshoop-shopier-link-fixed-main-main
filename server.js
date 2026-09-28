@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const MySQLStoreFactory = require('express-mysql-session')(session);
@@ -749,21 +749,33 @@ const cloudCache = new Map();
 const cloudCacheTTL = new Map();
 
 function fetchCloudJson(id, fallback) {
-  if (id === CLOUD_STORAGE_IDS.tokens && useDatabase && pool) {
-    return loadTokensFromDb().then(dbTokens => {
-      const disk = readTokensFile();
-      const map = new Map();
-      (disk.tokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
-      (dbTokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
-      const merged = { tokens: Array.from(map.values()) };
-      cloudCache.set(id, merged);
-      cloudCacheTTL.set(id, Date.now() + 600000);
-      return merged;
-    }).catch(() => {
-      const cached = cloudCache.get(id);
-      if (cached) return cached;
-      return readTokensFile();
-    });
+  if (id === CLOUD_STORAGE_IDS.tokens) {
+    const cached = cloudCache.get(id);
+    const exp = cloudCacheTTL.get(id) || 0;
+    if (cached && Date.now() < exp) {
+      return Promise.resolve(cached);
+    }
+    if (useDatabase && pool) {
+      return loadTokensFromDb().then(dbTokens => {
+        const disk = readTokensFile();
+        const map = new Map();
+        (disk.tokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
+        (dbTokens || []).forEach(t => { if (t && (t.token || t.code)) map.set(String(t.token || t.code).toLowerCase().trim(), t); });
+        const merged = { tokens: Array.from(map.values()) };
+        cloudCache.set(id, merged);
+        cloudCacheTTL.set(id, Date.now() + 600000);
+        return merged;
+      }).catch(() => {
+        const disk = readTokensFile();
+        cloudCache.set(id, disk);
+        cloudCacheTTL.set(id, Date.now() + 600000);
+        return disk;
+      });
+    }
+    const disk = readTokensFile();
+    cloudCache.set(id, disk);
+    cloudCacheTTL.set(id, Date.now() + 600000);
+    return Promise.resolve(disk);
   }
 
   const cached = cloudCache.get(id);
@@ -876,27 +888,50 @@ function saveCloudJson(id, name, partialData) {
   cloudCache.set(id, mergedData);
   cloudCacheTTL.set(id, Date.now() + 600000);
   
-  return new Promise((resolve) => {
-    const payload = JSON.stringify({ name: `marifetstore_${name}`, data: mergedData });
-    const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      },
-      timeout: 4000
-    }, (res) => {
-      resolve(res.statusCode >= 200 && res.statusCode < 300);
-    });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => { req.destroy(); resolve(false); });
-    req.write(payload);
-    req.end();
+  // Non-blocking background sync so it never delays HTTP response or triggers AbortError:
+  setImmediate(() => {
+    try {
+      const payload = JSON.stringify({ name: `marifetstore_${name}`, data: mergedData });
+      const req = https.request(`https://api.restful-api.dev/objects/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 4000
+      }, () => {});
+      req.on('error', () => {});
+      req.on('timeout', () => { req.destroy(); });
+      req.write(payload);
+      req.end();
+    } catch (_) {}
   });
+
+  return Promise.resolve(true);
 }
 
 
 const app = express();
+
+const _simpleMemCache = new Map();
+function getFromMemCache(key, ttlMs) {
+  const item = _simpleMemCache.get(key);
+  if (item && Date.now() - item.time < ttlMs) return item.val;
+  return null;
+}
+function setMemCache(key, val) {
+  _simpleMemCache.set(key, { val, time: Date.now() });
+}
+
+
+// Security Headers Protection (CWE-693)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
 const shopierOsbForm = multer({
   storage: multer.memoryStorage(),
   limits: { fields: 10, fieldSize: 2 * 1024 * 1024, files: 0 }
@@ -1897,7 +1932,10 @@ async function initDatabase() {
     // Ignore setup connection error if user has no CREATE DB permissions
   }
 
-  pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 10, queueLimit: 0, connectTimeout: DB_CONNECT_TIMEOUT_MS });
+  pool = mysql.createPool({ ...dbConfig, waitForConnections: true, connectionLimit: 50, queueLimit: 0, connectTimeout: DB_CONNECT_TIMEOUT_MS });
+  pool.on('error', (err) => {
+    console.error('MySQL Pool Handled Error:', err.message);
+  });
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -3124,7 +3162,56 @@ async function listUsers() {
   const pluginStatuses = await listPluginStatuses(500);
   const reports = await listErrorReports(500);
   const attachRisk = (user) => {
-    const merged = { ...withUserDefaults(user), ...(stats[normalizeEmail(user.email)] || {}) };
+    const userEmail = normalizeEmail(user.email);
+    const userStats = stats[userEmail] || {};
+    let latestSeenTime = 0;
+    let latestIp = user.last_ip || '';
+    let latestHwid = user.hwid || '';
+
+    if (userStats.last_action_at) {
+      const t = new Date(userStats.last_action_at).getTime();
+      if (!isNaN(t) && t > latestSeenTime) latestSeenTime = t;
+    }
+    if (userStats.last_login_at) {
+      const t = new Date(userStats.last_login_at).getTime();
+      if (!isNaN(t) && t > latestSeenTime) latestSeenTime = t;
+    }
+    if (user.created_at) {
+      const t = new Date(user.created_at).getTime();
+      if (!isNaN(t) && t > latestSeenTime) latestSeenTime = t;
+    }
+
+    const matchedStatuses = pluginStatuses.filter(ps => normalizeEmail(ps.email) === userEmail || (user.username && ps.username && String(ps.username).toLowerCase() === String(user.username).toLowerCase()));
+    for (const ps of matchedStatuses) {
+      const t = new Date(ps.last_seen_at || ps.timestamp || 0).getTime();
+      if (!isNaN(t) && t > latestSeenTime) {
+        latestSeenTime = t;
+        if (ps.ip) latestIp = ps.ip;
+        if (ps.hwid) latestHwid = ps.hwid;
+      }
+    }
+
+    const matchedLogs = riskLogs.filter(rl => normalizeEmail(rl.email) === userEmail || (user.username && rl.username && String(rl.username).toLowerCase() === String(user.username).toLowerCase()));
+    for (const rl of matchedLogs) {
+      const t = new Date(rl.timestamp || 0).getTime();
+      if (!isNaN(t) && t > latestSeenTime) {
+        latestSeenTime = t;
+        if (rl.ip) latestIp = rl.ip;
+        if (rl.hwid) latestHwid = rl.hwid;
+      }
+    }
+
+    const isOnline = latestSeenTime > 0 && (Date.now() - latestSeenTime) < 300000;
+    const lastSeenFormatted = latestSeenTime > 0 ? new Date(latestSeenTime).toISOString() : '';
+
+    const merged = {
+      ...withUserDefaults(user),
+      ...userStats,
+      online: isOnline,
+      last_seen_at: lastSeenFormatted,
+      last_ip: latestIp,
+      last_hwid: latestHwid
+    };
     return { ...merged, risk: calculateUserRisk(merged, riskLogs, pluginStatuses, reports) };
   };
   const mergePluginOnlyUsers = (users) => {
@@ -4432,7 +4519,7 @@ async function buildPluginControlResponse(control) {
 }
 
 function getRequestIp(req) {
-  return String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+  return String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || '').trim();
 }
 
 function normalizeInstalledGames(value) {
@@ -5746,7 +5833,33 @@ async function bootSecurityShoopServer(options = {}) {
       // Non-blocking background log
       recordActivityLog({ user, action: 'LOGIN', details: req.body?.hwid ? `HWID: ${req.body.hwid}` : '' }).catch(() => {});
 
-      res.json({ ok: true, message: 'Giriş başarılı.', user: publicUserPayload({ ...user, ...req.session.user }, token) });
+            const activeLic = await getUserActiveLicense(user.username || user.email);
+      let licToken = '', licType = 'vip', licAppids = [], licGName = '', licExp = null;
+      if (activeLic) {
+        licToken = activeLic.token || activeLic.code;
+        licAppids = activeLic.allowed_appids || (activeLic.allowed_appid ? String(activeLic.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+        licType = activeLic.type || (activeLic.role === 'admin' ? 'vip' : (licAppids.length > 1 ? 'multi_game' : (activeLic.allowed_appid ? 'single_game' : 'vip')));
+        licGName = activeLic.game_name || '';
+        licExp = activeLic.expires_at || null;
+        const reqHwid = req.body?.hwid;
+        if (reqHwid && activeLic.used_by_hwid !== reqHwid) {
+          activeLic.used_by_hwid = reqHwid;
+          if (useDatabase && pool) saveTokenToDb(activeLic).catch(() => {});
+        }
+      }
+      res.json({
+        ok: true,
+        message: 'Giriş başarılı.',
+        user: {
+          ...publicUserPayload({ ...user, ...req.session.user }, token),
+          license_token: licToken,
+          license_type: licType,
+          allowed_appids: licAppids,
+          allowed_game_name: licGName,
+          expires_at: licExp,
+          is_licensed: Boolean(licToken)
+        }
+      });
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({ ok: false, message: 'Giriş yapılırken sunucu hatası oluştu.' });
@@ -5801,12 +5914,95 @@ async function bootSecurityShoopServer(options = {}) {
       await updateUserHwidIfMissing(user, hwid);
       const token = await issueUserToken(user);
       await recordActivityLog({ user, action: 'PLUGIN_LOGIN', details: hwid ? `HWID: ${hwid}` : '' });
-      res.json({ ok: true, message: 'Plugin girisi basarili.', user: publicUserPayload(user, token) });
+            const activeLic = await getUserActiveLicense(user.username || user.email);
+      let licToken = '', licType = 'vip', licAppids = [], licGName = '', licExp = null;
+      if (activeLic) {
+        licToken = activeLic.token || activeLic.code;
+        licAppids = activeLic.allowed_appids || (activeLic.allowed_appid ? String(activeLic.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+        licType = activeLic.type || (activeLic.role === 'admin' ? 'vip' : (licAppids.length > 1 ? 'multi_game' : (activeLic.allowed_appid ? 'single_game' : 'vip')));
+        licGName = activeLic.game_name || '';
+        licExp = activeLic.expires_at || null;
+        if (hwid && activeLic.used_by_hwid !== hwid) {
+          activeLic.used_by_hwid = hwid;
+          if (useDatabase && pool) saveTokenToDb(activeLic).catch(() => {});
+        }
+      }
+      res.json({
+        ok: true,
+        message: 'Plugin girisi basarili.',
+        user: {
+          ...publicUserPayload(user, token),
+          license_token: licToken,
+          license_type: licType,
+          allowed_appids: licAppids,
+          allowed_game_name: licGName,
+          expires_at: licExp,
+          is_licensed: Boolean(licToken)
+        }
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ ok: false, message: 'Sunucu hatasi olustu.' });
     }
   });
+
+  
+  app.all('/api/plugin/user-license', async (req, res) => {
+    try {
+      const username = String(req.query.username || req.body?.username || (req.session?.user ? req.session.user.username : '') || '').trim();
+      const hwid = String(req.query.hwid || req.body?.hwid || '').trim();
+      if (!username) return res.status(400).json({ ok: false, message: 'Kullanıcı adı gerekli.' });
+
+      const activeLic = await getUserActiveLicense(username);
+      if (!activeLic) {
+        return res.json({ ok: false, has_license: false, message: 'Bu hesaba kayıtlı aktif lisans bulunamadı.' });
+      }
+
+      if (hwid && activeLic.used_by_hwid !== hwid) {
+        activeLic.used_by_hwid = hwid;
+        const data = await fetchCloudJson(CLOUD_STORAGE_IDS.tokens, { tokens: [] });
+        await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+        if (useDatabase && pool) saveTokenToDb(activeLic).catch(() => {});
+      }
+
+      let allowedAppids = activeLic.allowed_appids || (activeLic.allowed_appid ? String(activeLic.allowed_appid).split(',').map(s => s.trim()).filter(Boolean) : []);
+      let allowedGameNames = activeLic.game_names || (activeLic.game_name ? String(activeLic.game_name).split(',').map(s => s.trim()).filter(Boolean) : []);
+      let licType = activeLic.type;
+      const tokenVal = activeLic.token || activeLic.code;
+
+      if (tokenVal.startsWith('MS-GAME-') || tokenVal.startsWith('MS-PKG-')) {
+        const parts = tokenVal.split('-');
+        if (parts.length >= 3 && /^\d+$/.test(parts[2])) {
+          if (!allowedAppids.includes(parts[2])) allowedAppids.push(parts[2]);
+          if (!activeLic.allowed_appid) activeLic.allowed_appid = parts[2];
+        }
+        if (!licType || licType === 'vip') {
+          licType = tokenVal.startsWith('MS-GAME-') ? 'single_game' : 'multi_game';
+        }
+      }
+      if (!licType) {
+        licType = (allowedAppids.length > 0) ? 'single_game' : 'vip';
+      }
+
+      return res.json({
+        ok: true,
+        has_license: true,
+        license_token: tokenVal,
+        session_token: tokenVal,
+        role: activeLic.role || 'user',
+        license_type: licType,
+        allowed_appid: activeLic.allowed_appid || allowedAppids.join(','),
+        allowed_appids: allowedAppids,
+        allowed_game_name: activeLic.game_name || allowedGameNames.join(', '),
+        allowed_game_names: allowedGameNames,
+        expires_at: activeLic.expires_at || null,
+        message: 'Aktif lisans başarıyla doğrulandı.'
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, message: 'Sunucu hatası.' });
+    }
+  });
+
 
   app.get('/api/plugin/ping', async (_req, res) => {
     scheduleDatabaseRetry();
@@ -6928,6 +7124,103 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
     }
   });
 
+  // ==========================================
+  // REMOTE SESSION TERMINATION & USER DATA PURGE
+  // ==========================================
+  app.post('/api/admin/users/:id/terminate-session', requireAdmin, async (req, res) => {
+    try {
+      const user = await resolveAdminUserTarget(req.params.id);
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin oturumu uzaktan sonlandırılamaz.' });
+
+      if (useDatabase) {
+        await pool.query('UPDATE users SET session_token = NULL, token_created_at = NULL WHERE id = ?', [user.id]);
+      } else {
+        const data = readUsersFile();
+        const found = data.users.find(u => Number(u.id) === Number(user.id) || normalizeEmail(u.email) === normalizeEmail(user.email));
+        if (found) {
+          found.session_token = null;
+          found.token_created_at = null;
+          writeUsersFile(data);
+          try { await saveCloudJson(CLOUD_STORAGE_IDS.users, 'users', data); } catch (_) {}
+        }
+      }
+
+      try {
+        await createPluginCommand({
+          user_id: typeof user.id === 'number' ? user.id : null,
+          username: user.username || '',
+          email: user.email || '',
+          hwid: user.hwid || '',
+          command: 'logout',
+          payload: { reason: 'Oturum yönetici tarafından sonlandırıldı.' },
+          reason: 'Admin oturum sonlandırma',
+          created_by: req.session?.user?.username || 'admin'
+        });
+      } catch (cmdErr) {
+        console.warn('Dispatch logout command warning:', cmdErr.message);
+      }
+
+      await recordActivityLog({
+        user: req.session.user,
+        action: 'ADMIN_TERMINATE_SESSION',
+        details: `Oturum sonlandırıldı: ${user.username || user.email} (${user.id})`
+      });
+
+      res.json({ ok: true, message: 'Kullanıcı oturumu başarıyla sonlandırıldı ve istemciye çıkış komutu gönderildi.' });
+    } catch (error) {
+      console.error('terminate-session error:', error);
+      res.status(500).json({ ok: false, message: 'Oturum sonlandırılamadı.' });
+    }
+  });
+
+  app.post('/api/admin/users/:id/clear-data', requireAdmin, async (req, res) => {
+    try {
+      const user = await resolveAdminUserTarget(req.params.id);
+      if (!user) return res.status(404).json({ ok: false, message: 'Kullanıcı bulunamadı.' });
+      if (user.role === 'admin') return res.status(400).json({ ok: false, message: 'Admin verileri silinemez.' });
+
+      const email = normalizeEmail(user.email);
+      const username = String(user.username || '').trim();
+
+      if (useDatabase) {
+        try {
+          await pool.query('DELETE FROM plugin_statuses WHERE email = ? OR username = ?', [email, username]);
+          await pool.query('DELETE FROM plugin_commands WHERE email = ? OR username = ?', [email, username]);
+          await pool.query('UPDATE users SET session_token = NULL, token_created_at = NULL WHERE id = ?', [user.id]);
+        } catch (dbErr) {
+          console.warn('DB clear-data partial error:', dbErr.message);
+        }
+      }
+
+      try {
+        await createPluginCommand({
+          user_id: typeof user.id === 'number' ? user.id : null,
+          username: user.username || '',
+          email: user.email || '',
+          hwid: user.hwid || '',
+          command: 'reset_account',
+          payload: { clear_all: true, reason: 'Yönetici hesap verilerini sıfırladı.' },
+          reason: 'Admin veri temizleme',
+          created_by: req.session?.user?.username || 'admin'
+        });
+      } catch (cmdErr) {
+        console.warn('Dispatch reset command warning:', cmdErr.message);
+      }
+
+      await recordActivityLog({
+        user: req.session.user,
+        action: 'ADMIN_CLEAR_USER_DATA',
+        details: `Kullanıcı verileri temizlendi: ${user.username || user.email} (${user.id})`
+      });
+
+      res.json({ ok: true, message: 'Kullanıcıya ait oturum, cihaz ve eklenti verileri veritabanından temizlendi.' });
+    } catch (error) {
+      console.error('clear-data error:', error);
+      res.status(500).json({ ok: false, message: 'Kullanıcı verileri temizlenemedi.' });
+    }
+  });
+
   app.post('/api/admin/users/:id/delete', requireAdmin, async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -7473,6 +7766,9 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
       if (!data.tokens) data.tokens = [];
       data.tokens.push(newToken);
       await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
+      if (useDatabase && pool) {
+        saveTokenToDb(newToken).catch(() => {});
+      }
       res.json({ ok: true, token: newToken });
     } catch (err) {
       res.status(500).json({ ok: false, message: 'Token olusturulamadi.' });
@@ -7535,6 +7831,23 @@ app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
 // IN-MEMORY RATE LIMITER & SECURE DEPOTBOX PROXY
 // ==========================================
 const ipRateLimits = new Map();
+
+// Periodic sweep to prevent memory leak from unpurged IP and token maps
+setInterval(() => {
+  try {
+    const now = Date.now();
+    if (typeof ipRateLimits !== 'undefined') {
+      for (const [k, v] of ipRateLimits.entries()) {
+        if (now - (v.startTime || 0) > 120000) ipRateLimits.delete(k);
+      }
+    }
+    if (typeof tokenLoginFailedMap !== 'undefined') {
+      for (const [k, v] of tokenLoginFailedMap.entries()) {
+        if (!v.lockedUntil || v.lockedUntil < now) tokenLoginFailedMap.delete(k);
+      }
+    }
+  } catch (e) {}
+}, 60000);
 function checkRateLimit(ip, endpoint, maxHits, windowMs) {
   const key = `${ip || 'unknown'}:${endpoint}`;
   const now = Date.now();
@@ -7602,6 +7915,113 @@ app.get('/api/plugin/get-lua', async (req, res) => {
 // ==========================================
 // MARIFETSTORE GAME FIXES & BYPASSES API
 // ==========================================
+
+// ==========================================
+// DISCORD MANIFEST BOT HIGH-SPEED PROXY (First Priority)
+// ==========================================
+app.get('/api/discord-manifest', async (req, res) => {
+  const appid = String(req.query.appid || '').trim();
+  if (!appid || !/^\d+$/.test(appid)) {
+    return res.status(400).json({ ok: false, message: 'Gecersiz AppID.' });
+  }
+
+  // 0. Cache Check (Fast-path 1ms)
+  const cacheDir = path.join(__dirname, 'storage', 'discord_manifests');
+  if (!fs.existsSync(cacheDir)) {
+    try { fs.mkdirSync(cacheDir, { recursive: true }); } catch (e) {}
+  }
+  const cachedFile = path.join(cacheDir, `${appid}.zip`);
+  if (fs.existsSync(cachedFile)) {
+    try {
+      const stat = fs.statSync(cachedFile);
+      if (stat.size > 200) {
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${appid}.zip"`);
+        res.setHeader('X-Source', 'discord-bot-cache');
+        return res.send(fs.readFileSync(cachedFile));
+      }
+    } catch (e) {}
+  }
+
+  const token = process.env.DISCORD_BOT_TOKEN || Buffer.from('T1RJeU1UUTROalEzT0RNNE16RTBOVE0yLkdPeGFZLS5kTmJ3SjRaVkFFTWVDRWhlT1ZheEVwZ3M4SXJJUXZtSnlwMzdJ', 'base64').toString('utf8');
+  const channelId = '1473153351578419276';
+  const headers = {
+    'Authorization': token,
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+  };
+
+  try {
+    const postRes = await fetch(`https://discord.com/api/v9/channels/${channelId}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ content: appid }),
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!postRes.ok) {
+      return res.status(502).json({ ok: false, message: 'Discord botuna ulasilamadi.' });
+    }
+
+    const startTime = Date.now();
+    let zipUrl = null;
+
+    while (Date.now() - startTime < 14000) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const msgRes = await fetch(`https://discord.com/api/v9/channels/${channelId}/messages?limit=6`, {
+        headers,
+        signal: AbortSignal.timeout(4000)
+      });
+      if (msgRes.ok) {
+        const msgs = await msgRes.json();
+        for (const msg of msgs) {
+          for (const att of (msg.attachments || [])) {
+            if (att.filename && att.filename.endsWith('.zip') && att.filename.includes(appid)) {
+              zipUrl = att.url;
+              break;
+            }
+          }
+          if (zipUrl) break;
+
+          for (const comp of (msg.components || [])) {
+            for (const sub of (comp.components || [])) {
+              const file = sub.file;
+              const fName = String(sub.name || (file && file.url ? file.url.split('?')[0].split('/').pop() : '') || '');
+              if (file && file.url && fName.endsWith('.zip') && fName.includes(appid)) {
+                zipUrl = file.url;
+                break;
+              }
+            }
+            if (zipUrl) break;
+          }
+          if (zipUrl) break;
+        }
+      }
+      if (zipUrl) break;
+    }
+
+    if (!zipUrl) {
+      return res.status(404).json({ ok: false, message: 'Discord botunda manifest bulunamadi.' });
+    }
+
+    const cdnRes = await fetch(zipUrl, { signal: AbortSignal.timeout(25000) });
+    if (!cdnRes.ok) {
+      return res.status(502).json({ ok: false, message: 'Discord CDN dosya alinamadi.' });
+    }
+
+    const zipBuffer = await cdnRes.arrayBuffer();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${appid}.zip"`);
+    try { fs.writeFileSync(cachedFile, Buffer.from(zipBuffer)); } catch(e) {}
+    res.setHeader('X-Source', 'discord-bot-kyron');
+    return res.send(Buffer.from(zipBuffer));
+  } catch (err) {
+    console.error('discord-manifest proxy error:', err.message);
+    return res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+
 const FIXES_STORAGE_DIR = path.join(__dirname, 'storage', 'fixes');
 const FIXES_META_FILE = path.join(__dirname, 'storage', 'fixes_meta.json');
 
@@ -7717,6 +8137,38 @@ function clearTokenLoginFailed(identifier) {
   if (identifier) tokenLoginFailedMap.delete(identifier);
 }
 
+
+async function getUserActiveLicense(usernameOrEmail) {
+  if (!usernameOrEmail) return null;
+  const clean = String(usernameOrEmail).trim().toLowerCase();
+  
+  let tokens = [];
+  if (useDatabase && pool) {
+    try {
+      tokens = await loadTokensFromDb();
+    } catch (_) {}
+  }
+  if (!tokens || tokens.length === 0) {
+    const disk = readTokensFile();
+    tokens = disk.tokens || [];
+  }
+  
+  // Find token bound to this user
+  const found = tokens.find(t => 
+    t && t.used && t.username && 
+    (t.username.toLowerCase().trim() === clean) &&
+    !t.frozen
+  );
+  
+  if (found) {
+    if (found.expires_at && new Date(found.expires_at) < new Date()) {
+      return null;
+    }
+    return found;
+  }
+  return null;
+}
+
 app.post('/api/plugin/token-login', async (req, res) => {
     try {
       if (marifetStoreConfig.maintenance_mode) {
@@ -7802,22 +8254,38 @@ app.post('/api/plugin/token-login', async (req, res) => {
       }
 
       if (tokenObj.used) {
-        // Zaten kullanilmis, HWID kontrol et
-        if (tokenObj.used_by_hwid !== hwid) {
-          return res.status(403).json({ ok: false, message: 'Bu token baska bir cihaza kilitlenmis!' });
-        }
+        const isOwnerAccount = Boolean(
+          tokenObj.username && rawUser && 
+          (tokenObj.username.toLowerCase().trim() === rawUser.toLowerCase().trim())
+        );
 
         // Kullanıcı Adı Kilidi Kontrolü: Kayıtlı kullanıcı adından farklıysa reddet
-        if (tokenObj.username && rawUser && tokenObj.username.toLowerCase() !== rawUser.toLowerCase()) {
+        if (tokenObj.username && rawUser && !isOwnerAccount) {
           return res.status(403).json({ 
             ok: false, 
-            message: `Bu lisans "${tokenObj.username}" kullanıcı adına kilitlidir! Lütfen doğru kullanıcı adını girin.` 
+            message: `Bu lisans "${tokenObj.username}" kullanıcı adına kilitlidir! Başka bir hesap kullanamaz.` 
           });
         }
-        
+
+        // HWID Kilidi: Hesap sahibi ise HWID'sini sahibinin yeni cihazına güvenle güncelle ve geçir
+        if (tokenObj.used_by_hwid && tokenObj.used_by_hwid !== hwid) {
+          if (isOwnerAccount) {
+            console.log(`[TOKEN_REBIND] Token ${tokenObj.token} sahibi ${rawUser} için HWID güncellendi: ${tokenObj.used_by_hwid} -> ${hwid}`);
+            tokenObj.used_by_hwid = hwid;
+          } else {
+            return res.status(403).json({ ok: false, message: 'Bu token başka bir cihaza kilitlenmiş!' });
+          }
+        } else if (!tokenObj.used_by_hwid && hwid) {
+          tokenObj.used_by_hwid = hwid;
+        }
+
+        if (rawUser && !tokenObj.username) {
+          tokenObj.username = rawUser;
+        }
+
         // Suresi dolmus mu kontrol et
         if (tokenObj.expires_at && new Date(tokenObj.expires_at) < now) {
-          return res.status(403).json({ ok: false, message: 'Token suresi dolmus!' });
+          return res.status(403).json({ ok: false, message: 'Token süresi dolmuş!' });
         }
         
         await saveCloudJson(CLOUD_STORAGE_IDS.tokens, 'tokens', data);
